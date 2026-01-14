@@ -68,6 +68,10 @@ function doGet(e) {
     } else if (params.type === 'loadSpecialShifts') {
       // 特別シフトデータの読み込み
       responseData = loadSpecialShifts(spreadsheet);
+    } else if (params.type === 'getAllUsers') {
+      // 全ユーザーデータの取得（移行用）
+      const allUsers = getAllUsers(spreadsheet);
+      responseData = {success: true, data: allUsers};
     } else {
       responseData = {success: false, error: 'Invalid request'};
     }
@@ -1867,6 +1871,60 @@ function processShiftSubmission(spreadsheet, data) {
       success: false,
       error: error.toString()
     };
+  }
+}
+
+// 全ユーザーデータを取得する関数（移行用）
+function getAllUsers(spreadsheet) {
+  try {
+    const userSheet = spreadsheet.getSheetByName('ユーザー');
+
+    if (!userSheet) {
+      Logger.log('「ユーザー」シートが見つかりません');
+      return [];
+    }
+
+    const data = userSheet.getDataRange().getValues();
+
+    if (data.length <= 1) {
+      Logger.log('ユーザーデータがありません');
+      return [];
+    }
+
+    // ヘッダー行をスキップしてユーザーデータを変換
+    const users = [];
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+
+      // タイムスタンプの変換
+      let createdAt = '';
+      try {
+        if (row[0] instanceof Date) {
+          createdAt = Utilities.formatDate(row[0], Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+        } else if (row[0]) {
+          createdAt = row[0].toString();
+        }
+      } catch (e) {
+        Logger.log('タイムスタンプの変換エラー: ' + e.toString());
+      }
+
+      users.push({
+        timestamp: createdAt,           // A列: タイムスタンプ
+        userId: row[1] || '',            // B列: ユーザーID
+        name: row[2] || '',              // C列: 名前
+        email: row[3] || '',             // D列: メールアドレス
+        picture: row[4] || '',           // E列: プロフィール画像URL
+        nickname: row[5] || '',          // F列: ニックネーム
+        realName: row[6] || ''           // G列: 本名
+      });
+    }
+
+    Logger.log(users.length + '件のユーザーデータを取得しました');
+    return users;
+
+  } catch (error) {
+    Logger.log('全ユーザーデータの取得に失敗しました: ' + error.toString());
+    return [];
   }
 }
 
