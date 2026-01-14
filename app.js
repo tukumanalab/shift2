@@ -29,8 +29,8 @@ function getDisplayName(nickname, realName, fallbackName = null) {
 function getCurrentUserDisplayName() {
     if (currentUserProfile) {
         return getDisplayName(
-            currentUserProfile.nickname, 
-            currentUserProfile.realName, 
+            currentUserProfile.nickname,
+            currentUserProfile.real_name || currentUserProfile.realName,
             currentUser ? currentUser.name : null
         );
     }
@@ -167,24 +167,24 @@ async function loadUserProfile() {
     if (!currentUser) {
         return;
     }
-    
+
     try {
-        const result = await jsonpRequest(GOOGLE_APPS_SCRIPT_URL, {
-            type: 'getUserProfile',
-            userId: currentUser.sub
-        });
-        
+        const response = await fetch(`${config.API_BASE_URL}/users/${currentUser.sub}/profile`);
+        const result = await response.json();
+
         if (result.success && result.data) {
             currentUserProfile = result.data;
             console.log('ユーザープロフィールをキャッシュに保存しました:', currentUserProfile);
-            
+
             // ヘッダーの表示名を更新
             updateHeaderDisplayName();
+        } else {
+            console.error('ユーザープロフィールの取得エラー:', result.error);
         }
     } catch (error) {
         console.error('ユーザープロフィールの取得に失敗:', error);
     }
-    
+
     // プロフィール入力状況をチェック
     checkProfileCompleteness();
 }
@@ -380,6 +380,8 @@ function switchToTab(tabName) {
         loadShiftRequestForm();
     } else if (tabName === 'settings') {
         loadSettings();
+    } else if (tabName === 'user-list') {
+        loadUserList();
     }
 }
 
@@ -1650,7 +1652,7 @@ async function saveCapacityToSpreadsheet(capacityData) {
 function updateTabVisibility() {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
-    const adminTabs = ['shift-list', 'capacity-settings'];
+    const adminTabs = ['shift-list', 'capacity-settings', 'user-list'];
     const userTabs = ['shift-request', 'my-shifts', 'settings'];  // シフト申請を最初に配置
     
     // まず全てのタブボタンとコンテンツをリセット
@@ -2150,31 +2152,37 @@ async function saveSettings() {
     submitBtn.textContent = '保存中...';
     
     try {
-        // スプレッドシートにユーザー情報を更新
-        const result = await jsonpRequest(GOOGLE_APPS_SCRIPT_URL, {
-            type: 'updateUserProfile',
-            userId: currentUser.sub,
-            nickname: nickname,
-            realName: realName
+        // SQLiteにユーザー情報を更新
+        const response = await fetch(`${config.API_BASE_URL}/users/${currentUser.sub}/profile`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                nickname: nickname,
+                realName: realName
+            })
         });
-        
+
+        const result = await response.json();
+
         if (result.success) {
             // キャッシュを更新
             currentUserProfile = {
-                realName: realName,
+                real_name: realName,
                 nickname: nickname
             };
-            
+
             // ローカルストレージにも保存
             localStorage.setItem('userRealName', realName);
             localStorage.setItem('userNickname', nickname);
-            
+
             alert('設定を保存しました');
             console.log('設定を保存:', { realName, nickname });
-            
+
             // ヘッダーの表示名を更新
             updateHeaderDisplayName();
-            
+
             // プロフィール入力状況を再チェック
             checkProfileCompleteness();
         } else {
@@ -2194,11 +2202,12 @@ function loadSettings() {
     // フィールドを初期化
     document.getElementById('realName').value = '';
     document.getElementById('nickname').value = '';
-    
+
     // キャッシュされたプロフィールデータを使用
     if (currentUserProfile) {
-        if (currentUserProfile.realName) {
-            document.getElementById('realName').value = currentUserProfile.realName;
+        const realName = currentUserProfile.real_name || currentUserProfile.realName;
+        if (realName) {
+            document.getElementById('realName').value = realName;
         }
         if (currentUserProfile.nickname) {
             document.getElementById('nickname').value = currentUserProfile.nickname;
@@ -2207,7 +2216,7 @@ function loadSettings() {
         // キャッシュがない場合はローカルストレージから読み込み
         const realName = localStorage.getItem('userRealName');
         const nickname = localStorage.getItem('userNickname');
-        
+
         if (realName) {
             document.getElementById('realName').value = realName;
         }
@@ -2222,10 +2231,11 @@ function checkProfileCompleteness() {
     if (!currentUser || isAdminUser) {
         return; // 管理者は通知不要
     }
-    
-    const hasRealName = currentUserProfile && currentUserProfile.realName && currentUserProfile.realName.trim() !== '';
+
+    const realName = currentUserProfile && (currentUserProfile.real_name || currentUserProfile.realName);
+    const hasRealName = realName && realName.trim() !== '';
     const hasNickname = currentUserProfile && currentUserProfile.nickname && currentUserProfile.nickname.trim() !== '';
-    
+
     // 本名またはニックネームのいずれかが未入力の場合に通知を表示
     if (!hasRealName || !hasNickname) {
         showProfileNotification();
@@ -2270,30 +2280,33 @@ async function saveUserToSpreadsheet(userData) {
     if (!userData) {
         return;
     }
-    
+
     try {
-        console.log('ユーザー情報をスプレッドシートに保存中...');
-        
+        console.log('ユーザー情報をSQLiteに保存中...');
+
         const userInfo = {
-            type: 'saveUser',
             sub: userData.sub,
             name: userData.name,
             email: userData.email,
-            picture: userData.picture,
-            isAdmin: isAdminUser
+            picture: userData.picture
         };
-        
-        await fetch(GOOGLE_APPS_SCRIPT_URL, {
+
+        const response = await fetch(`${config.API_BASE_URL}/users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            mode: 'no-cors',
             body: JSON.stringify(userInfo)
         });
-        
-        console.log('ユーザー情報を保存しました');
-        
+
+        const result = await response.json();
+
+        if (result.success) {
+            console.log('ユーザー情報を保存しました:', result.data);
+        } else {
+            console.error('ユーザー情報の保存エラー:', result.error);
+        }
+
     } catch (error) {
         console.error('ユーザー情報の保存に失敗しました:', error);
         // エラーが発生してもアプリケーションの動作は継続
@@ -3784,4 +3797,223 @@ function refreshAllSpecialShiftsDisplay() {
     });
     
     console.log('=== refreshAllSpecialShiftsDisplay 完了 ===');
+}
+
+// ========================================
+// ユーザー一覧機能
+// ========================================
+
+/**
+ * ユーザー一覧を読み込んで表示
+ */
+async function loadUserList() {
+    const userListContent = document.getElementById('userListContent');
+
+    if (!userListContent) {
+        console.error('userListContent element not found');
+        return;
+    }
+
+    // ローディング表示
+    userListContent.innerHTML = `
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">ユーザー一覧を読み込み中...</div>
+        </div>
+    `;
+
+    try {
+        // バックエンドAPIからユーザー一覧を取得
+        const response = await fetch(`${config.API_BASE_URL}/users`);
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'ユーザー一覧の取得に失敗しました');
+        }
+
+        const users = result.data || [];
+
+        // ユーザー一覧を表示
+        displayUserList(users);
+
+    } catch (error) {
+        console.error('ユーザー一覧の読み込みエラー:', error);
+        userListContent.innerHTML = `
+            <div class="error-message">
+                <p>ユーザー一覧の読み込みに失敗しました</p>
+                <p style="font-size: 14px; color: #666;">${error.message}</p>
+                <button onclick="loadUserList()" class="retry-btn">再試行</button>
+            </div>
+        `;
+    }
+}
+
+/**
+ * ユーザー一覧を表示
+ */
+function displayUserList(users) {
+    const userListContent = document.getElementById('userListContent');
+
+    if (!userListContent) {
+        return;
+    }
+
+    if (!users || users.length === 0) {
+        userListContent.innerHTML = `
+            <div class="user-list-container">
+                <p style="text-align: center; color: #666; padding: 40px;">
+                    登録されているユーザーはいません
+                </p>
+            </div>
+        `;
+        return;
+    }
+
+    // テーブルを生成
+    const tableHTML = `
+        <div class="user-list-container">
+            <h2 style="margin-bottom: 20px;">ユーザー一覧（${users.length}人）</h2>
+            <table class="user-list-table">
+                <thead>
+                    <tr>
+                        <th>プロフィール</th>
+                        <th>ニックネーム</th>
+                        <th>本名</th>
+                        <th>メールアドレス</th>
+                        <th>登録日時</th>
+                        <th>最終更新</th>
+                        <th style="width: 100px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${users.map(user => `
+                        <tr data-user-id="${escapeHtml(user.user_id)}">
+                            <td>
+                                <div class="user-name-cell">
+                                    ${user.picture ? `<img src="${user.picture}" alt="${user.name}" class="user-avatar">` : ''}
+                                    <span>${escapeHtml(user.name)}</span>
+                                </div>
+                            </td>
+                            <td>${escapeHtml(user.nickname || '-')}</td>
+                            <td>${escapeHtml(user.real_name || '-')}</td>
+                            <td>${escapeHtml(user.email)}</td>
+                            <td>${formatDateTime(user.created_at)}</td>
+                            <td>${formatDateTime(user.updated_at)}</td>
+                            <td>
+                                <button class="delete-user-btn" data-user-id="${escapeHtml(user.user_id)}" data-user-email="${escapeHtml(user.email)}">
+                                    削除
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    userListContent.innerHTML = tableHTML;
+
+    // 削除ボタンのイベントリスナーを設定
+    const deleteButtons = userListContent.querySelectorAll('.delete-user-btn');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', handleDeleteUser);
+    });
+}
+
+/**
+ * HTMLエスケープ
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * 日時をフォーマット
+ */
+function formatDateTime(dateString) {
+    if (!dateString) return '-';
+
+    try {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        return `${year}/${month}/${day} ${hours}:${minutes}`;
+    } catch (error) {
+        return dateString;
+    }
+}
+
+/**
+ * ユーザー削除ハンドラ
+ */
+async function handleDeleteUser(event) {
+    const button = event.target;
+    const userId = button.getAttribute('data-user-id');
+    const userEmail = button.getAttribute('data-user-email');
+
+    if (!userId) {
+        alert('ユーザーIDが見つかりません');
+        return;
+    }
+
+    // 確認ダイアログ
+    const confirmMessage = `本当にこのユーザーを削除しますか？\n\nメール: ${userEmail}\n\nこの操作は取り消せません。`;
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    // ボタンを無効化
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = '削除中...';
+
+    try {
+        const response = await fetch(`${config.API_BASE_URL}/users/${userId}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('ユーザーを削除しました');
+
+            // 行を削除（アニメーション効果付き）
+            const row = button.closest('tr');
+            if (row) {
+                row.style.opacity = '0';
+                row.style.transition = 'opacity 0.3s';
+                setTimeout(() => {
+                    row.remove();
+
+                    // ユーザー数を更新
+                    const h2 = document.querySelector('#userListContent h2');
+                    if (h2) {
+                        const currentCount = document.querySelectorAll('.user-list-table tbody tr').length;
+                        h2.textContent = `ユーザー一覧（${currentCount}人）`;
+                    }
+
+                    // テーブルが空になった場合
+                    if (currentCount === 0) {
+                        loadUserList();
+                    }
+                }, 300);
+            }
+        } else {
+            alert('ユーザーの削除に失敗しました: ' + (result.error || '不明なエラー'));
+            button.disabled = false;
+            button.textContent = originalText;
+        }
+    } catch (error) {
+        console.error('ユーザー削除エラー:', error);
+        alert('ユーザーの削除に失敗しました');
+        button.disabled = false;
+        button.textContent = originalText;
+    }
 }

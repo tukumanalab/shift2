@@ -8,7 +8,7 @@ This is a simple Japanese Google Login web application demonstrating OAuth2 auth
 
 ## Development Commands
 
-### Running the Application
+### Running the Frontend
 Start a local development server using one of these commands:
 
 ```bash
@@ -27,11 +27,27 @@ php -S localhost:8081
 
 Access the application at `http://localhost:8081`
 
+### Running the Backend (Express + TypeScript)
+
+Start the backend API server:
+
+```bash
+# Development mode with hot reload
+npm run dev:server
+
+# Production build
+npm run build
+npm start
+```
+
+Access the API at `http://localhost:3000`
+
 ### File Serving Requirements
 - Must run on localhost or HTTPS (Google OAuth requirement)
-- Port 8081 is configured in Google Cloud Console settings
+- Frontend port 8081 is configured in Google Cloud Console settings
+- Backend port 3000 (configurable via .env)
 
-### Google Apps Script Deployment
+### Google Apps Script Deployment (Legacy)
 Deploy the backend Google Apps Script code using:
 
 ```bash
@@ -39,6 +55,8 @@ npm run deploy:gas
 ```
 
 This command automatically updates the Google Apps Script project with the latest code from `gas/google-apps-script.js`.
+
+**Note**: User management has been migrated to Express + TypeScript backend with SQLite database.
 
 ## Current Specifications
 
@@ -81,19 +99,42 @@ This is a Japanese shift management web application with Google OAuth authentica
 - **Responsive Design**: Works on desktop and mobile devices
 - **Real-time UI Updates**: Immediate feedback on capacity and availability changes
 
-#### Backend (Google Apps Script)
-- **RESTful API**: Handles GET/POST requests for data operations
-- **Spreadsheet Integration**: Direct integration with Google Sheets for data persistence
+#### Backend Architecture (Hybrid)
+
+**Express + TypeScript Backend (New)**:
+- **Framework**: Express.js with TypeScript
+- **Database**: SQLite (better-sqlite3)
+- **User Management API**: RESTful endpoints for user operations
+- **Hot Reload**: Nodemon for development
+- **Type Safety**: Full TypeScript support
+
+**Google Apps Script Backend (Legacy)**:
+- **RESTful API**: Handles GET/POST requests for shift and capacity operations
+- **Spreadsheet Integration**: Direct integration with Google Sheets for shift data
 - **Calendar Sync**: Automatic event creation in Google Calendar
 - **Property Service**: Secure storage of configuration settings
 
+**Migration Status**:
+- ✅ User Management: Migrated to Express + TypeScript + SQLite
+- ⏳ Shift Management: Still using Google Apps Script
+- ⏳ Capacity Management: Still using Google Apps Script
+- ⏳ Calendar Integration: Still using Google Apps Script
+
 #### Data Structure
-**Spreadsheet Sheets**:
+
+**SQLite Database (New - for User Management)**:
+- **users**: User registration data
+  - Columns: id, user_id, name, email, picture, nickname, real_name, created_at, updated_at
+  - Primary Key: id (auto-increment)
+  - Unique Index: user_id
+  - Indexes: user_id, email
+
+**Spreadsheet Sheets (Legacy - for Shifts and Capacity)**:
 1. **シフト (Shifts)**: Individual shift applications
    - Columns: Timestamp, UserID, UserName, Email, Date, TimeSlot, Content
-2. **人数設定 (Capacity)**: Daily capacity settings  
+2. **人数設定 (Capacity)**: Daily capacity settings
    - Columns: Timestamp, Date, Capacity, UpdaterID, UpdaterName
-3. **ユーザー (Users)**: User registration data
+3. **ユーザー (Users)**: User registration data (**DEPRECATED - migrated to SQLite**)
    - Columns: Timestamp, UserID, Name, Email, ProfileImageURL
 
 ### Key Algorithms
@@ -169,3 +210,32 @@ Two main UI states managed through CSS classes:
 - Google OAuth tokens are processed client-side only
 - No server-side validation or session management
 - Suitable for development/educational purposes only
+
+## Development Workflow
+
+### Creating Pull Requests
+
+When creating a pull request, follow these guidelines:
+
+1. **Code Simplification**: Always use `code-simplifier` to simplify and optimize code before creating a PR
+   ```bash
+   # Run code-simplifier on modified files
+   npx code-simplifier <file-path>
+   ```
+
+2. **Commit Guidelines**:
+   - Write clear, descriptive commit messages in Japanese
+   - Include co-authorship for AI-assisted development:
+     ```
+     Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+     ```
+
+3. **PR Description**:
+   - Summarize changes in Japanese
+   - Include before/after screenshots for UI changes
+   - List any breaking changes or migration steps required
+
+4. **Testing**:
+   - Test both frontend and backend changes locally
+   - Verify that existing functionality still works
+   - For database migrations, test the migration script before merging

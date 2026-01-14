@@ -1093,6 +1093,61 @@
         .notification-btn:hover {
             background-color: #e67e22;
         }
+        .user-list-container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .user-list-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .user-list-table th {
+            background: #4285f4;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 500;
+        }
+        .user-list-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .user-list-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .user-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .delete-user-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background-color 0.2s;
+        }
+        .delete-user-btn:hover {
+            background-color: #c82333;
+        }
+        .delete-user-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
         .settings-container {
             padding: 20px;
             max-width: 600px;
@@ -1986,6 +2041,7 @@
             <div class="tabs">
                 <button class="tab-button active" data-tab="shift-list" style="display: none;">シフト一覧</button>
                 <button class="tab-button" data-tab="capacity-settings" style="display: none;">シフト人数&メモ設定</button>
+                <button class="tab-button" data-tab="user-list" style="display: none;">ユーザー一覧</button>
                 <button class="tab-button" data-tab="shift-request" style="display: none;">シフト申請</button>
                 <button class="tab-button" data-tab="my-shifts" style="display: none;">自分のシフト一覧</button>
                 <button class="tab-button" data-tab="settings" style="display: none;">設定</button>
@@ -2029,6 +2085,12 @@
             <div id="shift-request" class="tab-content">
                 <div id="shiftRequestContent">
                     <!-- シフト申請フォームが動的に生成されます -->
+                </div>
+            </div>
+
+            <div id="user-list" class="tab-content">
+                <div id="userListContent">
+                    <!-- ユーザー一覧が動的に生成されます -->
                 </div>
             </div>
 
