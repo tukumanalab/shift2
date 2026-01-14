@@ -37,6 +37,20 @@ db.exec(`
   )
 `);
 
+// 人数設定テーブルの作成
+db.exec(`
+  CREATE TABLE IF NOT EXISTS capacity_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT UNIQUE NOT NULL,
+    capacity INTEGER NOT NULL DEFAULT 0,
+    memo TEXT,
+    user_id TEXT,
+    user_name TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 // インデックスを作成（検索パフォーマンスのため）
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id);
@@ -44,6 +58,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_special_shifts_uuid ON special_shifts(uuid);
   CREATE INDEX IF NOT EXISTS idx_special_shifts_date ON special_shifts(date);
   CREATE INDEX IF NOT EXISTS idx_special_shifts_user_id ON special_shifts(user_id);
+  CREATE INDEX IF NOT EXISTS idx_capacity_settings_date ON capacity_settings(date);
 `);
 
 export default db;

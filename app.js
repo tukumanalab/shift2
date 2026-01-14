@@ -424,12 +424,11 @@ async function loadAllShiftsToCache() {
 // 管理者用：人数設定データをキャッシュに読み込む
 async function loadCapacityToCache() {
     console.log('管理者モード: 人数設定データをキャッシュに読み込み中...');
-    
+
     try {
-        const result = await jsonpRequest(GOOGLE_APPS_SCRIPT_URL, {
-            type: 'loadCapacity'
-        });
-        
+        const response = await fetch(`${config.API_BASE_URL}/capacity-settings`);
+        const result = await response.json();
+
         if (result.success) {
             capacityCache = result.data || [];
             window.capacityData = capacityCache; // 既存コードとの互換性のため
@@ -1623,30 +1622,39 @@ function collectCapacityData() {
 
 async function saveCapacityToSpreadsheet(capacityData) {
     try {
-        
-        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+        // 人数設定データをAPI用の形式に変換
+        const settings = capacityData.map(item => ({
+            date: item.date,
+            capacity: item.capacity,
+            memo: item.memo || '',
+            user_id: item.userId || currentUser?.sub,
+            user_name: item.userName || currentUser?.name
+        }));
+
+        const response = await fetch(`${config.API_BASE_URL}/capacity-settings/bulk`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            mode: 'no-cors',
-            body: JSON.stringify({
-                type: 'capacity',
-                data: capacityData
-            })
+            body: JSON.stringify({ settings })
         });
-        
-        
-        // no-corsモードでは成功かどうか判断できないため、少し待ってからキャッシュを更新
-        setTimeout(async () => {
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(`${result.data.success}件の人数設定を保存しました`);
+
+            // キャッシュをクリアして再読み込み
             if (isAdminUser) {
                 capacityCache = null;
                 await loadCapacityToCache();
             }
-        }, 2000);
-        
+        } else {
+            throw new Error(result.error || '保存に失敗しました');
+        }
+
     } catch (error) {
-        console.error('スプレッドシートへの保存に失敗しました:', error);
+        console.error('人数設定の保存に失敗しました:', error);
         throw error;
     }
 }
@@ -3569,24 +3577,26 @@ function displaySpecialShiftsForDate(dateKey, container) {
         return timeString;
     }
     
-    // 時刻順でソート
+    // 時刻順でソート（snake_caseとcamelCaseの両方に対応）
     shiftsForDate.sort((a, b) => {
-        return a.startTime.localeCompare(b.startTime);
+        const aStartTime = a.start_time || a.startTime;
+        const bStartTime = b.start_time || b.startTime;
+        return aStartTime.localeCompare(bStartTime);
     });
-    
+
     // 各特別シフトを表示
     shiftsForDate.forEach(shift => {
         console.log('Processing shift:', shift);
-        
+
         const shiftItem = document.createElement('div');
         shiftItem.className = 'special-shift-item';
-        
+
         const timeSpan = document.createElement('span');
         timeSpan.className = 'special-shift-time';
-        
-        // 時間をJSTに変換
-        const startTime = convertToJST(shift.startTime);
-        const endTime = convertToJST(shift.endTime);
+
+        // 時間をJSTに変換（snake_caseとcamelCaseの両方に対応）
+        const startTime = convertToJST(shift.start_time || shift.startTime);
+        const endTime = convertToJST(shift.end_time || shift.endTime);
         
         console.log('JST times - start:', startTime, 'end:', endTime);
         
