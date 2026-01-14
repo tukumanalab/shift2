@@ -13,6 +13,7 @@
     "deploy:gas": "cd gas && ./deploy.sh",
     "migrate:users": "ts-node server/scripts/migrate-users.ts",
     "migrate:special-shifts": "ts-node server/scripts/migrate-special-shifts.ts",
+    "migrate:capacity-settings": "ts-node server/scripts/migrate-capacity-settings.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
