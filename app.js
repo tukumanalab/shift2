@@ -382,6 +382,8 @@ function switchToTab(tabName) {
         loadSettings();
     } else if (tabName === 'user-list') {
         loadUserList();
+    } else if (tabName === 'special-shift-list') {
+        loadSpecialShiftList();
     }
 }
 
@@ -1652,7 +1654,7 @@ async function saveCapacityToSpreadsheet(capacityData) {
 function updateTabVisibility() {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
-    const adminTabs = ['shift-list', 'capacity-settings', 'user-list'];
+    const adminTabs = ['shift-list', 'capacity-settings', 'user-list', 'special-shift-list'];
     const userTabs = ['shift-request', 'my-shifts', 'settings'];  // シフト申請を最初に配置
     
     // まず全てのタブボタンとコンテンツをリセット
@@ -3381,45 +3383,42 @@ async function submitSpecialShift() {
             }
             return;
         }
-        
+
         const requestData = {
-            type: 'addSpecialShift',
             date: date,
-            startTime: startTime,
-            endTime: endTime,
-            updaterId: userData.sub,
-            updaterName: userData.name || userData.email
+            start_time: startTime,
+            end_time: endTime,
+            user_id: userData.sub,
+            user_name: userData.name || userData.email
         };
-        
-        await fetch(GOOGLE_APPS_SCRIPT_URL, {
+
+        const response = await fetch(`${config.API_BASE_URL}/special-shifts`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            mode: 'no-cors',
             body: JSON.stringify(requestData)
         });
-        
-        // no-corsモードでは成功かどうか判断できないため、少し待ってから処理を続ける
-        setTimeout(async () => {
-            try {
-                alert('特別シフトが追加されました！');
-                closeSpecialShiftModal();
-                
-                // 特別シフトデータを再読み込み
-                await loadSpecialShifts();
-                
-                // 特別シフト表示を更新
-                refreshAllSpecialShiftsDisplay();
-            } catch (error) {
-                console.error('特別シフト追加後の処理エラー:', error);
-            }
-        }, 1000);
-        
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('特別シフトが追加されました！');
+            closeSpecialShiftModal();
+
+            // 特別シフトデータを再読み込み
+            await loadSpecialShifts();
+
+            // 特別シフト表示を更新
+            refreshAllSpecialShiftsDisplay();
+        } else {
+            throw new Error(result.error || '特別シフトの追加に失敗しました');
+        }
+
     } catch (error) {
         console.error('特別シフト追加エラー:', error);
-        showSpecialShiftError('特別シフトの追加に失敗しました。ネットワークエラーが発生している可能性があります。');
-        
+        showSpecialShiftError(error.message || '特別シフトの追加に失敗しました。ネットワークエラーが発生している可能性があります。');
+
         // エラー時はボタンを復活
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -3442,11 +3441,12 @@ function showSpecialShiftError(message) {
 async function loadSpecialShifts() {
     console.log('=== loadSpecialShifts DEBUG ===');
     console.log('Starting to load special shifts...');
-    
+
     try {
-        const result = await jsonpRequest(GOOGLE_APPS_SCRIPT_URL, { type: 'loadSpecialShifts' });
+        const response = await fetch(`${config.API_BASE_URL}/special-shifts`);
+        const result = await response.json();
         console.log('loadSpecialShifts API response:', result);
-        
+
         if (result.success) {
             // result.dataが配列であることを確認
             if (Array.isArray(result.data)) {
@@ -3462,18 +3462,18 @@ async function loadSpecialShifts() {
             console.error('❌ 特別シフトデータの読み込みに失敗しました:', result.error);
             specialShifts = []; // エラーの場合も空配列に設定
         }
-        
+
     } catch (error) {
         console.error('❌ 特別シフト読み込みエラー:', error);
         specialShifts = []; // エラーの場合も空配列に設定
     }
-    
+
     // 最終確認
     if (!Array.isArray(specialShifts)) {
         console.error('❌ specialShifts is still not an array, forcing to empty array');
         specialShifts = [];
     }
-    
+
     console.log('Final specialShifts type:', typeof specialShifts);
     console.log('Final specialShifts is array:', Array.isArray(specialShifts));
     console.log('Final specialShifts length:', specialShifts.length);
@@ -3733,45 +3733,36 @@ async function deleteSpecialShift(date, startTime, endTime) {
 async function deleteSpecialShiftByUuid(uuid, dateKey, startTime, endTime) {
     console.log('=== deleteSpecialShiftByUuid DEBUG ===');
     console.log('削除対象:', { uuid, dateKey, startTime, endTime });
-    
+
     if (!confirm(`${dateKey} ${startTime}-${endTime} の特別シフトを削除しますか？`)) {
         return;
     }
-    
+
     try {
-        const requestData = {
-            type: 'deleteSpecialShift',
-            uuid: uuid  // UUIDを使用
-        };
-        
-        console.log('削除リクエストデータ:', requestData);
-        
-        await fetch(GOOGLE_APPS_SCRIPT_URL, {
-            method: 'POST',
+        const response = await fetch(`${config.API_BASE_URL}/special-shifts/${uuid}`, {
+            method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
-            },
-            mode: 'no-cors',
-            body: JSON.stringify(requestData)
-        });
-        
-        // 削除後、少し待ってから特別シフトデータを再読み込み
-        setTimeout(async () => {
-            try {
-                await loadSpecialShifts();
-                
-                // 特別シフト表示を更新
-                refreshAllSpecialShiftsDisplay();
-                
-                alert('特別シフトを削除しました！');
-            } catch (error) {
-                console.error('特別シフト削除後の処理エラー:', error);
             }
-        }, 1000);
-        
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // 特別シフトデータを再読み込み
+            await loadSpecialShifts();
+
+            // 特別シフト表示を更新
+            refreshAllSpecialShiftsDisplay();
+
+            alert('特別シフトを削除しました！');
+        } else {
+            throw new Error(result.error || '特別シフトの削除に失敗しました');
+        }
+
     } catch (error) {
         console.error('特別シフト削除エラー:', error);
-        alert('特別シフトの削除に失敗しました。');
+        alert(error.message || '特別シフトの削除に失敗しました。');
     }
 }
 
@@ -4013,6 +4004,190 @@ async function handleDeleteUser(event) {
     } catch (error) {
         console.error('ユーザー削除エラー:', error);
         alert('ユーザーの削除に失敗しました');
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
+
+/**
+ * 特別シフト一覧を読み込み
+ */
+async function loadSpecialShiftList() {
+    const specialShiftListContent = document.getElementById('specialShiftListContent');
+
+    if (!specialShiftListContent) {
+        console.error('specialShiftListContent element not found');
+        return;
+    }
+
+    // ローディング表示
+    specialShiftListContent.innerHTML = `
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">特別シフト一覧を読み込み中...</div>
+        </div>
+    `;
+
+    try {
+        // バックエンドAPIから特別シフト一覧を取得
+        const response = await fetch(`${config.API_BASE_URL}/special-shifts`);
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || '特別シフト一覧の取得に失敗しました');
+        }
+
+        const specialShifts = result.data || [];
+
+        // 特別シフト一覧を表示
+        displaySpecialShiftList(specialShifts);
+
+    } catch (error) {
+        console.error('特別シフト一覧の読み込みエラー:', error);
+        specialShiftListContent.innerHTML = `
+            <div class="error-message">
+                <p>特別シフト一覧の読み込みに失敗しました</p>
+                <p style="font-size: 14px; color: #666;">${error.message}</p>
+                <button onclick="loadSpecialShiftList()" class="retry-btn">再試行</button>
+            </div>
+        `;
+    }
+}
+
+/**
+ * 特別シフト一覧を表示
+ */
+function displaySpecialShiftList(specialShifts) {
+    const specialShiftListContent = document.getElementById('specialShiftListContent');
+
+    if (!specialShiftListContent) {
+        return;
+    }
+
+    if (!specialShifts || specialShifts.length === 0) {
+        specialShiftListContent.innerHTML = `
+            <div class="special-shift-list-container">
+                <p style="text-align: center; color: #666; padding: 40px;">
+                    登録されている特別シフトはありません
+                </p>
+            </div>
+        `;
+        return;
+    }
+
+    // テーブルを生成
+    const tableHTML = `
+        <div class="special-shift-list-container">
+            <h2 style="margin-bottom: 20px;">特別シフト一覧（${specialShifts.length}件）</h2>
+            <table class="special-shift-list-table">
+                <thead>
+                    <tr>
+                        <th>日付</th>
+                        <th>時間帯</th>
+                        <th>登録者</th>
+                        <th>登録日時</th>
+                        <th style="width: 100px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${specialShifts.map(shift => `
+                        <tr data-shift-uuid="${escapeHtml(shift.uuid)}">
+                            <td>${escapeHtml(shift.date)}</td>
+                            <td>${escapeHtml(shift.start_time)} - ${escapeHtml(shift.end_time)}</td>
+                            <td>${escapeHtml(shift.user_name)}</td>
+                            <td>${formatDateTime(shift.created_at)}</td>
+                            <td>
+                                <button class="delete-special-shift-btn"
+                                    data-shift-uuid="${escapeHtml(shift.uuid)}"
+                                    data-shift-date="${escapeHtml(shift.date)}"
+                                    data-shift-time="${escapeHtml(shift.start_time)}-${escapeHtml(shift.end_time)}">
+                                    削除
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    specialShiftListContent.innerHTML = tableHTML;
+
+    // 削除ボタンのイベントリスナーを設定
+    const deleteButtons = specialShiftListContent.querySelectorAll('.delete-special-shift-btn');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', handleDeleteSpecialShiftFromList);
+    });
+}
+
+/**
+ * 特別シフト削除ハンドラ（一覧画面用）
+ */
+async function handleDeleteSpecialShiftFromList(event) {
+    const button = event.target;
+    const uuid = button.getAttribute('data-shift-uuid');
+    const date = button.getAttribute('data-shift-date');
+    const time = button.getAttribute('data-shift-time');
+
+    if (!uuid) {
+        alert('特別シフトのUUIDが見つかりません');
+        return;
+    }
+
+    // 確認ダイアログ
+    const confirmMessage = `本当にこの特別シフトを削除しますか？\n\n日付: ${date}\n時間: ${time}\n\nこの操作は取り消せません。`;
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    // ボタンを無効化
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = '削除中...';
+
+    try {
+        const response = await fetch(`${config.API_BASE_URL}/special-shifts/${uuid}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('特別シフトを削除しました');
+
+            // 行を削除（アニメーション効果付き）
+            const row = button.closest('tr');
+            if (row) {
+                row.style.opacity = '0';
+                row.style.transition = 'opacity 0.3s';
+                setTimeout(() => {
+                    row.remove();
+
+                    // 特別シフト数を更新
+                    const h2 = document.querySelector('#specialShiftListContent h2');
+                    if (h2) {
+                        const currentCount = document.querySelectorAll('.special-shift-list-table tbody tr').length;
+                        h2.textContent = `特別シフト一覧（${currentCount}件）`;
+                    }
+
+                    // テーブルが空になった場合
+                    if (currentCount === 0) {
+                        loadSpecialShiftList();
+                    }
+                }, 300);
+            }
+
+            // グローバルの特別シフトデータも更新
+            await loadSpecialShifts();
+            refreshAllSpecialShiftsDisplay();
+        } else {
+            alert('特別シフトの削除に失敗しました: ' + (result.error || '不明なエラー'));
+            button.disabled = false;
+            button.textContent = originalText;
+        }
+    } catch (error) {
+        console.error('特別シフト削除エラー:', error);
+        alert('特別シフトの削除に失敗しました');
         button.disabled = false;
         button.textContent = originalText;
     }

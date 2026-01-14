@@ -8,44 +8,44 @@ This is a simple Japanese Google Login web application demonstrating OAuth2 auth
 
 ## Development Commands
 
-### Running the Frontend
-Start a local development server using one of these commands:
+### Running the Application
+
+The application uses a unified Express server that serves both the frontend and backend API:
 
 ```bash
-# npm (recommended)
+# Development mode with hot reload (recommended)
 npm run dev
 
-# Node.js with http-server
-npx http-server -p 8081
-
-# Python 3
-python -m http.server 8081
-
-# PHP (if available)
-php -S localhost:8081
-```
-
-Access the application at `http://localhost:8081`
-
-### Running the Backend (Express + TypeScript)
-
-Start the backend API server:
-
-```bash
-# Development mode with hot reload
-npm run dev:server
-
-# Production build
+# Production build and start
 npm run build
 npm start
 ```
 
-Access the API at `http://localhost:3000`
+Access the application at `http://localhost:3000`
+
+The server provides:
+- **Frontend**: Static files (index.html, app.js, config.js, etc.)
+- **Backend API**: RESTful endpoints for users, special shifts, etc.
+- **Database**: SQLite integration
+
+### Alternative: Frontend-only Server
+
+If you need to run just the frontend with a static file server:
+
+```bash
+# Static file server on port 8080
+npm run dev:static
+
+# Or use other tools
+npx http-server -p 8080
+python -m http.server 8080
+```
+
+**Note**: When using a separate frontend server, you'll need to update the API_BASE_URL in config.js accordingly.
 
 ### File Serving Requirements
 - Must run on localhost or HTTPS (Google OAuth requirement)
-- Frontend port 8081 is configured in Google Cloud Console settings
-- Backend port 3000 (configurable via .env)
+- Port 3000 is the default (configurable via .env PORT)
 
 ### Google Apps Script Deployment (Legacy)
 Deploy the backend Google Apps Script code using:

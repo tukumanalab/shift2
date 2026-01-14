@@ -22,10 +22,28 @@ db.exec(`
   )
 `);
 
+// 特別シフトテーブルの作成
+db.exec(`
+  CREATE TABLE IF NOT EXISTS special_shifts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT UNIQUE NOT NULL,
+    date TEXT NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 // インデックスを作成（検索パフォーマンスのため）
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id);
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+  CREATE INDEX IF NOT EXISTS idx_special_shifts_uuid ON special_shifts(uuid);
+  CREATE INDEX IF NOT EXISTS idx_special_shifts_date ON special_shifts(date);
+  CREATE INDEX IF NOT EXISTS idx_special_shifts_user_id ON special_shifts(user_id);
 `);
 
 export default db;

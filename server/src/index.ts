@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import usersRouter from './routes/users';
+import specialShiftsRouter from './routes/specialShifts';
 
 // 環境変数を読み込む
 dotenv.config();
@@ -13,17 +15,24 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// ルーティング
+// APIルーティング（静的ファイルより前に配置）
 app.use('/api/users', usersRouter);
+app.use('/api/special-shifts', specialShiftsRouter);
 
 // ヘルスチェックエンドポイント
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
+// 静的ファイルの提供（プロジェクトルート）
+const staticPath = path.join(__dirname, '../..');
+console.log(`📁 Serving static files from: ${staticPath}`);
+app.use(express.static(staticPath));
+
 // サーバー起動
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  console.log(`🌐 Frontend: http://localhost:${PORT}`);
   console.log(`📊 API endpoints:`);
   console.log(`   - GET    /health`);
   console.log(`   - POST   /api/users`);
@@ -32,6 +41,11 @@ app.listen(PORT, () => {
   console.log(`   - GET    /api/users/:userId/profile`);
   console.log(`   - PUT    /api/users/:userId/profile`);
   console.log(`   - DELETE /api/users/:userId`);
+  console.log(`   - GET    /api/special-shifts`);
+  console.log(`   - GET    /api/special-shifts/:uuid`);
+  console.log(`   - POST   /api/special-shifts`);
+  console.log(`   - DELETE /api/special-shifts/:uuid`);
+  console.log(`   - POST   /api/special-shifts/delete-multiple`);
 });
 
 export default app;
