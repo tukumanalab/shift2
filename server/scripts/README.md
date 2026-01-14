@@ -148,6 +148,97 @@ npm run dev:server
 curl http://localhost:3000/api/users
 ```
 
+## 特別シフトデータの移行
+
+Google SpreadsheetからSQLiteデータベースに特別シフトデータを移行します。
+
+### 移行の実行
+
+以下のコマンドを実行します：
+
+```bash
+npm run migrate:special-shifts
+```
+
+または：
+
+```bash
+npx ts-node server/scripts/migrate-special-shifts.ts
+```
+
+### 実行例
+
+```
+========================================
+  Spreadsheet → SQLite 特別シフト移行
+========================================
+
+📊 Spreadsheetから特別シフトデータを取得中...
+✅ 25件の特別シフトデータを取得しました
+
+📝 25件の特別シフトを処理中...
+
+[1/25] ✅ 追加: 2026-01-15 13:00-14:30 (山田太郎)
+[2/25] ✅ 追加: 2026-01-16 14:00-16:00 (佐藤花子)
+[3/25] ⏭️  スキップ (既に存在): 2026-01-17 15:00-17:30
+...
+
+========================================
+  移行完了
+========================================
+✅ 成功: 22件
+⏭️  スキップ: 3件 (既存)
+❌ エラー: 0件
+========================================
+
+📊 SQLiteに保存されている特別シフト総数: 25件
+```
+
+### データマッピング
+
+| Spreadsheet | SQLite |
+|------------|--------|
+| UUID (A列) | uuid |
+| 日付 (B列) | date |
+| 開始時刻 (C列) | start_time |
+| 終了時刻 (D列) | end_time |
+| 更新者ID (E列) | user_id |
+| 更新者名 (F列) | user_name |
+| 更新日時 (G列) | created_at |
+
+### 注意事項
+
+- **既存データの保護**: 既に同じ`uuid`が存在する場合はスキップされます（上書きはされません）
+- **冪等性**: 何度実行しても安全です（重複挿入されません）
+- **トランザクション**: 各特別シフトは個別に処理されるため、一部が失敗しても他のデータには影響しません
+
+### 手動確認
+
+移行後、データを確認する方法：
+
+```bash
+# 特別シフト数を確認
+sqlite3 data/shift.db "SELECT COUNT(*) FROM special_shifts;"
+
+# 全特別シフトを表示
+sqlite3 data/shift.db "SELECT date, start_time, end_time, user_name FROM special_shifts ORDER BY date, start_time;"
+
+# 特定の日付の特別シフトを検索
+sqlite3 data/shift.db "SELECT * FROM special_shifts WHERE date = '2026-01-15';"
+```
+
+### APIでの確認
+
+バックエンドサーバーを起動して、APIで確認することもできます：
+
+```bash
+# サーバー起動
+npm run dev:server
+
+# 別のターミナルで
+curl http://localhost:3000/api/special-shifts
+```
+
 ## その他の移行スクリプト
 
 将来的に以下のスクリプトも追加予定です：
