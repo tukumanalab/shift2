@@ -211,38 +211,6 @@ async function loadUserShiftsData() {
 
 // シフト一覧を再読み込みする関数（管理者用）
 // 自分のシフト一覧を再読み込みする関数（通常ユーザー用）
-async function reloadMyShifts() {
-    if (!currentUser) {
-        alert('ログインが必要です。');
-        return;
-    }
-    
-    const reloadBtn = document.getElementById('reloadMyShiftsBtn');
-    const originalText = reloadBtn ? reloadBtn.textContent : '更新（リロード）';
-    
-    if (reloadBtn) {
-        reloadBtn.disabled = true;
-        reloadBtn.textContent = '更新中...';
-    }
-    
-    try {
-        // シフト一覧を再読み込み
-        await loadMyShifts();
-
-        // 成功メッセージ
-        alert('シフト一覧を更新しました。');
-        
-    } catch (error) {
-        console.error('自分のシフト一覧の更新でエラー:', error);
-        alert('シフト一覧の更新に失敗しました。再度お試しください。');
-    } finally {
-        if (reloadBtn) {
-            reloadBtn.disabled = false;
-            reloadBtn.textContent = originalText;
-        }
-    }
-}
-
 async function syncAllShiftsToCalendar() {
     if (!currentUser) {
         alert('ログインが必要です。');
