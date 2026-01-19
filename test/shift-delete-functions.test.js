@@ -66,7 +66,7 @@ describe('シフト削除機能テスト', () => {
   describe('deleteMyShift関数の動作パターン', () => {
     test('日付制限: 削除可能性の検証', () => {
       // 日付文字列の形式でテスト
-      const futureDate = '2025-12-31'; // 確実に未来の日付
+      const futureDate = '2030-12-31'; // 確実に未来の日付
       const pastDate = '2020-01-01';   // 確実に過去の日付
 
       const futureShift = {
