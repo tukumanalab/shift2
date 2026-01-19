@@ -362,8 +362,6 @@ function setupTabSwitching() {
     });
 }
 
-// 管理者用：全員のシフトデータをキャッシュに読み込む
-
 
 // 管理者用シフト一覧を表示
 async function displayShiftList() {
@@ -1517,14 +1515,21 @@ function collectCapacityData() {
 
 async function saveCapacityToSpreadsheet(capacityData) {
     try {
+        // 人数設定データをAPI用の形式に変換
+        const settings = capacityData.map(item => ({
+            date: item.date,
+            capacity: item.capacity,
+            memo: item.memo || '',
+            user_id: item.userId || currentUser?.sub,
+            user_name: item.userName || currentUser?.name
+        }));
+
         const response = await fetch(`${config.API_BASE_URL}/capacity-settings/bulk`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                settings: capacityData
-            })
+            body: JSON.stringify({ settings })
         });
 
         const result = await response.json();
@@ -3424,24 +3429,26 @@ function displaySpecialShiftsForDate(dateKey, container) {
         return timeString;
     }
     
-    // 時刻順でソート
+    // 時刻順でソート（snake_caseとcamelCaseの両方に対応）
     shiftsForDate.sort((a, b) => {
-        return a.startTime.localeCompare(b.startTime);
+        const aStartTime = a.start_time || a.startTime;
+        const bStartTime = b.start_time || b.startTime;
+        return aStartTime.localeCompare(bStartTime);
     });
-    
+
     // 各特別シフトを表示
     shiftsForDate.forEach(shift => {
         console.log('Processing shift:', shift);
-        
+
         const shiftItem = document.createElement('div');
         shiftItem.className = 'special-shift-item';
-        
+
         const timeSpan = document.createElement('span');
         timeSpan.className = 'special-shift-time';
-        
-        // 時間をJSTに変換
-        const startTime = convertToJST(shift.startTime);
-        const endTime = convertToJST(shift.endTime);
+
+        // 時間をJSTに変換（snake_caseとcamelCaseの両方に対応）
+        const startTime = convertToJST(shift.start_time || shift.startTime);
+        const endTime = convertToJST(shift.end_time || shift.endTime);
         
         console.log('JST times - start:', startTime, 'end:', endTime);
         
