@@ -213,6 +213,37 @@ Two main UI states managed through CSS classes:
 
 ## Development Workflow
 
+### Branch Management
+
+**IMPORTANT**: Do NOT commit directly to the `main` branch.
+
+All changes must follow this workflow:
+
+1. **Create a feature branch**:
+   ```bash
+   git checkout -b feature/<descriptive-name>
+   ```
+
+2. **Make your changes and commit**:
+   ```bash
+   git add <files>
+   git commit -m "Your commit message"
+   ```
+
+3. **Push to the feature branch**:
+   ```bash
+   git push origin feature/<descriptive-name>
+   ```
+
+4. **Create a Pull Request** on GitHub
+
+5. **After PR approval**, merge to main via GitHub's merge button
+
+**Never use**:
+```bash
+git push origin main  # ❌ Forbidden
+```
+
 ### Creating Pull Requests
 
 When creating a pull request, follow these guidelines:
