@@ -1593,58 +1593,6 @@ function updateTabVisibility() {
     }
 }
 
-// JSONP リクエスト用のヘルパー関数
-function jsonpRequest(url, params = {}) {
-    return new Promise((resolve, reject) => {
-        const callbackName = 'jsonp_callback_' + Math.random().toString(36).substr(2, 9);
-        const timestamp = new Date().getTime();
-        
-        // グローバルコールバック関数を作成
-        window[callbackName] = function(data) {
-            // 成功時の処理
-            delete window[callbackName];
-            document.head.removeChild(script);
-            resolve(data);
-        };
-        
-        // パラメータを追加
-        const urlParams = new URLSearchParams({
-            ...params,
-            callback: callbackName,
-            _t: timestamp
-        });
-        
-        // スクリプトタグを作成
-        const script = document.createElement('script');
-        script.src = url + '?' + urlParams.toString();
-        script.onerror = function() {
-            delete window[callbackName];
-            document.head.removeChild(script);
-            reject(new Error('JSONP request failed'));
-        };
-        
-        // タイムアウト処理
-        const timeoutId = setTimeout(() => {
-            if (window[callbackName]) {
-                delete window[callbackName];
-                if (script.parentNode) {
-                    document.head.removeChild(script);
-                }
-                reject(new Error('JSONP request timeout'));
-            }
-        }, 15000);
-        
-        // 成功時のタイムアウトクリア
-        const originalCallback = window[callbackName];
-        window[callbackName] = function(data) {
-            clearTimeout(timeoutId);
-            originalCallback(data);
-        };
-        
-        document.head.appendChild(script);
-    });
-}
-
 // シフトデータをキャッシュに読み込む関数
 
 async function loadMyShifts() {
