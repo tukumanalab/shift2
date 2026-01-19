@@ -1,17 +1,5 @@
 // capacity.js - 容量管理モジュール
 
-// 状態管理からのインポート
-import { getCurrentUser, isAdmin } from './state.js';
-
-// API関数のインポート
-import { API } from './api.js';
-
-// ユーティリティ関数のインポート
-import { getDefaultCapacity } from './utils.js';
-
-// カレンダー関数のインポート
-import { generateCalendar } from './calendar.js';
-
 /**
  * 容量設定を読み込む
  */

@@ -34,6 +34,32 @@ async function syncAllShiftsToCalendar() {
     }
 }
 
+// Google Sign-In初期化関数
+function initializeGoogleSignIn() {
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+        google.accounts.id.initialize({
+            client_id: getGoogleClientId(),
+            callback: handleCredentialResponse,
+            auto_select: false
+        });
+
+        google.accounts.id.renderButton(
+            document.getElementById('signInDiv'),
+            {
+                theme: 'outline',
+                size: 'large',
+                text: 'signin_with',
+                locale: 'ja_JP'
+            }
+        );
+
+        console.log('Google Sign-In初期化完了');
+    } else {
+        // Google APIがまだ読み込まれていない場合は100ms後に再試行
+        setTimeout(initializeGoogleSignIn, 100);
+    }
+}
+
 // アプリケーション初期化
 document.addEventListener('DOMContentLoaded', function() {
     // タブ切り替えのセットアップ
@@ -42,22 +68,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // モバイルメニューのセットアップ
     setupMobileMenu();
 
-    // Google Sign-In初期化
-    google.accounts.id.initialize({
-        client_id: getGoogleClientId(),
-        callback: handleCredentialResponse,
-        auto_select: false
-    });
-
-    google.accounts.id.renderButton(
-        document.getElementById('signInDiv'),
-        {
-            theme: 'outline',
-            size: 'large',
-            text: 'signin_with',
-            locale: 'ja_JP'
-        }
-    );
+    // Google Sign-In初期化（非同期で読み込まれるAPIを待つ）
+    initializeGoogleSignIn();
 
     console.log('アプリケーション初期化完了');
 });
