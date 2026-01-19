@@ -934,16 +934,4 @@ function updateSingleDateCapacity(dateKey, capacityData) {
     }
 }
 
-/**
- * タブを切り替える関数（外部依存）
- * この関数は他のモジュールで定義されていることを前提とする
- */
-function switchToTab(tabName) {
-    // この関数は既に他のモジュールまたはapp.jsで定義されている
-    // ここでは宣言のみ
-    if (typeof window.switchToTab === 'function') {
-        window.switchToTab(tabName);
-    } else {
-        console.warn('switchToTab function is not defined');
-    }
-}
+// switchToTab 関数は ui.js で定義されているため、ここでは定義しない
