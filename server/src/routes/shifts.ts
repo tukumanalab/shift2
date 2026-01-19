@@ -9,6 +9,7 @@ const router = express.Router();
  * クエリパラメータ:
  *   - userId: 特定のユーザーのシフトを取得
  *   - date: 特定の日付のシフトを取得
+ *   - userId + date: 特定のユーザーの特定の日付のシフトを取得
  *   - startDate, endDate: 日付範囲で取得
  */
 router.get('/', (req, res) => {
@@ -16,7 +17,10 @@ router.get('/', (req, res) => {
     const { userId, date, startDate, endDate } = req.query;
 
     let shifts;
-    if (userId && typeof userId === 'string') {
+    if (userId && date && typeof userId === 'string' && typeof date === 'string') {
+      // userIdとdateの両方が指定された場合
+      shifts = ShiftModel.getByUserIdAndDate(userId, date);
+    } else if (userId && typeof userId === 'string') {
       shifts = ShiftModel.getByUserId(userId);
     } else if (date && typeof date === 'string') {
       shifts = ShiftModel.getByDate(date);

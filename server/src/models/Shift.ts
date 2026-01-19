@@ -66,6 +66,19 @@ export class ShiftModel {
   }
 
   /**
+   * 特定のユーザーの特定の日付のシフトを取得
+   */
+  static getByUserIdAndDate(userId: string, date: string): Shift[] {
+    try {
+      const stmt = db.prepare('SELECT * FROM shifts WHERE user_id = ? AND date = ? ORDER BY time_slot ASC');
+      return stmt.all(userId, date) as Shift[];
+    } catch (error) {
+      console.error('Error getting shifts by user ID and date:', error);
+      return [];
+    }
+  }
+
+  /**
    * 日付範囲でシフトを取得
    */
   static getByDateRange(startDate: string, endDate: string): Shift[] {
