@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import usersRouter from './routes/users';
 import specialShiftsRouter from './routes/specialShifts';
+import shiftsRouter from './routes/shifts';
 import capacitySettingsRouter from './routes/capacitySettings';
 
 // 環境変数を読み込む
@@ -19,6 +20,7 @@ app.use(express.json());
 // APIルーティング（静的ファイルより前に配置）
 app.use('/api/users', usersRouter);
 app.use('/api/special-shifts', specialShiftsRouter);
+app.use('/api/shifts', shiftsRouter);
 app.use('/api/capacity-settings', capacitySettingsRouter);
 
 // ヘルスチェックエンドポイント
@@ -48,6 +50,15 @@ app.listen(PORT, () => {
   console.log(`   - POST   /api/special-shifts`);
   console.log(`   - DELETE /api/special-shifts/:uuid`);
   console.log(`   - POST   /api/special-shifts/delete-multiple`);
+  console.log(`   - GET    /api/shifts`);
+  console.log(`   - GET    /api/shifts/counts`);
+  console.log(`   - GET    /api/shifts/:uuid`);
+  console.log(`   - POST   /api/shifts`);
+  console.log(`   - POST   /api/shifts/multiple`);
+  console.log(`   - POST   /api/shifts/check-duplicate`);
+  console.log(`   - POST   /api/shifts/check-multiple-duplicates`);
+  console.log(`   - DELETE /api/shifts/:uuid`);
+  console.log(`   - POST   /api/shifts/delete-multiple`);
   console.log(`   - GET    /api/capacity-settings`);
   console.log(`   - GET    /api/capacity-settings/:date`);
   console.log(`   - POST   /api/capacity-settings`);

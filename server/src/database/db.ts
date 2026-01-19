@@ -37,6 +37,20 @@ db.exec(`
   )
 `);
 
+// シフトテーブルの作成
+db.exec(`
+  CREATE TABLE IF NOT EXISTS shifts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT UNIQUE NOT NULL,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    date TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 // 人数設定テーブルの作成
 db.exec(`
   CREATE TABLE IF NOT EXISTS capacity_settings (
@@ -58,6 +72,10 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_special_shifts_uuid ON special_shifts(uuid);
   CREATE INDEX IF NOT EXISTS idx_special_shifts_date ON special_shifts(date);
   CREATE INDEX IF NOT EXISTS idx_special_shifts_user_id ON special_shifts(user_id);
+  CREATE INDEX IF NOT EXISTS idx_shifts_uuid ON shifts(uuid);
+  CREATE INDEX IF NOT EXISTS idx_shifts_user_id ON shifts(user_id);
+  CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
+  CREATE INDEX IF NOT EXISTS idx_shifts_user_date ON shifts(user_id, date);
   CREATE INDEX IF NOT EXISTS idx_capacity_settings_date ON capacity_settings(date);
 `);
 

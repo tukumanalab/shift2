@@ -5,9 +5,7 @@ const AUTHORIZED_EMAILS = config.AUTHORIZED_EMAILS.split(',').map(email => email
 let currentUser = null;
 let currentUserProfile = null; // ユーザープロフィール（ニックネーム、本名）をキャッシュ
 let isAdminUser = false;
-let myShiftsCache = null; // 自分のシフトデータのキャッシュ
-let allShiftsCache = null; // 全員のシフトデータのキャッシュ（管理者用）
-let capacityCache = null; // 人数設定データのキャッシュ（管理者用）
+// キャッシュ変数は削除（SQLiteが高速なため不要）
 
 // ユーザーの表示名を取得する関数
 function getDisplayName(nickname, realName, fallbackName = null) {
@@ -140,25 +138,22 @@ async function showProfile(profileData) {
     
     // 初回データロード
     if (isAdminUser) {
-        // 管理者の場合、全データを初回に読み込み
+        // 管理者の場合、必要なデータを初回に読み込み
         await Promise.all([
-            loadAllShiftsToCache(),  // 全員のシフトデータ
-            loadCapacityToCache(),   // 人数設定データ
             loadUserProfile(),       // ユーザープロフィール（ニックネーム、本名）
             loadSpecialShifts()      // 特別シフトデータ
         ]);
-        // キャッシュを使って初期表示
-        displayShiftList();
+        // 初期表示
+        await displayShiftList();
     } else {
         // 一般ユーザーの場合、必要なデータを初回に読み込み
         await Promise.all([
             loadUserShiftsData(),     // 自分のシフトデータ
-            loadCapacityToCache(),    // 人数設定データ（シフト申請用）
             loadUserProfile(),        // ユーザープロフィール（ニックネーム、本名）
             loadSpecialShifts()       // 特別シフトデータ
         ]);
-        // キャッシュを使って初期表示
-        displayMyShifts(document.getElementById('myShiftsCalendarContainer'), myShiftsCache);
+        // 初期表示
+        displayMyShifts(document.getElementById('myShiftsCalendarContainer'), currentUserShifts);
     }
 }
 
@@ -215,42 +210,6 @@ async function loadUserShiftsData() {
 }
 
 // シフト一覧を再読み込みする関数（管理者用）
-async function reloadAdminShifts() {
-    if (!isAdminUser) {
-        alert('管理者権限が必要です。');
-        return;
-    }
-    
-    const reloadBtn = document.getElementById('reloadShiftsBtn');
-    const originalText = reloadBtn ? reloadBtn.textContent : '更新（リロード）';
-    
-    if (reloadBtn) {
-        reloadBtn.disabled = true;
-        reloadBtn.textContent = '更新中...';
-    }
-    
-    try {
-        // キャッシュをクリアして再読み込み
-        allShiftsCache = null;
-        capacityCache = null;
-        await loadAllShiftsToCache();
-        await loadCapacityToCache();
-        displayShiftList();
-        
-        // 成功メッセージ
-        alert('シフト一覧を更新しました。');
-        
-    } catch (error) {
-        console.error('シフト一覧の更新でエラー:', error);
-        alert('シフト一覧の更新に失敗しました。再度お試しください。');
-    } finally {
-        if (reloadBtn) {
-            reloadBtn.disabled = false;
-            reloadBtn.textContent = originalText;
-        }
-    }
-}
-
 // 自分のシフト一覧を再読み込みする関数（通常ユーザー用）
 async function reloadMyShifts() {
     if (!currentUser) {
@@ -267,11 +226,9 @@ async function reloadMyShifts() {
     }
     
     try {
-        // キャッシュをクリアして再読み込み
-        myShiftsCache = null;
-        await loadMyShiftsToCache();
-        loadMyShifts();
-        
+        // シフト一覧を再読み込み
+        await loadMyShifts();
+
         // 成功メッセージ
         alert('シフト一覧を更新しました。');
         
@@ -381,7 +338,7 @@ function switchToTab(tabName) {
     } else if (tabName === 'my-shifts') {
         loadMyShifts();
     } else if (tabName === 'shift-list') {
-        reloadAdminShifts();
+        loadShiftList();
     } else if (tabName === 'shift-request') {
         loadShiftRequestForm();
     } else if (tabName === 'settings') {
@@ -405,17 +362,20 @@ function setupTabSwitching() {
     });
 }
 
-// 管理者用：全員のシフトデータをキャッシュに読み込む
-async function loadAllShiftsToCache() {
-    console.log('管理者モード: 全員のシフトデータをキャッシュに読み込み中...');
+
+// 管理者用シフト一覧を表示
+async function displayShiftList() {
+    const container = document.getElementById('shiftCalendarContainer');
+    if (!container) return;
 
     try {
-        const response = await fetch(`${config.API_BASE_URL}/shifts`);
-        const result = await response.json();
+        // シフトデータを取得
+        const shiftsResponse = await fetch(`${config.API_BASE_URL}/shifts`);
+        const shiftsResult = await shiftsResponse.json();
 
-        if (result.success) {
-            // データ形式を統一（snake_case → camelCase）
-            allShiftsCache = (result.data || []).map(shift => ({
+        if (shiftsResult.success && shiftsResult.data && shiftsResult.data.length > 0) {
+            // データ形式を統一
+            const allShifts = shiftsResult.data.map(shift => ({
                 shiftDate: shift.date,
                 timeSlot: shift.time_slot,
                 userId: shift.user_id,
@@ -423,51 +383,23 @@ async function loadAllShiftsToCache() {
                 uuid: shift.uuid,
                 registrationDate: shift.created_at
             }));
-            window.allShiftsData = allShiftsCache; // 既存コードとの互換性のため
-            console.log('全員のシフトデータをキャッシュに保存しました:', allShiftsCache.length, '件');
+
+            window.allShiftsData = allShifts;
+            generateCalendar('shiftCalendarContainer');
+
+            // 人数設定データも取得してメモを表示
+            const capacityResponse = await fetch(`${config.API_BASE_URL}/capacity-settings`);
+            const capacityResult = await capacityResponse.json();
+
+            if (capacityResult.success && capacityResult.data && capacityResult.data.length > 0) {
+                displayCapacityOnAdminCalendar(capacityResult.data);
+            }
         } else {
-            console.error('シフトデータの取得に失敗:', result.error);
+            container.innerHTML = '<p>シフトデータがありません。</p>';
         }
     } catch (error) {
-        console.error('シフトデータの読み込み中にエラーが発生:', error);
-    }
-}
-
-// 管理者用：人数設定データをキャッシュに読み込む
-async function loadCapacityToCache() {
-    console.log('管理者モード: 人数設定データをキャッシュに読み込み中...');
-
-    try {
-        const response = await fetch(`${config.API_BASE_URL}/capacity-settings`);
-        const result = await response.json();
-
-        if (result.success) {
-            capacityCache = result.data || [];
-            window.capacityData = capacityCache; // 既存コードとの互換性のため
-            console.log('人数設定データをキャッシュに保存しました:', capacityCache.length, '件');
-        } else {
-            console.error('人数設定データの取得に失敗:', result.error);
-        }
-    } catch (error) {
-        console.error('人数設定データの読み込み中にエラーが発生:', error);
-    }
-}
-
-// キャッシュから管理者用シフト一覧を表示
-function displayShiftList() {
-    const container = document.getElementById('shiftCalendarContainer');
-    if (!container) return;
-    
-    if (allShiftsCache && allShiftsCache.length > 0) {
-        window.allShiftsData = allShiftsCache;
-        generateCalendar('shiftCalendarContainer');
-        
-        // シフト一覧にメモを表示するため、容量データも反映
-        if (capacityCache && capacityCache.length > 0) {
-            displayCapacityOnAdminCalendar(capacityCache);
-        }
-    } else {
-        container.innerHTML = '<p>シフトデータがありません。</p>';
+        console.error('シフトデータの読み込みに失敗:', error);
+        container.innerHTML = '<p>シフトデータの読み込みに失敗しました。</p>';
     }
 }
 
@@ -500,19 +432,11 @@ function displayCapacityOnAdminCalendar(capacityData) {
 }
 
 async function loadShiftList() {
-    // キャッシュがある場合は、キャッシュから表示
-    if (allShiftsCache !== null) {
-        console.log('キャッシュから全員のシフト一覧を表示');
-        displayShiftList();
-        return;
-    }
-    
-    // キャッシュがない場合は、データを読み込む
     console.log('管理者モード: 全員のシフト一覧を読み込み中...');
-    
+
     const container = document.getElementById('shiftCalendarContainer');
     if (!container) return;
-    
+
     // ローディング表示
     container.innerHTML = `
         <div class="loading-container">
@@ -520,9 +444,8 @@ async function loadShiftList() {
             <div class="loading-text">全員のシフト一覧を読み込み中...</div>
         </div>
     `;
-    
-    await loadAllShiftsToCache();
-    displayShiftList();
+
+    await displayShiftList();
 }
 
 function generateCalendar(containerId, isCapacityMode = false, isRequestMode = false) {
@@ -1003,21 +926,21 @@ async function deleteShift(shift) {
         const response = await fetch(`${config.API_BASE_URL}/shifts/${shift.uuid}`, {
             method: 'DELETE',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             }
         });
 
         const result = await response.json();
 
         if (!result.success) {
-            throw new Error(result.error || 'シフト削除に失敗しました');
+            throw new Error(result.error || 'シフトの削除に失敗しました');
         }
 
         alert(`${userName}さんの${dateKey} ${timeSlot}のシフトを削除しました。`);
 
         // シフト一覧を再読み込み
         await loadShiftList();
-
+        
     } catch (error) {
         console.error('シフト削除でエラー:', error);
         alert('シフトの削除に失敗しました。再度お試しください。');
@@ -1077,13 +1000,10 @@ async function deleteShiftFromModal(buttonElement, uuids) {
     
     // UUIDs配列に対応するすべてのシフト情報を取得
     const targetShifts = [];
-    if (allShiftsCache) {
-        targetShifts.push(...allShiftsCache.filter(s => uuids.includes(s.uuid)));
+    if (window.allShiftsData) {
+        targetShifts.push(...window.allShiftsData.filter(s => uuids.includes(s.uuid)));
     }
-    if (targetShifts.length === 0 && myShiftsCache) {
-        targetShifts.push(...myShiftsCache.filter(s => uuids.includes(s.uuid)));
-    }
-    
+
     if (targetShifts.length === 0) {
         alert('シフト情報が見つかりません。');
         return;
@@ -1116,11 +1036,11 @@ async function deleteShiftFromModal(buttonElement, uuids) {
     buttonElement.style.opacity = '0.6';
     
     try {
-        // シフト削除リクエストを送信
+        // 複数シフトを一括削除
         const response = await fetch(`${config.API_BASE_URL}/shifts/delete-multiple`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify({ uuids: uuids })
         });
@@ -1128,7 +1048,7 @@ async function deleteShiftFromModal(buttonElement, uuids) {
         const result = await response.json();
 
         if (!result.success) {
-            throw new Error(result.error || 'シフト削除に失敗しました');
+            throw new Error(result.error || 'シフトの削除に失敗しました');
         }
 
         alert(`${userName}さんの${dateKey} ${displayTimeRange}のシフトを削除しました。`);
@@ -1139,25 +1059,16 @@ async function deleteShiftFromModal(buttonElement, uuids) {
             modal.style.display = 'none';
         }
 
-        // データを再読み込みしてキャッシュを更新
+        // データを再読み込み
         if (isAdminUser) {
-            // リロードボタンと同じ処理を実行
-            allShiftsCache = null;
-            await loadAllShiftsToCache();
-
-            // カレンダーを再読み込み
+            // カレンダーとシフト一覧を再読み込み
             generateCalendar('shiftCalendarContainer');
-
-            displayShiftList();
+            await displayShiftList();
         } else {
-            // 一般ユーザーの場合もキャッシュを更新
-            myShiftsCache = null;
-            await loadMyShiftsToCache();
-
-            // カレンダーを再読み込み
+            // 一般ユーザーの場合はカレンダーを再読み込み
             generateCalendar('shiftCalendarContainer');
         }
-
+        
     } catch (error) {
         console.error('シフト削除でエラー:', error);
         alert('シフトの削除に失敗しました。再度お試しください。');
@@ -1274,57 +1185,32 @@ function closeShiftDetailModal() {
 
 async function loadCapacitySettings() {
     console.log('Loading capacity settings...');
-    
+
     // ローディングアイコンを表示
     const loadingContainer = document.getElementById('capacityLoadingContainer');
     const calendarContainer = document.getElementById('capacityCalendarContainer');
-    
-    // キャッシュがある場合は、ローディングを表示せずに即座に表示
-    if (capacityCache !== null) {
-        console.log('キャッシュから人数設定を表示');
-        generateCalendar('capacityCalendarContainer', true);
-        if (capacityCache.length > 0) {
-            applyCapacityData(capacityCache);
-        }
-        // 特別シフトが読み込まれていることを確認してから表示を更新
-        if (specialShifts && specialShifts.length > 0) {
-            console.log('特別シフトデータが利用可能、表示を更新中...');
-            // カレンダー生成後に少し待ってから実行
-            setTimeout(() => {
-                refreshAllSpecialShiftsDisplay();
-            }, 200);
-        } else {
-            console.log('特別シフトデータを再読み込み中...');
-            try {
-                await loadSpecialShifts();
-                setTimeout(() => {
-                    refreshAllSpecialShiftsDisplay();
-                }, 200);
-            } catch (error) {
-                console.error('特別シフト再読み込みエラー:', error);
-            }
-        }
-        return;
-    }
-    
+
     if (loadingContainer) loadingContainer.style.display = 'flex';
     if (calendarContainer) calendarContainer.style.display = 'none';
-    
+
     try {
-        // キャッシュがない場合のみ読み込み
-        await Promise.all([
-            loadCapacityToCache(),
+        // データを直接APIから読み込み
+        const [capacityData] = await Promise.all([
+            fetchCapacityFromSpreadsheet(),
             loadSpecialShifts()  // 特別シフトも一緒に読み込み
         ]);
-        
+
+        // グローバル変数に保存（既存コードとの互換性のため）
+        window.capacityData = capacityData;
+
         // カレンダーを生成
         generateCalendar('capacityCalendarContainer', true);
-        
+
         // 読み込んだデータを入力フィールドに反映
-        if (capacityCache && capacityCache.length > 0) {
-            applyCapacityData(capacityCache);
+        if (capacityData && capacityData.length > 0) {
+            applyCapacityData(capacityData);
         }
-        
+
     } catch (error) {
         console.error('人数設定の読み込みに失敗しました:', error);
         // エラーが発生してもカレンダーは表示
@@ -1333,7 +1219,7 @@ async function loadCapacitySettings() {
         // ローディングアイコンを非表示にしてカレンダーを表示
         if (loadingContainer) loadingContainer.style.display = 'none';
         if (calendarContainer) calendarContainer.style.display = 'block';
-        
+
         // カレンダー表示後に特別シフト表示を更新（より長い待機時間）
         setTimeout(() => {
             console.log('カレンダー表示完了後、特別シフト表示を更新中...');
@@ -1354,14 +1240,14 @@ async function fetchCapacityFromSpreadsheet() {
         const result = await response.json();
 
         if (result.success) {
-            console.log('人数設定をAPIから読み込みました:', result.data);
+            console.log('人数設定をSQLiteから読み込みました:', result.data);
             return result.data || [];
         } else {
             console.error('人数設定の読み込みに失敗:', result.error);
             return [];
         }
     } catch (error) {
-        console.error('APIからの読み込みに失敗しました:', error);
+        console.error('人数設定の読み込みに失敗しました:', error);
         return [];
     }
 }
@@ -1648,17 +1534,11 @@ async function saveCapacityToSpreadsheet(capacityData) {
 
         const result = await response.json();
 
-        if (result.success) {
-            alert(`${result.data.success}件の人数設定を保存しました`);
-
-            // キャッシュをクリアして再読み込み
-            if (isAdminUser) {
-                capacityCache = null;
-                await loadCapacityToCache();
-            }
-        } else {
-            throw new Error(result.error || '保存に失敗しました');
+        if (!result.success) {
+            throw new Error(result.error || '人数設定の保存に失敗しました');
         }
+
+        // 保存完了（SQLiteは高速なので再読み込み不要）
 
     } catch (error) {
         console.error('人数設定の保存に失敗しました:', error);
@@ -1713,18 +1593,86 @@ function updateTabVisibility() {
     }
 }
 
+// JSONP リクエスト用のヘルパー関数
+function jsonpRequest(url, params = {}) {
+    return new Promise((resolve, reject) => {
+        const callbackName = 'jsonp_callback_' + Math.random().toString(36).substr(2, 9);
+        const timestamp = new Date().getTime();
+        
+        // グローバルコールバック関数を作成
+        window[callbackName] = function(data) {
+            // 成功時の処理
+            delete window[callbackName];
+            document.head.removeChild(script);
+            resolve(data);
+        };
+        
+        // パラメータを追加
+        const urlParams = new URLSearchParams({
+            ...params,
+            callback: callbackName,
+            _t: timestamp
+        });
+        
+        // スクリプトタグを作成
+        const script = document.createElement('script');
+        script.src = url + '?' + urlParams.toString();
+        script.onerror = function() {
+            delete window[callbackName];
+            document.head.removeChild(script);
+            reject(new Error('JSONP request failed'));
+        };
+        
+        // タイムアウト処理
+        const timeoutId = setTimeout(() => {
+            if (window[callbackName]) {
+                delete window[callbackName];
+                if (script.parentNode) {
+                    document.head.removeChild(script);
+                }
+                reject(new Error('JSONP request timeout'));
+            }
+        }, 15000);
+        
+        // 成功時のタイムアウトクリア
+        const originalCallback = window[callbackName];
+        window[callbackName] = function(data) {
+            clearTimeout(timeoutId);
+            originalCallback(data);
+        };
+        
+        document.head.appendChild(script);
+    });
+}
 
 // シフトデータをキャッシュに読み込む関数
-async function loadMyShiftsToCache() {
-    if (!currentUser) return;
+
+async function loadMyShifts() {
+    console.log('自分のシフト一覧を表示中...');
+    const container = document.getElementById('myShiftsContent');
+    if (!container) return;
+
+    if (!currentUser) {
+        container.innerHTML = '<p>ログインが必要です。</p>';
+        return;
+    }
+
+    // ローディング表示
+    container.innerHTML = `
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">自分のシフト一覧を読み込み中...</div>
+        </div>
+    `;
 
     try {
+        // APIからシフトデータを取得
         const response = await fetch(`${config.API_BASE_URL}/shifts?userId=${currentUser.sub}`);
         const result = await response.json();
 
         if (result.success) {
-            // データ形式を統一（snake_case → camelCase）
-            myShiftsCache = (result.data || []).map(shift => ({
+            // データ形式を統一
+            const myShifts = (result.data || []).map(shift => ({
                 shiftDate: shift.date,
                 timeSlot: shift.time_slot,
                 userId: shift.user_id,
@@ -1732,49 +1680,15 @@ async function loadMyShiftsToCache() {
                 uuid: shift.uuid,
                 registrationDate: shift.created_at
             }));
-            console.log('シフトデータをキャッシュに読み込みました:', myShiftsCache.length, '件');
+
+            displayMyShifts(container, myShifts);
         } else {
-            console.error('シフトデータの取得に失敗:', result.error);
-            myShiftsCache = [];
+            container.innerHTML = '<p>シフトデータの取得に失敗しました。</p>';
         }
     } catch (error) {
-        console.error('シフトデータの取得中にエラーが発生:', error);
-        myShiftsCache = [];
+        console.error('シフトデータの読み込みに失敗:', error);
+        container.innerHTML = '<p>シフトデータの読み込みに失敗しました。</p>';
     }
-}
-
-// キャッシュを更新する関数（シフト申請成功時に呼び出し）
-function updateMyShiftsCache(newShift) {
-    if (!myShiftsCache) {
-        myShiftsCache = [];
-    }
-    myShiftsCache.push(newShift);
-    console.log('シフトキャッシュを更新しました:', newShift);
-}
-
-async function loadMyShifts() {
-    console.log('自分のシフト一覧を表示中...');
-    const container = document.getElementById('myShiftsContent');
-    if (!container) return;
-    
-    if (!currentUser) {
-        container.innerHTML = '<p>ログインが必要です。</p>';
-        return;
-    }
-    
-    // キャッシュが存在しない場合は読み込み
-    if (myShiftsCache === null) {
-        container.innerHTML = `
-            <div class="loading-container">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">自分のシフト一覧を読み込み中...</div>
-            </div>
-        `;
-        await loadMyShiftsToCache();
-    }
-    
-    // キャッシュからデータを表示
-    displayMyShifts(container, myShiftsCache || []);
 }
 
 // 連続する時間帯をマージする関数
@@ -1930,10 +1844,10 @@ function displayMyShifts(container, shiftsData) {
             </td>` :
             '<td class="shift-actions">-</td>';
         
-        // メモ情報を取得（capacityCacheから）
+        // メモ情報を取得（capacityDataから）
         let memo = '';
-        if (capacityCache) {
-            const capacityItem = capacityCache.find(item => item.date === shift.shiftDate);
+        if (window.capacityData) {
+            const capacityItem = window.capacityData.find(item => item.date === shift.shiftDate);
             memo = capacityItem ? (capacityItem.memo || '') : '';
         }
         
@@ -1969,78 +1883,94 @@ async function deleteMyShift(buttonElement, uuids) {
         alert('シフト情報が不正です。');
         return;
     }
-    
-    // UUIDsに対応するシフト情報を取得
-    const targetShifts = [];
-    if (myShiftsCache) {
-        targetShifts.push(...myShiftsCache.filter(shift => uuids.includes(shift.uuid)));
-    }
-    
-    if (targetShifts.length === 0) {
-        alert('シフト情報が見つかりません。');
-        return;
-    }
-    
-    // 最初のシフトで日付チェック
-    const firstShift = targetShifts[0];
-    const targetDate = new Date(firstShift.shiftDate || firstShift.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    if (targetDate < tomorrow) {
-        alert('今日以前のシフトは削除できません。翌日以降のシフトのみ削除可能です。');
-        return;
-    }
-    
-    const shiftDate = firstShift.shiftDate || firstShift.date;
-    
-    // 複数の時間帯をマージして表示用の時間帯を作成
-    const timeSlots = targetShifts.map(shift => shift.timeSlot || shift.time);
-    const mergedTimeSlots = mergeConsecutiveTimeSlots(timeSlots);
-    const displayTimeSlot = mergedTimeSlots.length === 1 ? mergedTimeSlots[0] : mergedTimeSlots.join(', ');
-    
-    if (!confirm(`${shiftDate} ${displayTimeSlot}のシフトを削除しますか？`)) {
-        return;
-    }
-    
-    // ボタンを無効化
-    const originalText = buttonElement.textContent;
-    buttonElement.disabled = true;
-    buttonElement.textContent = '削除中...';
-    buttonElement.style.opacity = '0.6';
-    
-    try {
-        // シフト削除リクエストを送信
-        const response = await fetch(`${config.API_BASE_URL}/shifts/delete-multiple`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ uuids: uuids })
-        });
 
+    // APIから自分のシフト情報を取得してUUIDに対応するものをフィルタ
+    try {
+        const response = await fetch(`${config.API_BASE_URL}/shifts?userId=${currentUser.sub}`);
         const result = await response.json();
 
         if (!result.success) {
-            throw new Error(result.error || 'シフト削除に失敗しました');
+            alert('シフト情報の取得に失敗しました。');
+            return;
         }
 
-        alert(`${shiftDate} ${displayTimeSlot}のシフトを削除しました。`);
+        const myShifts = (result.data || []).map(shift => ({
+            shiftDate: shift.date,
+            timeSlot: shift.time_slot,
+            uuid: shift.uuid
+        }));
 
-        // 自分のシフト一覧を再読み込み
-        await loadMyShiftsToCache();
-        loadMyShifts();
+        const targetShifts = myShifts.filter(shift => uuids.includes(shift.uuid));
+
+        if (targetShifts.length === 0) {
+            alert('シフト情報が見つかりません。');
+            return;
+        }
+
+        // 最初のシフトで日付チェック
+        const firstShift = targetShifts[0];
+        const targetDate = new Date(firstShift.shiftDate || firstShift.date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        if (targetDate < tomorrow) {
+            alert('今日以前のシフトは削除できません。翌日以降のシフトのみ削除可能です。');
+            return;
+        }
+
+        const shiftDate = firstShift.shiftDate || firstShift.date;
+
+        // 複数の時間帯をマージして表示用の時間帯を作成
+        const timeSlots = targetShifts.map(shift => shift.timeSlot || shift.time);
+        const mergedTimeSlots = mergeConsecutiveTimeSlots(timeSlots);
+        const displayTimeSlot = mergedTimeSlots.length === 1 ? mergedTimeSlots[0] : mergedTimeSlots.join(', ');
+
+        if (!confirm(`${shiftDate} ${displayTimeSlot}のシフトを削除しますか？`)) {
+            return;
+        }
+
+        // ボタンを無効化
+        const originalText = buttonElement.textContent;
+        buttonElement.disabled = true;
+        buttonElement.textContent = '削除中...';
+        buttonElement.style.opacity = '0.6';
+
+        try {
+            // 複数シフトを一括削除
+            const deleteResponse = await fetch(`${config.API_BASE_URL}/shifts/delete-multiple`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ uuids: uuids })
+            });
+
+            const deleteResult = await deleteResponse.json();
+
+            if (!deleteResult.success) {
+                throw new Error(deleteResult.error || 'シフトの削除に失敗しました');
+            }
+
+            alert(`${shiftDate} ${displayTimeSlot}のシフトを削除しました。`);
+
+            // 自分のシフト一覧を再読み込み
+            await loadMyShifts();
+
+        } catch (error) {
+            console.error('シフト削除でエラー:', error);
+            alert('シフトの削除に失敗しました。再度お試しください。');
+        } finally {
+            // ボタンの状態を復元
+            buttonElement.disabled = false;
+            buttonElement.textContent = originalText;
+            buttonElement.style.opacity = '1';
+        }
 
     } catch (error) {
-        console.error('シフト削除でエラー:', error);
-        alert('シフトの削除に失敗しました。再度お試しください。');
-    } finally {
-        // ボタンの状態を復元
-        buttonElement.disabled = false;
-        buttonElement.textContent = originalText;
-        buttonElement.style.opacity = '1';
+        console.error('シフト情報の取得でエラー:', error);
+        alert('シフト情報の取得に失敗しました。');
     }
 }
 
@@ -2048,59 +1978,37 @@ async function loadShiftRequestForm() {
     console.log('シフト申請フォームを読み込み中...');
     const container = document.getElementById('shiftRequestContent');
     if (!container) return;
-    
-    // キャッシュがある場合は即座に表示
-    if (capacityCache !== null) {
-        console.log('キャッシュからシフト申請フォームを表示');
-        
-        // シフト申請数を取得（これは常に最新を取得）
-        const shiftCounts = await fetchShiftCountsFromSpreadsheet();
-        
-        // グローバル変数に保存
-        currentShiftCounts = shiftCounts;
-        window.currentCapacityData = capacityCache;
-        
-        // コンテナをクリアしてカレンダーを生成
-        container.innerHTML = '<div id="shiftRequestCalendarContainer" class="calendar-container"></div>';
-        
-        // カレンダーを生成（シフト申請モード）
-        generateCalendar('shiftRequestCalendarContainer', false, true);
-        
-        // 人数データとシフト申請数をカレンダーに反映
-        if (capacityCache.length > 0) {
-            displayCapacityWithCountsOnCalendar(capacityCache, shiftCounts);
-        }
-        return;
-    }
-    
-    // キャッシュがない場合のみローディング表示と読み込み
+
+    // ローディング表示
     container.innerHTML = `
         <div class="loading-container">
             <div class="loading-spinner"></div>
             <div class="loading-text">シフト申請フォームを読み込み中...</div>
         </div>
     `;
-    
+
     try {
         // 人数設定データとシフト申請数を並行して読み込み
-        await loadCapacityToCache();
-        const shiftCounts = await fetchShiftCountsFromSpreadsheet();
-        
+        const [capacityData, shiftCounts] = await Promise.all([
+            fetchCapacityFromSpreadsheet(),
+            fetchShiftCountsFromSpreadsheet()
+        ]);
+
         // グローバル変数に保存
         currentShiftCounts = shiftCounts;
-        window.currentCapacityData = capacityCache;
-        
+        window.currentCapacityData = capacityData;
+
         // コンテナをクリアしてカレンダーを生成
         container.innerHTML = '<div id="shiftRequestCalendarContainer" class="calendar-container"></div>';
-        
+
         // カレンダーを生成（シフト申請モード）
         generateCalendar('shiftRequestCalendarContainer', false, true);
-        
+
         // 人数データとシフト申請数をカレンダーに反映
-        if (capacityCache && capacityCache.length > 0) {
-            displayCapacityWithCountsOnCalendar(capacityCache, shiftCounts);
+        if (capacityData && capacityData.length > 0) {
+            displayCapacityWithCountsOnCalendar(capacityData, shiftCounts);
         }
-        
+
     } catch (error) {
         console.error('シフト申請フォームの読み込みに失敗しました:', error);
         container.innerHTML = '<p>シフト申請フォームの読み込みに失敗しました。</p>';
@@ -2564,11 +2472,11 @@ async function submitShiftRequest() {
     submitBtn.textContent = '申請中...';
     
     try {
-        // 複数時間枠の一括申請を送信
+        // 複数時間枠の一括申請
         const response = await fetch(`${config.API_BASE_URL}/shifts/multiple`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify({
                 user_id: currentUser.sub,
@@ -2584,7 +2492,7 @@ async function submitShiftRequest() {
             throw new Error(result.error || 'シフト申請に失敗しました');
         }
 
-        // 重複チェック結果を処理
+        // 重複があった場合の警告
         if (result.duplicates && result.duplicates.length > 0) {
             alert(`以下の時間枠は既に申請済みのためスキップしました:\n${result.duplicates.join('\n')}\n\n申請成功: ${result.processed.length}件`);
         } else {
@@ -2592,10 +2500,7 @@ async function submitShiftRequest() {
         }
 
         closeShiftRequestModal();
-
-        // 自分のシフト一覧を再読み込み
-        await loadMyShiftsToCache();
-
+        
     } catch (error) {
         console.error('シフト申請の保存に失敗しました:', error);
         alert('シフト申請の保存に失敗しました。再度お試しください。');
@@ -2647,14 +2552,26 @@ async function openDateDetailModal(dateKey) {
     // グローバル変数を設定
     currentDetailDateKey = dateKey;
     selectedTimeSlots = [];
-    
+
     title.textContent = `${year}年${month}月${day}日 (${weekday}) のシフト枠`;
-    
-    // 自分の申請済みシフトをキャッシュから取得
+
+    // 自分の申請済みシフトをAPIから取得
     let myShiftsForDate = [];
-    if (myShiftsCache) {
-        // 該当日付のシフトのみをフィルタリング
-        myShiftsForDate = myShiftsCache.filter(shift => shift.shiftDate === dateKey);
+    if (currentUser) {
+        try {
+            const response = await fetch(`${config.API_BASE_URL}/shifts?userId=${currentUser.sub}&date=${dateKey}`);
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                myShiftsForDate = result.data.map(shift => ({
+                    shiftDate: shift.date,
+                    timeSlot: shift.time_slot,
+                    uuid: shift.uuid
+                }));
+            }
+        } catch (error) {
+            console.error('シフト情報の取得エラー:', error);
+        }
     }
     
     // 時間枠を生成
@@ -2935,11 +2852,22 @@ async function submitDateDetailShiftRequest() {
     submitBtn.innerHTML = '<span style="display: inline-block; margin-right: 5px;">⏳</span>申請中...';
     
     try {
+        // 複数時間枠の一括申請データを作成
+        const multipleShiftData = {
+            type: 'multipleShifts',
+            userId: currentUser.sub,
+            userName: currentUser.name,
+            userEmail: currentUser.email,
+            date: currentDetailDateKey,
+            timeSlots: selectedTimeSlots,
+            content: remarks || 'シフト'
+        };
+        
         // 複数時間枠の一括申請を送信
         const response = await fetch(`${config.API_BASE_URL}/shifts/multiple`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify({
                 user_id: currentUser.sub,
@@ -2957,47 +2885,44 @@ async function submitDateDetailShiftRequest() {
 
         const successSlots = results.processed || [];
         const duplicateSlots = results.duplicates || [];
-
+        
         const dateObj = new Date(currentDetailDateKey);
         const month = dateObj.getMonth() + 1;
         const day = dateObj.getDate();
-
+        
         // 結果に応じたメッセージを表示
         let message = '';
-
+        
         if (successSlots.length > 0) {
             message += `${month}月${day}日の以下の時間帯にシフトを申請しました：\n${successSlots.join('\n')}`;
         }
-
+        
         if (duplicateSlots.length > 0) {
             if (message) message += '\n\n';
             message += `以下の時間帯は既に申請済みのため、申請できませんでした：\n${duplicateSlots.join('\n')}`;
         }
-
+        
         if (message) {
             alert(message);
         } else {
             alert('申請できる時間枠がありませんでした。');
         }
-
+        
         // 申請した日付を保存（モーダルを閉じる前に）
         const appliedDateKey = currentDetailDateKey;
-
+        
         // モーダルを閉じる
         closeDateDetailModal();
-
+        
         // シフト申請数を再読み込みして申請した日付のデータを更新
         const shiftCounts = await fetchShiftCountsFromSpreadsheet();
         currentShiftCounts = shiftCounts;
-
+        
         // 申請した日付のデータのみを更新
         updateSingleDateCapacity(appliedDateKey, window.currentCapacityData || []);
-
-        // 自分のシフト一覧を再読み込み
-        if (successSlots.length > 0) {
-            await loadMyShiftsToCache();
-        }
-
+        
+        // シフト申請完了（マイシフトタブで自動的に再読み込みされる）
+        
     } catch (error) {
         console.error('シフト申請の保存に失敗しました:', error);
         alert('シフト申請の保存に失敗しました。再度お試しください。');
@@ -3595,11 +3520,11 @@ function convertTimeToJST(timeString) {
 async function deleteSpecialShift(date, startTime, endTime) {
     console.log('=== deleteSpecialShift DEBUG ===');
     console.log('元のパラメータ:', { date, startTime, endTime });
-
+    
     // 時間をJSTに変換する関数
     function convertToJST(timeString) {
         if (!timeString) return '';
-
+        
         // もしISO形式（UTC）の場合は、JSTに変換
         if (typeof timeString === 'string' && timeString.includes('T') && timeString.includes('Z')) {
             const utcDate = new Date(timeString);
@@ -3609,59 +3534,58 @@ async function deleteSpecialShift(date, startTime, endTime) {
             const minutes = String(jstDate.getUTCMinutes()).padStart(2, '0');
             return `${hours}:${minutes}`;
         }
-
+        
         // HH:MM形式の場合はそのまま使用
         if (typeof timeString === 'string' && timeString.includes(':') && timeString.length >= 5) {
             return timeString.substring(0, 5);
         }
-
+        
         return timeString;
     }
-
+    
     // JST時間に変換
     const jstStartTime = convertToJST(startTime);
     const jstEndTime = convertToJST(endTime);
-
+    
     console.log('JST変換後:', { date, startTime: jstStartTime, endTime: jstEndTime });
-
-    // 該当する特別シフトを検索してUUIDを取得
-    const matchingShift = specialShifts.find(shift => {
-        let shiftDate = shift.date;
-        if (typeof shiftDate === 'string' && shiftDate.includes('T')) {
-            shiftDate = shiftDate.split('T')[0];
-        } else if (shiftDate instanceof Date) {
-            const year = shiftDate.getFullYear();
-            const month = String(shiftDate.getMonth() + 1).padStart(2, '0');
-            const day = String(shiftDate.getDate()).padStart(2, '0');
-            shiftDate = `${year}-${month}-${day}`;
-        }
-
-        return shiftDate === date &&
-               shift.start_time === jstStartTime &&
-               shift.end_time === jstEndTime;
-    });
-
-    if (!matchingShift || !matchingShift.uuid) {
-        alert('該当する特別シフトが見つかりませんでした。');
-        return;
-    }
-
+    
     if (!confirm(`${date} ${jstStartTime}-${jstEndTime} の特別シフトを削除しますか？`)) {
         return;
     }
-
+    
     try {
-        const response = await fetch(`${config.API_BASE_URL}/special-shifts/${matchingShift.uuid}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
+        // 特別シフトを日付と時間で検索して削除
+        // 注: この関数は古いバージョンで、UUIDベースのdeleteSpecialShiftByUuidを使用することを推奨
+        const response = await fetch(`${config.API_BASE_URL}/special-shifts?date=${date}`);
         const result = await response.json();
 
         if (!result.success) {
-            throw new Error(result.error || '特別シフト削除に失敗しました');
+            throw new Error('特別シフトの取得に失敗しました');
+        }
+
+        // 該当する特別シフトを検索
+        const targetShift = result.data.find(shift =>
+            shift.date === date &&
+            shift.start_time === jstStartTime &&
+            shift.end_time === jstEndTime
+        );
+
+        if (!targetShift) {
+            throw new Error('該当する特別シフトが見つかりませんでした');
+        }
+
+        // UUIDで削除
+        const deleteResponse = await fetch(`${config.API_BASE_URL}/special-shifts/${targetShift.uuid}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const deleteResult = await deleteResponse.json();
+
+        if (!deleteResult.success) {
+            throw new Error(deleteResult.error || '特別シフトの削除に失敗しました');
         }
 
         // 特別シフトデータを再読み込み
@@ -3671,7 +3595,7 @@ async function deleteSpecialShift(date, startTime, endTime) {
         refreshAllSpecialShiftsDisplay();
 
         alert('特別シフトを削除しました！');
-
+        
     } catch (error) {
         console.error('特別シフト削除エラー:', error);
         alert('特別シフトの削除に失敗しました。');
