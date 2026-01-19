@@ -341,13 +341,8 @@ function displayMyShifts(container, shiftsData) {
                     block: 'center'
                 });
 
-                // ハイライト表示
+                // ハイライト表示（永続的）
                 targetRow.classList.add('highlight-shift');
-
-                // 3秒後にハイライトを解除
-                setTimeout(() => {
-                    targetRow.classList.remove('highlight-shift');
-                }, 3000);
             }, 100);  // DOM更新を待つため少し遅延
         }
 
