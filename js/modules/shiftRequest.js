@@ -394,13 +394,6 @@ async function submitShiftRequest() {
             throw new Error(response.error || 'シフト申請に失敗しました');
         }
 
-        // 重複があった場合の警告
-        if (response.duplicates && response.duplicates.length > 0) {
-            alert(`以下の時間枠は既に申請済みのためスキップしました:\n${response.duplicates.join('\n')}\n\n申請成功: ${response.processed.length}件`);
-        } else {
-            alert(`${currentShiftRequestDate} の\n${selectedSlots.join('\n')}\nにシフト申請しました。`);
-        }
-
         closeShiftRequestModal();
 
     } catch (error) {
@@ -821,29 +814,6 @@ async function submitDateDetailShiftRequest() {
         }
 
         const successSlots = results.processed || [];
-        const duplicateSlots = results.duplicates || [];
-
-        const dateObj = new Date(currentDetailDateKey);
-        const month = dateObj.getMonth() + 1;
-        const day = dateObj.getDate();
-
-        // 結果に応じたメッセージを表示
-        let message = '';
-
-        if (successSlots.length > 0) {
-            message += `${month}月${day}日の以下の時間帯にシフトを申請しました：\n${successSlots.join('\n')}`;
-        }
-
-        if (duplicateSlots.length > 0) {
-            if (message) message += '\n\n';
-            message += `以下の時間帯は既に申請済みのため、申請できませんでした：\n${duplicateSlots.join('\n')}`;
-        }
-
-        if (message) {
-            alert(message);
-        } else {
-            alert('申請できる時間枠がありませんでした。');
-        }
 
         // 申請した日付を保存（モーダルを閉じる前に）
         const appliedDateKey = currentDetailDateKey;
