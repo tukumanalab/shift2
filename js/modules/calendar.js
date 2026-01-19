@@ -418,7 +418,7 @@ function openShiftDetailModal(dateKey) {
                             <div class="shift-person-name">${getShiftDisplayName(shift)}</div>
                             <div class="shift-person-email">${shift.userEmail || shift.email || ''}</div>
                         </div>
-                        ${(isAdminUser || shift.userId === currentUser.sub) ? `
+                        ${(isAdmin() || shift.userId === currentUser.sub) ? `
                             <button class="shift-delete-btn" onclick="deleteShiftFromModal(this, [${(shift.uuids || []).map(uuid => `'${uuid}'`).join(',')}])">
                                 削除
                             </button>
