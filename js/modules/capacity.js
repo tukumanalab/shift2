@@ -590,21 +590,3 @@ function collectCapacityData() {
 
     return data;
 }
-
-// エクスポート
-export {
-    loadCapacitySettings,
-    fetchCapacityFromSpreadsheet,
-    fetchShiftCountsFromSpreadsheet,
-    saveAllCapacitySettings,
-    saveSingleCapacity,
-    toggleEditMode,
-    cancelEdit,
-    applyCapacityData,
-    displayCapacityOnAdminCalendar,
-    displayCapacityOnCalendar,
-    displayCapacityWithCountsOnCalendar,
-    updateSingleDateCapacity,
-    saveCapacityToSpreadsheet,
-    collectCapacityData
-};
