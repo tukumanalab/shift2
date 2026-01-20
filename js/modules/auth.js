@@ -105,7 +105,7 @@ async function showProfile(profileData) {
         // タブが存在し、かつボタンが表示されているかチェック
         const tabButton = document.querySelector(`.tab-button[data-tab="${savedTab}"]`);
         const tabContent = document.getElementById(savedTab);
-        if (tabButton && tabContent && !tabButton.classList.contains('hidden')) {
+        if (tabButton && tabContent && tabButton.style.display !== 'none') {
             switchToTab(savedTab);
         }
     }
