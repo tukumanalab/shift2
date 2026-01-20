@@ -277,13 +277,28 @@ function createMonthCalendar(year, month, isCapacityMode = false, isRequestMode 
                     // 特別シフトがある日付かチェック
                     const hasSpecialShifts = checkHasSpecialShifts(dateKey);
 
-                    if (!isValidRequestDate || cellDate < today) {
-                        // 申請不可能な日は無効化
+                    // 過去の日付は無効化
+                    if (cellDate < today) {
                         cell.classList.add('past-date');
-                        cell.title = cellDate < today ? '過去の日付です' : '申請可能期間外です';
+                        cell.title = '過去の日付です';
                         // 申請ボタンは表示しない
-                    } else if (hasSpecialShifts || defaultCapacity > 0) {
-                        // 特別シフトまたは通常シフトがある場合は申請ボタンを表示
+                    } else if (hasSpecialShifts) {
+                        // 特別シフトがある場合は、申請期間外でも申請可能
+                        const applyButton = document.createElement('button');
+                        applyButton.className = 'inline-apply-btn';
+                        applyButton.textContent = '申請';
+                        applyButton.onclick = (e) => {
+                            e.stopPropagation();
+                            openDateDetailModal(dateKey);
+                        };
+                        requestInfo.appendChild(applyButton);
+                    } else if (!isValidRequestDate) {
+                        // 特別シフトがなく、申請期間外の場合は無効化
+                        cell.classList.add('past-date');
+                        cell.title = '申請可能期間外です';
+                        // 申請ボタンは表示しない
+                    } else if (defaultCapacity > 0) {
+                        // 通常シフトがある場合は申請ボタンを表示
                         const applyButton = document.createElement('button');
                         applyButton.className = 'inline-apply-btn';
                         applyButton.textContent = '申請';
