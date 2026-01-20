@@ -681,7 +681,7 @@ function createMonthCalendar(year, month, isCapacityMode = false, isRequestMode 
                     
                     // 特別シフトがある日付かチェック
                     const hasSpecialShifts = checkHasSpecialShifts(dateKey);
-                    
+
                     if (!isValidRequestDate || cellDate < today) {
                         // 申請不可能な日は無効化
                         cell.classList.add('past-date');
@@ -698,9 +698,19 @@ function createMonthCalendar(year, month, isCapacityMode = false, isRequestMode 
                         };
                         requestInfo.appendChild(applyButton);
                     }
-                    
+
                     // requestInfoを追加
                     cell.appendChild(requestInfo);
+
+                    // 特別シフト表示エリアを追加
+                    const specialShiftDisplay = document.createElement('div');
+                    specialShiftDisplay.className = 'special-shift-display';
+                    specialShiftDisplay.id = `special-shifts-${dateKey}`;
+                    cell.appendChild(specialShiftDisplay);
+
+                    // 特別シフトを表示
+                    displaySpecialShiftsForDate(dateKey, specialShiftDisplay);
+
                     cell.setAttribute('data-date', dateKey);
                 } else {
                     // シフト一覧モードの場合は全員のシフト情報を表示
