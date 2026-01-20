@@ -1,5 +1,6 @@
 import express from 'express';
 import { SpecialShiftModel } from '../models/SpecialShift';
+import { CalendarService } from '../services/CalendarService';
 
 const router = express.Router();
 
@@ -96,6 +97,19 @@ router.post('/', (req, res) => {
       });
     }
 
+    // カレンダーに同期（バックグラウンド）
+    if (shift.uuid) {
+      CalendarService.addShiftToCalendar({
+        uuid: shift.uuid,
+        user_id,
+        date,
+        time_slot: `${start_time}-${end_time}`,
+        type: 'special_shift'
+      }).catch(error => {
+        console.error('カレンダー同期エラー:', error);
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: shift
@@ -124,6 +138,11 @@ router.delete('/:uuid', (req, res) => {
         error: '特別シフトが見つからないか、削除に失敗しました'
       });
     }
+
+    // カレンダーから削除（バックグラウンド）
+    CalendarService.deleteShiftFromCalendar(uuid, 'special_shift').catch(error => {
+      console.error('カレンダー削除エラー:', error);
+    });
 
     res.json({
       success: true,
@@ -154,6 +173,13 @@ router.post('/delete-multiple', (req, res) => {
     }
 
     const result = SpecialShiftModel.deleteMultiple(uuids);
+
+    // カレンダーから削除（バックグラウンド）
+    uuids.forEach(uuid => {
+      CalendarService.deleteShiftFromCalendar(uuid, 'special_shift').catch(error => {
+        console.error('カレンダー削除エラー:', error);
+      });
+    });
 
     res.json({
       success: true,

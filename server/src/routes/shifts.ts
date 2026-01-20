@@ -1,5 +1,6 @@
 import express from 'express';
 import { ShiftModel } from '../models/Shift';
+import { CalendarService } from '../services/CalendarService';
 
 const router = express.Router();
 
@@ -202,6 +203,19 @@ router.post('/', (req, res) => {
       });
     }
 
+    // カレンダーに同期（バックグラウンド）
+    if (shift.uuid) {
+      CalendarService.addShiftToCalendar({
+        uuid: shift.uuid,
+        user_id,
+        date,
+        time_slot,
+        type: 'shift'
+      }).catch(error => {
+        console.error('カレンダー同期エラー:', error);
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: shift
@@ -246,6 +260,23 @@ router.post('/multiple', (req, res) => {
 
     const result = ShiftModel.bulkCreate(shifts);
 
+    // カレンダーに同期（バックグラウンド）
+    if (result.created && result.created.length > 0) {
+      result.created.forEach(shift => {
+        if (shift.uuid) {
+          CalendarService.addShiftToCalendar({
+            uuid: shift.uuid,
+            user_id: shift.user_id,
+            date: shift.date,
+            time_slot: shift.time_slot,
+            type: 'shift'
+          }).catch(error => {
+            console.error('カレンダー同期エラー:', error);
+          });
+        }
+      });
+    }
+
     res.json({
       success: true,
       processed: nonDuplicateSlots,
@@ -282,6 +313,11 @@ router.delete('/:uuid', (req, res) => {
       });
     }
 
+    // カレンダーから削除（バックグラウンド）
+    CalendarService.deleteShiftFromCalendar(uuid, 'shift').catch(error => {
+      console.error('カレンダー削除エラー:', error);
+    });
+
     res.json({
       success: true,
       message: 'シフトを削除しました'
@@ -311,6 +347,13 @@ router.post('/delete-multiple', (req, res) => {
     }
 
     const result = ShiftModel.deleteMultiple(uuids);
+
+    // カレンダーから削除（バックグラウンド）
+    uuids.forEach(uuid => {
+      CalendarService.deleteShiftFromCalendar(uuid, 'shift').catch(error => {
+        console.error('カレンダー削除エラー:', error);
+      });
+    });
 
     res.json({
       success: true,
