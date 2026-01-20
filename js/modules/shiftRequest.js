@@ -18,10 +18,11 @@ async function loadShiftRequestForm() {
     `;
 
     try {
-        // 人数設定データとシフト申請数を並行して読み込み
+        // 人数設定データ、シフト申請数、特別シフトを並行して読み込み
         const [capacityData, shiftCounts] = await Promise.all([
             fetchCapacityFromSpreadsheet(),
-            fetchShiftCountsFromSpreadsheet()
+            fetchShiftCountsFromSpreadsheet(),
+            loadSpecialShifts()  // 特別シフトも一緒に読み込み
         ]);
 
         // グローバル変数に保存
