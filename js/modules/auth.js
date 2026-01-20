@@ -96,7 +96,7 @@ async function showProfile(profileData) {
             loadSpecialShifts()       // 特別シフトデータ
         ]);
         // 初期表示
-        displayMyShifts(document.getElementById('myShiftsCalendarContainer'), getCurrentUserShifts());
+        displayMyShifts(document.getElementById('myShiftsContent'), getCurrentUserShifts());
     }
 
     // 保存されたタブがあれば復元
