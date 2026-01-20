@@ -162,6 +162,17 @@ async function showProfile(profileData) {
         // 初期表示
         displayMyShifts(document.getElementById('myShiftsCalendarContainer'), currentUserShifts);
     }
+
+    // 保存されたタブがあれば復元
+    const savedTab = localStorage.getItem('currentTab');
+    if (savedTab) {
+        // タブが存在し、かつボタンが表示されているかチェック
+        const tabButton = document.querySelector(`.tab-button[data-tab="${savedTab}"]`);
+        const tabContent = document.getElementById(savedTab);
+        if (tabButton && tabContent && !tabButton.classList.contains('hidden')) {
+            switchToTab(savedTab);
+        }
+    }
 }
 
 // ユーザープロフィールを取得してキャッシュする関数
@@ -269,6 +280,7 @@ function signOut() {
     // localStorageからログイン情報をクリア
     localStorage.removeItem('userProfile');
     localStorage.removeItem('isAdminUser');
+    localStorage.removeItem('currentTab');
 
     const profileInfo = document.getElementById('profileInfo');
     const loginPrompt = document.getElementById('loginPrompt');
@@ -305,12 +317,12 @@ function switchToTab(tabName) {
     if (targetButton) {
         targetButton.classList.add('active');
     }
-    
+
     const targetContent = document.getElementById(tabName);
     if (targetContent) {
         targetContent.classList.add('active');
     }
-    
+
     // Load data for the selected tab
     if (tabName === 'capacity-settings') {
         loadCapacitySettings();
@@ -327,6 +339,9 @@ function switchToTab(tabName) {
     } else if (tabName === 'special-shift-list') {
         loadSpecialShiftList();
     }
+
+    // 現在のタブをlocalStorageに保存
+    localStorage.setItem('currentTab', tabName);
 }
 
 function setupTabSwitching() {
