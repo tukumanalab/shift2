@@ -15,7 +15,6 @@ async function loadUserProfile() {
 
         if (result.success && result.data) {
             setCurrentUserProfile(result.data);
-            console.log('ユーザープロフィールをキャッシュに保存しました:', result.data);
 
             // ヘッダーの表示名を更新
             updateHeaderDisplayName();
@@ -77,7 +76,6 @@ async function saveSettings() {
             localStorage.setItem('userNickname', nickname);
 
             alert('設定を保存しました');
-            console.log('設定を保存:', { realName, nickname });
 
             // ヘッダーの表示名を更新
             updateHeaderDisplayName();

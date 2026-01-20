@@ -5,7 +5,6 @@
  * 人数設定データとシフト申請数を並行して読み込み、カレンダーを生成する
  */
 async function loadShiftRequestForm() {
-    console.log('シフト申請フォームを読み込み中...');
     const container = document.getElementById('shiftRequestContent');
     if (!container) return;
 
@@ -29,18 +28,11 @@ async function loadShiftRequestForm() {
         setCurrentShiftCounts(shiftCounts);
         window.currentCapacityData = capacityData;
 
-        console.log('=== loadShiftRequestForm: データ読み込み完了 ===');
-        console.log('特別シフト数:', getSpecialShifts().length);
-        console.log('特別シフトデータ:', getSpecialShifts());
-
         // コンテナをクリアしてカレンダーを生成
         container.innerHTML = '<div id="shiftRequestCalendarContainer" class="calendar-container"></div>';
 
         // カレンダーを生成（シフト申請モード）
         generateCalendar('shiftRequestCalendarContainer', false, true);
-
-        console.log('=== カレンダー生成後 ===');
-        console.log('特別シフト表示エリア数:', document.querySelectorAll('.special-shift-display').length);
 
         // 人数データとシフト申請数をカレンダーに反映
         if (capacityData && capacityData.length > 0) {
@@ -48,7 +40,6 @@ async function loadShiftRequestForm() {
         }
 
         // 特別シフト表示の更新を明示的に実行
-        console.log('=== 特別シフトを再描画 ===');
         const allDateCells = document.querySelectorAll('[data-date]');
         allDateCells.forEach(cell => {
             const dateKey = cell.getAttribute('data-date');
@@ -75,13 +66,10 @@ async function fetchCapacityFromSpreadsheet() {
     }
 
     try {
-        console.log('人数設定を読み込み中...');
-
         const response = await fetch(`${config.API_BASE_URL}/capacity-settings`);
         const result = await response.json();
 
         if (result.success) {
-            console.log('人数設定をSQLiteから読み込みました:', result.data);
             return result.data || [];
         } else {
             console.error('人数設定の読み込みに失敗:', result.error);
@@ -784,8 +772,6 @@ function closeDateDetailModal() {
  * 日付詳細モーダルでシフト申請を送信する関数
  */
 async function submitDateDetailShiftRequest() {
-    console.log('submitDateDetailShiftRequest called');
-
     const currentUser = getCurrentUser();
     if (!currentUser) {
         alert('ログインが必要です。');

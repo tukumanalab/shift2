@@ -94,8 +94,6 @@ function displayCapacityOnAdminCalendar(capacityData) {
 
 // 管理者用シフト一覧を読み込む
 async function loadShiftList() {
-    console.log('管理者モード: 全員のシフト一覧を読み込み中...');
-
     const container = document.getElementById('shiftCalendarContainer');
     if (!container) return;
 
@@ -112,7 +110,6 @@ async function loadShiftList() {
 
 // 自分のシフト一覧を読み込む
 async function loadMyShifts() {
-    console.log('自分のシフト一覧を表示中...');
     const container = document.getElementById('myShiftsContent');
     if (!container) return;
 

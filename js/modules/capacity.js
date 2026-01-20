@@ -4,8 +4,6 @@
  * 容量設定を読み込む
  */
 async function loadCapacitySettings() {
-    console.log('Loading capacity settings...');
-
     // ローディングアイコンを表示
     const loadingContainer = document.getElementById('capacityLoadingContainer');
     const calendarContainer = document.getElementById('capacityCalendarContainer');
@@ -42,7 +40,6 @@ async function loadCapacitySettings() {
 
         // カレンダー表示後に特別シフト表示を更新（より長い待機時間）
         setTimeout(() => {
-            console.log('カレンダー表示完了後、特別シフト表示を更新中...');
             refreshAllSpecialShiftsDisplay();
         }, 300);
     }
@@ -58,13 +55,10 @@ async function fetchCapacityFromSpreadsheet() {
     }
 
     try {
-        console.log('人数設定を読み込み中...');
-
         const response = await fetch(`${config.API_BASE_URL}/capacity-settings`);
         const result = await response.json();
 
         if (result.success) {
-            console.log('人数設定をSQLiteから読み込みました:', result.data);
             return result.data || [];
         } else {
             console.error('人数設定の読み込みに失敗:', result.error);

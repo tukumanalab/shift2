@@ -208,44 +208,32 @@ function showSpecialShiftError(message) {
  * 特別シフトデータを読み込み
  */
 async function loadSpecialShifts() {
-    console.log('=== loadSpecialShifts DEBUG ===');
-    console.log('Starting to load special shifts...');
-
     try {
         const result = await API.getAllSpecialShifts();
-        console.log('loadSpecialShifts API response:', result);
 
         if (result.success) {
             // result.dataが配列であることを確認
             if (Array.isArray(result.data)) {
                 setSpecialShifts(result.data);
-                console.log('✅ 特別シフトデータを読み込みました:', result.data.length + '件');
-                console.log('特別シフトの詳細:', result.data);
             } else {
-                console.warn('⚠️ result.data is not an array:', result.data);
                 setSpecialShifts([]); // 配列でない場合は空配列に設定
-                console.log('✅ 特別シフトデータを空配列で初期化しました');
             }
         } else {
-            console.error('❌ 特別シフトデータの読み込みに失敗しました:', result.error);
+            console.error('特別シフトデータの読み込みに失敗しました:', result.error);
             setSpecialShifts([]); // エラーの場合も空配列に設定
         }
 
     } catch (error) {
-        console.error('❌ 特別シフト読み込みエラー:', error);
+        console.error('特別シフト読み込みエラー:', error);
         setSpecialShifts([]); // エラーの場合も空配列に設定
     }
 
     // 最終確認
     const specialShifts = getSpecialShifts();
     if (!Array.isArray(specialShifts)) {
-        console.error('❌ specialShifts is still not an array, forcing to empty array');
+        console.error('specialShifts is not an array, forcing to empty array');
         setSpecialShifts([]);
     }
-
-    console.log('Final specialShifts type:', typeof specialShifts);
-    console.log('Final specialShifts is array:', Array.isArray(specialShifts));
-    console.log('Final specialShifts length:', specialShifts.length);
 }
 
 /**
@@ -254,22 +242,13 @@ async function loadSpecialShifts() {
  * @param {HTMLElement} container - 表示先のコンテナ要素
  */
 function displaySpecialShiftsForDate(dateKey, container) {
-    console.log('=== displaySpecialShiftsForDate DEBUG ===');
-    console.log('dateKey:', dateKey);
-
     const specialShifts = getSpecialShifts();
-    console.log('specialShifts array:', specialShifts);
-    console.log('specialShifts type:', typeof specialShifts);
-    console.log('specialShifts is array:', Array.isArray(specialShifts));
 
     // specialShiftsが配列でない場合は処理を停止
     if (!Array.isArray(specialShifts)) {
-        console.log('specialShifts is not an array, skipping display');
         container.innerHTML = '';
         return;
     }
-
-    console.log('specialShifts.length:', specialShifts.length);
 
     // 該当する日付の特別シフトを取得
     const shiftsForDate = specialShifts.filter(shift => {
@@ -285,16 +264,13 @@ function displaySpecialShiftsForDate(dateKey, container) {
             const day = String(shiftDate.getDate()).padStart(2, '0');
             shiftDate = `${year}-${month}-${day}`;
         }
-        console.log('Comparing:', shiftDate, 'vs', dateKey);
         return shiftDate === dateKey;
     });
-    console.log('shiftsForDate for', dateKey, ':', shiftsForDate);
 
     // コンテナをクリア
     container.innerHTML = '';
 
     if (shiftsForDate.length === 0) {
-        console.log('No special shifts found for', dateKey);
         return;
     }
 
@@ -307,8 +283,6 @@ function displaySpecialShiftsForDate(dateKey, container) {
 
     // 各特別シフトを表示
     shiftsForDate.forEach(shift => {
-        console.log('Processing shift:', shift);
-
         const shiftItem = document.createElement('div');
         shiftItem.className = 'special-shift-item';
 
@@ -318,8 +292,6 @@ function displaySpecialShiftsForDate(dateKey, container) {
         // 時間をJSTに変換（snake_caseとcamelCaseの両方に対応）
         const startTime = convertTimeToJST(shift.start_time || shift.startTime);
         const endTime = convertTimeToJST(shift.end_time || shift.endTime);
-
-        console.log('JST times - start:', startTime, 'end:', endTime);
 
         timeSpan.textContent = `${startTime}-${endTime}`;
         shiftItem.appendChild(timeSpan);
@@ -333,7 +305,6 @@ function displaySpecialShiftsForDate(dateKey, container) {
             deleteBtn.onclick = (e) => {
                 e.stopPropagation();
                 // UUIDを使用して削除
-                console.log('削除ボタンクリック - UUID:', shift.uuid);
                 deleteSpecialShiftByUuid(shift.uuid, dateKey, startTime, endTime);
             };
             shiftItem.appendChild(deleteBtn);
@@ -380,14 +351,9 @@ function checkHasSpecialShifts(dateKey) {
  * @deprecated deleteSpecialShiftByUuidを使用してください
  */
 async function deleteSpecialShift(date, startTime, endTime) {
-    console.log('=== deleteSpecialShift DEBUG ===');
-    console.log('元のパラメータ:', { date, startTime, endTime });
-
     // JST時間に変換
     const jstStartTime = convertTimeToJST(startTime);
     const jstEndTime = convertTimeToJST(endTime);
-
-    console.log('JST変換後:', { date, startTime: jstStartTime, endTime: jstEndTime });
 
     if (!confirm(`${date} ${jstStartTime}-${jstEndTime} の特別シフトを削除しますか？`)) {
         return;
@@ -441,9 +407,6 @@ async function deleteSpecialShift(date, startTime, endTime) {
  * @param {string} endTime - 終了時刻（確認メッセージ用）
  */
 async function deleteSpecialShiftByUuid(uuid, dateKey, startTime, endTime) {
-    console.log('=== deleteSpecialShiftByUuid DEBUG ===');
-    console.log('削除対象:', { uuid, dateKey, startTime, endTime });
-
     if (!confirm(`${dateKey} ${startTime}-${endTime} の特別シフトを削除しますか？`)) {
         return;
     }
@@ -473,28 +436,19 @@ async function deleteSpecialShiftByUuid(uuid, dateKey, startTime, endTime) {
  * 全ての日付の特別シフト表示を更新する関数
  */
 function refreshAllSpecialShiftsDisplay() {
-    console.log('=== refreshAllSpecialShiftsDisplay DEBUG ===');
-
     const specialShifts = getSpecialShifts();
-    console.log('specialShifts array:', specialShifts);
-    console.log('specialShifts.length:', specialShifts ? specialShifts.length : 'undefined');
 
     // 全ての特別シフト表示エリアを更新
     const allSpecialShiftDisplays = document.querySelectorAll('.special-shift-display');
-    console.log('Found special shift display elements:', allSpecialShiftDisplays.length);
 
     if (allSpecialShiftDisplays.length === 0) {
-        console.log('ℹ️ No .special-shift-display elements found. Calendar might not be in capacity mode or not loaded yet.');
         return; // エラーではなく、単純にreturnする
     }
 
     allSpecialShiftDisplays.forEach(display => {
         const dateKey = display.id.replace('special-shifts-', '');
-        console.log('Processing display for dateKey:', dateKey);
         displaySpecialShiftsForDate(dateKey, display);
     });
-
-    console.log('=== refreshAllSpecialShiftsDisplay 完了 ===');
 }
 
 /**

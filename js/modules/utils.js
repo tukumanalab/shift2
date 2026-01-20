@@ -152,13 +152,10 @@ function mergeConsecutiveTimeSlots(timeSlots) {
 
 // 時間範囲を30分単位のスロットに展開する関数
 function expandTimeRange(timeRange) {
-    console.log('expandTimeRange input:', timeRange);
-
     // 時間範囲を解析
     const rangeParts = timeRange.split('-');
     if (rangeParts.length !== 2) {
         // 単一時間の場合はそのまま返す
-        console.log('単一時間:', timeRange);
         return [timeRange.trim()];
     }
 
@@ -181,8 +178,6 @@ function expandTimeRange(timeRange) {
     const startMinutes = timeToMinutes(startTime);
     const endMinutes = timeToMinutes(endTime);
 
-    console.log('startMinutes:', startMinutes, 'endMinutes:', endMinutes);
-
     // 30分単位でスロットを生成
     const timeSlots = [];
     for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
@@ -191,7 +186,6 @@ function expandTimeRange(timeRange) {
         timeSlots.push(`${slotStart}-${slotEnd}`);
     }
 
-    console.log('expandTimeRange output:', timeSlots);
     return timeSlots;
 }
 

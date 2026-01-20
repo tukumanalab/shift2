@@ -355,7 +355,6 @@ function handleCalendarCellClick(event) {
     const date = cell.getAttribute('data-date');
     if (!date) return;
 
-    console.log('Clicked date:', date);
     openShiftDetailModal(date);
 }
 
@@ -421,7 +420,6 @@ function openShiftDetailModal(dateKey) {
             `;
 
             timeSlotGroups[timeSlot].forEach(shift => {
-                console.log("shift", shift);
                 html += `
                     <div class="shift-detail-person">
                         <div class="shift-person-info">

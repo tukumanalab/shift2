@@ -189,8 +189,6 @@ async function saveUserToSpreadsheet(userData) {
     }
 
     try {
-        console.log('ユーザー情報をSQLiteに保存中...');
-
         const userInfo = {
             sub: userData.sub,
             name: userData.name,
@@ -208,9 +206,7 @@ async function saveUserToSpreadsheet(userData) {
 
         const result = await response.json();
 
-        if (result.success) {
-            console.log('ユーザー情報を保存しました:', result.data);
-        } else {
+        if (!result.success) {
             console.error('ユーザー情報の保存エラー:', result.error);
         }
 
