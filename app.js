@@ -95,50 +95,54 @@ async function showProfile(profileData) {
     currentUser = profileData;
     // グローバルに保存（特別シフト機能で使用）
     window.currentUser = profileData;
-    
+
+    // ログイン状態をlocalStorageに保存
+    localStorage.setItem('userProfile', JSON.stringify(profileData));
+    localStorage.setItem('isAdminUser', isAdminUser);
+
     const profileInfo = document.getElementById('profileInfo');
     const loginPrompt = document.getElementById('loginPrompt');
     const appContent = document.getElementById('appContent');
     const hamburgerBtn = document.getElementById('hamburgerBtn');
-    
+
     if (profileInfo) profileInfo.classList.remove('hidden');
     if (loginPrompt) loginPrompt.classList.add('hidden');
     if (appContent) appContent.classList.remove('hidden');
     if (hamburgerBtn) hamburgerBtn.classList.remove('hidden');
-    
+
     const userImage = document.getElementById('userImage');
     const userEmail = document.getElementById('userEmail');
     const userName = document.getElementById('userName');
-    
+
     if (userImage) userImage.src = profileData.picture;
     if (userEmail) userEmail.textContent = profileData.email;
     if (userName) userName.textContent = profileData.name;
-    
+
     // モバイルメニューのユーザー情報も更新
     const mobileUserSection = document.getElementById('mobileUserSection');
     const mobileUserImage = document.getElementById('mobileUserImage');
     const mobileUserEmail = document.getElementById('mobileUserEmail');
     const mobileUserName = document.getElementById('mobileUserName');
-    
+
     if (mobileUserSection) mobileUserSection.classList.remove('hidden');
     if (mobileUserImage) mobileUserImage.src = profileData.picture;
     if (mobileUserEmail) mobileUserEmail.textContent = profileData.email;
     if (mobileUserName) mobileUserName.textContent = profileData.name;
-    
+
     // モバイルメニューの設定項目を管理者の場合は非表示にする
     const mobileSettingsItem = document.getElementById('mobileSettingsItem');
     if (mobileSettingsItem) {
         mobileSettingsItem.style.display = isAdminUser ? 'none' : 'block';
     }
-    
+
     // 一般ユーザーの場合、ユーザー情報をスプレッドシートに保存
     if (!isAdminUser) {
         await saveUserToSpreadsheet(profileData);
     }
-    
+
     // タブの表示制御
     updateTabVisibility();
-    
+
     // 初回データロード
     if (isAdminUser) {
         // 管理者の場合、必要なデータを初回に読み込み
@@ -258,28 +262,32 @@ async function syncAllShiftsToCalendar() {
 
 function signOut() {
     google.accounts.id.disableAutoSelect();
-    
+
     currentUser = null;
     isAdminUser = false;
-    
+
+    // localStorageからログイン情報をクリア
+    localStorage.removeItem('userProfile');
+    localStorage.removeItem('isAdminUser');
+
     const profileInfo = document.getElementById('profileInfo');
     const loginPrompt = document.getElementById('loginPrompt');
     const appContent = document.getElementById('appContent');
     const hamburgerBtn = document.getElementById('hamburgerBtn');
-    
+
     if (profileInfo) profileInfo.classList.add('hidden');
     if (loginPrompt) loginPrompt.classList.remove('hidden');
     if (appContent) appContent.classList.add('hidden');
     if (hamburgerBtn) hamburgerBtn.classList.add('hidden');
-    
+
     const userImage = document.getElementById('userImage');
     const userName = document.getElementById('userName');
     const userEmail = document.getElementById('userEmail');
-    
+
     if (userImage) userImage.src = '';
     if (userName) userName.textContent = '';
     if (userEmail) userEmail.textContent = '';
-    
+
     console.log('ユーザーがログアウトしました');
 }
 
@@ -2987,19 +2995,41 @@ function updateSingleDateCapacity(dateKey, capacityData) {
 
 window.onload = function () {
     document.getElementById('g_id_onload').setAttribute('data-client_id', GOOGLE_CLIENT_ID);
-    
+
     google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleCredentialResponse
     });
-    
+
     google.accounts.id.renderButton(
         document.querySelector('.g_id_signin'),
         { theme: 'outline', size: 'medium' }
     );
-    
+
     setupTabSwitching();
     setupMobileMenu();
+
+    // localStorageから保存されたログイン情報を読み込んで自動ログイン
+    const savedUserProfile = localStorage.getItem('userProfile');
+    const savedIsAdminUser = localStorage.getItem('isAdminUser');
+
+    if (savedUserProfile) {
+        try {
+            const profileData = JSON.parse(savedUserProfile);
+            isAdminUser = savedIsAdminUser === 'true';
+
+            console.log('=== 自動ログイン ===');
+            console.log('User Email:', profileData.email);
+            console.log('User Type:', isAdminUser ? '管理者' : '一般ユーザー');
+            console.log('===================');
+
+            showProfile(profileData);
+        } catch (error) {
+            console.error('保存されたログイン情報の読み込みに失敗しました:', error);
+            localStorage.removeItem('userProfile');
+            localStorage.removeItem('isAdminUser');
+        }
+    }
     
     // 日付詳細モーダルのクローズイベント
     document.getElementById('dateDetailClose').onclick = closeDateDetailModal;
