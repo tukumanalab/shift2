@@ -244,8 +244,12 @@ async function loadSpecialShifts() {
 function displaySpecialShiftsForDate(dateKey, container) {
     const specialShifts = getSpecialShifts();
 
+    console.log(`displaySpecialShiftsForDate called for ${dateKey}`);
+    console.log('特別シフト全体:', specialShifts);
+
     // specialShiftsが配列でない場合は処理を停止
     if (!Array.isArray(specialShifts)) {
+        console.log('特別シフトが配列ではありません');
         container.innerHTML = '';
         return;
     }
@@ -254,23 +258,31 @@ function displaySpecialShiftsForDate(dateKey, container) {
     const shiftsForDate = specialShifts.filter(shift => {
         // 日付文字列を YYYY-MM-DD 形式に変換して比較
         let shiftDate = shift.date;
+        console.log(`比較中: shift.date=${shift.date}, dateKey=${dateKey}`);
         if (typeof shiftDate === 'string' && shiftDate.includes('T')) {
             // ISO形式の場合は日付部分のみを抽出
             shiftDate = shiftDate.split('T')[0];
+            console.log(`ISO形式変換後: ${shiftDate}`);
         } else if (shiftDate instanceof Date) {
             // Dateオブジェクトの場合はYYYY-MM-DD形式に変換
             const year = shiftDate.getFullYear();
             const month = String(shiftDate.getMonth() + 1).padStart(2, '0');
             const day = String(shiftDate.getDate()).padStart(2, '0');
             shiftDate = `${year}-${month}-${day}`;
+            console.log(`Date変換後: ${shiftDate}`);
         }
-        return shiftDate === dateKey;
+        const matches = shiftDate === dateKey;
+        console.log(`一致判定: ${shiftDate} === ${dateKey} => ${matches}`);
+        return matches;
     });
+
+    console.log(`${dateKey}の特別シフト数:`, shiftsForDate.length);
 
     // コンテナをクリア
     container.innerHTML = '';
 
     if (shiftsForDate.length === 0) {
+        console.log(`${dateKey}には特別シフトがありません`);
         return;
     }
 

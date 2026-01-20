@@ -40,14 +40,25 @@ async function loadShiftRequestForm() {
         }
 
         // 特別シフト表示の更新を明示的に実行
+        const specialShifts = getSpecialShifts();
+        console.log('=== DEBUG: シフト申請カレンダー特別シフト表示 ===');
+        console.log('特別シフトデータ:', specialShifts);
+        console.log('特別シフト数:', specialShifts ? specialShifts.length : 0);
+
         const allDateCells = document.querySelectorAll('[data-date]');
+        console.log('カレンダーセル数:', allDateCells.length);
+
         allDateCells.forEach(cell => {
             const dateKey = cell.getAttribute('data-date');
             const specialShiftDisplay = cell.querySelector('.special-shift-display');
             if (specialShiftDisplay) {
+                console.log('日付:', dateKey, '表示エリアあり');
                 displaySpecialShiftsForDate(dateKey, specialShiftDisplay);
+            } else {
+                console.log('日付:', dateKey, '表示エリアなし');
             }
         });
+        console.log('=== DEBUG END ===');
 
     } catch (error) {
         console.error('シフト申請フォームの読み込みに失敗しました:', error);
