@@ -29,16 +29,34 @@ async function loadShiftRequestForm() {
         setCurrentShiftCounts(shiftCounts);
         window.currentCapacityData = capacityData;
 
+        console.log('=== loadShiftRequestForm: データ読み込み完了 ===');
+        console.log('特別シフト数:', getSpecialShifts().length);
+        console.log('特別シフトデータ:', getSpecialShifts());
+
         // コンテナをクリアしてカレンダーを生成
         container.innerHTML = '<div id="shiftRequestCalendarContainer" class="calendar-container"></div>';
 
         // カレンダーを生成（シフト申請モード）
         generateCalendar('shiftRequestCalendarContainer', false, true);
 
+        console.log('=== カレンダー生成後 ===');
+        console.log('特別シフト表示エリア数:', document.querySelectorAll('.special-shift-display').length);
+
         // 人数データとシフト申請数をカレンダーに反映
         if (capacityData && capacityData.length > 0) {
             displayCapacityWithCountsOnCalendar(capacityData, shiftCounts);
         }
+
+        // 特別シフト表示の更新を明示的に実行
+        console.log('=== 特別シフトを再描画 ===');
+        const allDateCells = document.querySelectorAll('[data-date]');
+        allDateCells.forEach(cell => {
+            const dateKey = cell.getAttribute('data-date');
+            const specialShiftDisplay = cell.querySelector('.special-shift-display');
+            if (specialShiftDisplay) {
+                displaySpecialShiftsForDate(dateKey, specialShiftDisplay);
+            }
+        });
 
     } catch (error) {
         console.error('シフト申請フォームの読み込みに失敗しました:', error);
