@@ -49,5 +49,28 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Google Client ID設定完了');
     }
 
+    // localStorageから保存されたログイン情報を読み込んで自動ログイン
+    const savedUserProfile = localStorage.getItem('userProfile');
+    const savedIsAdminUser = localStorage.getItem('isAdminUser');
+
+    if (savedUserProfile) {
+        try {
+            const profileData = JSON.parse(savedUserProfile);
+            setIsAdmin(savedIsAdminUser === 'true');
+
+            console.log('=== 自動ログイン ===');
+            console.log('User Email:', profileData.email);
+            console.log('User Type:', isAdmin() ? '管理者' : '一般ユーザー');
+            console.log('===================');
+
+            showProfile(profileData);
+        } catch (error) {
+            console.error('保存されたログイン情報の読み込みに失敗しました:', error);
+            localStorage.removeItem('userProfile');
+            localStorage.removeItem('isAdminUser');
+            localStorage.removeItem('currentTab');
+        }
+    }
+
     console.log('アプリケーション初期化完了');
 });

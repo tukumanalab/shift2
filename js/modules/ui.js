@@ -37,6 +37,9 @@ function switchToTab(tabName) {
     } else if (tabName === 'special-shift-list') {
         loadSpecialShiftList();
     }
+
+    // 現在のタブをlocalStorageに保存
+    localStorage.setItem('currentTab', tabName);
 }
 
 // タブ切り替えのイベントリスナーをセットアップ
@@ -84,17 +87,21 @@ function updateTabVisibility() {
     });
 
     // 最初に表示するタブを選択
-    if (isAdmin()) {
-        // 管理者は「シフト一覧」を最初に表示
-        const shiftListBtn = document.querySelector('[data-tab="shift-list"]');
-        if (shiftListBtn) {
-            shiftListBtn.click();
-        }
-    } else {
-        // 一般ユーザーは「シフト申請」を最初に表示
-        const shiftRequestBtn = document.querySelector('[data-tab="shift-request"]');
-        if (shiftRequestBtn) {
-            shiftRequestBtn.click();
+    // ただし、保存されたタブがある場合は後で復元されるのでここでは選択しない
+    const savedTab = localStorage.getItem('currentTab');
+    if (!savedTab) {
+        if (isAdmin()) {
+            // 管理者は「シフト一覧」を最初に表示
+            const shiftListBtn = document.querySelector('[data-tab="shift-list"]');
+            if (shiftListBtn) {
+                shiftListBtn.click();
+            }
+        } else {
+            // 一般ユーザーは「シフト申請」を最初に表示
+            const shiftRequestBtn = document.querySelector('[data-tab="shift-request"]');
+            if (shiftRequestBtn) {
+                shiftRequestBtn.click();
+            }
         }
     }
 }

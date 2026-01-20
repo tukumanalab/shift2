@@ -32,6 +32,10 @@ function decodeJwtResponse(token) {
 async function showProfile(profileData) {
     setCurrentUser(profileData);
 
+    // ログイン状態をlocalStorageに保存
+    localStorage.setItem('userProfile', JSON.stringify(profileData));
+    localStorage.setItem('isAdminUser', isAdmin());
+
     const profileInfo = document.getElementById('profileInfo');
     const loginPrompt = document.getElementById('loginPrompt');
     const appContent = document.getElementById('appContent');
@@ -92,7 +96,18 @@ async function showProfile(profileData) {
             loadSpecialShifts()       // 特別シフトデータ
         ]);
         // 初期表示
-        displayMyShifts(document.getElementById('myShiftsCalendarContainer'), getCurrentUserShifts());
+        displayMyShifts(document.getElementById('myShiftsContent'), getCurrentUserShifts());
+    }
+
+    // 保存されたタブがあれば復元
+    const savedTab = localStorage.getItem('currentTab');
+    if (savedTab) {
+        // タブが存在し、かつボタンが表示されているかチェック
+        const tabButton = document.querySelector(`.tab-button[data-tab="${savedTab}"]`);
+        const tabContent = document.getElementById(savedTab);
+        if (tabButton && tabContent && tabButton.style.display !== 'none') {
+            switchToTab(savedTab);
+        }
     }
 }
 
@@ -101,6 +116,11 @@ function signOut() {
     google.accounts.id.disableAutoSelect();
 
     resetState();
+
+    // localStorageからログイン情報をクリア
+    localStorage.removeItem('userProfile');
+    localStorage.removeItem('isAdminUser');
+    localStorage.removeItem('currentTab');
 
     const profileInfo = document.getElementById('profileInfo');
     const loginPrompt = document.getElementById('loginPrompt');
