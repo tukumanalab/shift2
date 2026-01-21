@@ -1,5 +1,0 @@
-const config = {
-    GOOGLE_APPS_SCRIPT_URL: 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
-    GOOGLE_CLIENT_ID: 'your_google_client_id_here',
-    AUTHORIZED_EMAILS: 'email1@example.com,email2@example.com'
-};

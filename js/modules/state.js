@@ -1,10 +1,5 @@
 // state.js - グローバル状態管理モジュール
 
-// 定数（config.jsから取得）
-const GOOGLE_APPS_SCRIPT_URL = config.GOOGLE_APPS_SCRIPT_URL;
-const GOOGLE_CLIENT_ID = config.GOOGLE_CLIENT_ID;
-const AUTHORIZED_EMAILS = config.AUTHORIZED_EMAILS.split(',').map(email => email.trim());
-
 // アプリケーション状態
 const AppState = {
     // ユーザー情報
@@ -134,15 +129,15 @@ function setAllShiftsData(shifts) {
 }
 
 function getGoogleAppsScriptUrl() {
-    return GOOGLE_APPS_SCRIPT_URL;
+    return config.GOOGLE_APPS_SCRIPT_URL;
 }
 
 function getGoogleClientId() {
-    return GOOGLE_CLIENT_ID;
+    return config.GOOGLE_CLIENT_ID;
 }
 
 function getAuthorizedEmails() {
-    return AUTHORIZED_EMAILS;
+    return config.AUTHORIZED_EMAILS.split(',').map(email => email.trim());
 }
 
 function resetState() {

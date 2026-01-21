@@ -32,17 +32,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Create config.js from secrets
+      - name: Create .env from secrets
         env:
           SHIFT_GOOGLE_APPS_SCRIPT_URL: ${{ secrets.SHIFT_GOOGLE_APPS_SCRIPT_URL }}
           SHIFT_GOOGLE_CLIENT_ID: ${{ secrets.SHIFT_GOOGLE_CLIENT_ID }}
           SHIFT_AUTHORIZED_EMAILS: ${{ vars.SHIFT_AUTHORIZED_EMAILS }}
+          SHIFT_GOOGLE_CALENDAR_ID: ${{ secrets.SHIFT_GOOGLE_CALENDAR_ID }}
+          SHIFT_GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.SHIFT_GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+          SHIFT_GOOGLE_PRIVATE_KEY: ${{ secrets.SHIFT_GOOGLE_PRIVATE_KEY }}
         run: |
-          echo "const config = {" > config.js
-          echo "    GOOGLE_APPS_SCRIPT_URL: '${SHIFT_GOOGLE_APPS_SCRIPT_URL}'," >> config.js
-          echo "    GOOGLE_CLIENT_ID: '${SHIFT_GOOGLE_CLIENT_ID}'," >> config.js
-          echo "    AUTHORIZED_EMAILS: '${SHIFT_AUTHORIZED_EMAILS}'" >> config.js
-          echo "};" >> config.js
+          echo "PORT=8080" > .env
+          echo "DATABASE_PATH=./data/shift.db" >> .env
+          echo "GOOGLE_APPS_SCRIPT_URL=${SHIFT_GOOGLE_APPS_SCRIPT_URL}" >> .env
+          echo "GOOGLE_CLIENT_ID=${SHIFT_GOOGLE_CLIENT_ID}" >> .env
+          echo "AUTHORIZED_EMAILS=${SHIFT_AUTHORIZED_EMAILS}" >> .env
+          echo "GOOGLE_CALENDAR_ID=${SHIFT_GOOGLE_CALENDAR_ID}" >> .env
+          echo "GOOGLE_SERVICE_ACCOUNT_EMAIL=${SHIFT_GOOGLE_SERVICE_ACCOUNT_EMAIL}" >> .env
+          echo "GOOGLE_PRIVATE_KEY=\"${SHIFT_GOOGLE_PRIVATE_KEY}\"" >> .env
+          echo "TIMEZONE=Asia/Tokyo" >> .env
       
       - name: Setup Pages
         uses: actions/configure-pages@v5

@@ -34,20 +34,50 @@ async function syncAllShiftsToCalendar() {
     }
 }
 
+// Google Sign-Inを初期化
+function initializeGoogleSignIn() {
+    const clientId = getGoogleClientId();
+    if (!clientId) {
+        console.error('Google Client IDが設定されていません');
+        return;
+    }
+
+    // Google Sign-In SDKが読み込まれるまで待機
+    if (typeof google === 'undefined' || !google.accounts) {
+        console.log('Google Sign-In SDKを待機中...');
+        setTimeout(initializeGoogleSignIn, 100);
+        return;
+    }
+
+    // Google Sign-Inを初期化
+    google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleCredentialResponse,
+        auto_select: false
+    });
+
+    // ログインボタンをレンダリング
+    google.accounts.id.renderButton(
+        document.querySelector('.g_id_signin'),
+        { theme: 'outline', size: 'medium', text: 'signin_with' }
+    );
+
+    console.log('Google Sign-In初期化完了');
+}
+
 // アプリケーション初期化
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // サーバーから設定を読み込む
+    await loadConfig();
+
     // タブ切り替えのセットアップ
     setupTabSwitching();
 
     // モバイルメニューのセットアップ
     setupMobileMenu();
 
-    // Google Sign-InのClient IDを動的に設定
-    const gIdOnload = document.getElementById('g_id_onload');
-    if (gIdOnload) {
-        gIdOnload.setAttribute('data-client_id', getGoogleClientId());
-        console.log('Google Client ID設定完了');
-    }
+    // Google Sign-Inを初期化
+    initializeGoogleSignIn();
 
     // localStorageから保存されたログイン情報を読み込んで自動ログイン
     const savedUserProfile = localStorage.getItem('userProfile');
