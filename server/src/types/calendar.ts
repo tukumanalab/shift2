@@ -10,7 +10,7 @@ export interface ShiftInfo {
   user_name: string;
   date: string;
   time_slot: string;
-  type: 'shift' | 'special_shift';
+  type: 'shift';
 }
 
 export interface MergedTimeSlot {
@@ -20,7 +20,7 @@ export interface MergedTimeSlot {
   start_time: string;
   end_time: string;
   shift_uuids: string[];
-  type: 'shift' | 'special_shift';
+  type: 'shift';
 }
 
 export interface SyncResult {
@@ -45,8 +45,7 @@ export interface CalendarEvent {
   };
   extendedProperties?: {
     private?: {
-      shift_uuid?: string;
-      special_shift_uuid?: string;
+      shift_uuid: string;
       user_id: string;
       user_email: string;
       shift_time: string;

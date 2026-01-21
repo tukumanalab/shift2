@@ -32,7 +32,6 @@ db.exec(`
     end_time TEXT NOT NULL,
     user_id TEXT NOT NULL,
     user_name TEXT NOT NULL,
-    calendar_event_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )

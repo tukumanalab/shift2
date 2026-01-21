@@ -136,9 +136,8 @@ export class CalendarService {
         }
       }
 
-      // データベースの calendar_event_id をクリア
+      // データベースの calendar_event_id をクリア（通常シフトのみ）
       db.prepare('UPDATE shifts SET calendar_event_id = NULL').run();
-      db.prepare('UPDATE special_shifts SET calendar_event_id = NULL').run();
 
       // 通常シフトと特別シフトを取得
       const shifts = this.getAllShifts();
@@ -208,10 +207,7 @@ export class CalendarService {
 
           if (response.data.id) {
             // calendar_event_id を各シフトレコードに記録
-            const updateStmt =
-              slot.type === 'shift'
-                ? db.prepare('UPDATE shifts SET calendar_event_id = ? WHERE uuid = ?')
-                : db.prepare('UPDATE special_shifts SET calendar_event_id = ? WHERE uuid = ?');
+            const updateStmt = db.prepare('UPDATE shifts SET calendar_event_id = ? WHERE uuid = ?');
 
             for (const shiftUuid of slot.shift_uuids) {
               updateStmt.run(response.data.id, shiftUuid);
@@ -258,14 +254,14 @@ export class CalendarService {
   }
 
   /**
-   * 個別シフトをカレンダーに追加
+   * 個別シフトをカレンダーに追加（通常シフトのみ）
    */
   static async addShiftToCalendar(shiftData: {
     uuid: string;
     user_id: string;
     date: string;
     time_slot: string;
-    type: 'shift' | 'special_shift';
+    type: 'shift';
   }): Promise<CalendarSyncResult> {
     try {
       const { calendar, calendarId } = getCalendarClient();
@@ -313,11 +309,7 @@ export class CalendarService {
 
       if (response.data.id) {
         // calendar_event_id をシフトレコードに記録
-        const updateStmt =
-          shiftData.type === 'shift'
-            ? db.prepare('UPDATE shifts SET calendar_event_id = ? WHERE uuid = ?')
-            : db.prepare('UPDATE special_shifts SET calendar_event_id = ? WHERE uuid = ?');
-
+        const updateStmt = db.prepare('UPDATE shifts SET calendar_event_id = ? WHERE uuid = ?');
         updateStmt.run(response.data.id, shiftData.uuid);
 
         return { success: true, calendarEventId: response.data.id };
@@ -331,20 +323,17 @@ export class CalendarService {
   }
 
   /**
-   * 個別シフトをカレンダーから削除
+   * 個別シフトをカレンダーから削除（通常シフトのみ）
    */
   static async deleteShiftFromCalendar(
     shiftUuid: string,
-    type: 'shift' | 'special_shift'
+    type: 'shift'
   ): Promise<CalendarSyncResult> {
     try {
-      // shifts または special_shifts テーブルから calendar_event_id を取得
-      const query =
-        type === 'shift'
-          ? 'SELECT calendar_event_id FROM shifts WHERE uuid = ?'
-          : 'SELECT calendar_event_id FROM special_shifts WHERE uuid = ?';
-
-      const row = db.prepare(query).get(shiftUuid) as { calendar_event_id: string | null } | undefined;
+      // shifts テーブルから calendar_event_id を取得
+      const row = db
+        .prepare('SELECT calendar_event_id FROM shifts WHERE uuid = ?')
+        .get(shiftUuid) as { calendar_event_id: string | null } | undefined;
 
       if (!row || !row.calendar_event_id) {
         return { success: false, error: 'カレンダーイベントが見つかりません' };
@@ -355,11 +344,7 @@ export class CalendarService {
 
       if (deleted) {
         // データベースの calendar_event_id をクリア
-        const updateStmt =
-          type === 'shift'
-            ? db.prepare('UPDATE shifts SET calendar_event_id = NULL WHERE uuid = ?')
-            : db.prepare('UPDATE special_shifts SET calendar_event_id = NULL WHERE uuid = ?');
-
+        const updateStmt = db.prepare('UPDATE shifts SET calendar_event_id = NULL WHERE uuid = ?');
         updateStmt.run(shiftUuid);
         return { success: true };
       } else {
@@ -372,19 +357,20 @@ export class CalendarService {
   }
 
   /**
-   * 全シフト（通常 + 特別）を取得
+   * 全シフト（通常シフトのみ）を取得
+   * 注意: 特別シフトはカレンダーに同期されない
    */
   private static getAllShifts(): ShiftInfo[] {
     const shifts: ShiftInfo[] = [];
 
     // 通常シフトを取得
-    const stmt1 = db.prepare(`
+    const stmt = db.prepare(`
       SELECT uuid, user_id, user_name, date, time_slot
       FROM shifts
       WHERE date >= date('now')
       ORDER BY date, time_slot
     `);
-    const regularShifts = stmt1.all() as Array<{
+    const regularShifts = stmt.all() as Array<{
       uuid: string;
       user_id: string;
       user_name: string;
@@ -403,38 +389,11 @@ export class CalendarService {
       });
     }
 
-    // 特別シフトを取得
-    const stmt2 = db.prepare(`
-      SELECT uuid, user_id, user_name, date, start_time, end_time
-      FROM special_shifts
-      WHERE date >= date('now')
-      ORDER BY date, start_time
-    `);
-    const specialShifts = stmt2.all() as Array<{
-      uuid: string;
-      user_id: string;
-      user_name: string;
-      date: string;
-      start_time: string;
-      end_time: string;
-    }>;
-
-    for (const shift of specialShifts) {
-      shifts.push({
-        uuid: shift.uuid,
-        user_id: shift.user_id,
-        user_name: shift.user_name,
-        date: shift.date,
-        time_slot: `${shift.start_time}-${shift.end_time}`,
-        type: 'special_shift',
-      });
-    }
-
     return shifts;
   }
 
   /**
-   * 同期ステータスを取得
+   * 同期ステータスを取得（通常シフトのみ）
    */
   static getSyncStatus(): {
     total_events: number;
@@ -445,11 +404,7 @@ export class CalendarService {
       .prepare('SELECT COUNT(*) as count FROM shifts WHERE calendar_event_id IS NOT NULL')
       .get() as { count: number };
 
-    const specialShiftsCount = db
-      .prepare('SELECT COUNT(*) as count FROM special_shifts WHERE calendar_event_id IS NOT NULL')
-      .get() as { count: number };
-
-    const totalEvents = shiftsCount.count + specialShiftsCount.count;
+    const totalEvents = shiftsCount.count;
 
     // 最新の updated_at を取得（last_synced の代わり）
     const lastShiftUpdate = db
@@ -458,23 +413,7 @@ export class CalendarService {
       )
       .get() as { updated_at: string } | undefined;
 
-    const lastSpecialShiftUpdate = db
-      .prepare(
-        'SELECT updated_at FROM special_shifts WHERE calendar_event_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1'
-      )
-      .get() as { updated_at: string } | undefined;
-
-    let lastSynced: string | null = null;
-    if (lastShiftUpdate && lastSpecialShiftUpdate) {
-      lastSynced =
-        lastShiftUpdate.updated_at > lastSpecialShiftUpdate.updated_at
-          ? lastShiftUpdate.updated_at
-          : lastSpecialShiftUpdate.updated_at;
-    } else if (lastShiftUpdate) {
-      lastSynced = lastShiftUpdate.updated_at;
-    } else if (lastSpecialShiftUpdate) {
-      lastSynced = lastSpecialShiftUpdate.updated_at;
-    }
+    const lastSynced = lastShiftUpdate ? lastShiftUpdate.updated_at : null;
 
     return {
       total_events: totalEvents,

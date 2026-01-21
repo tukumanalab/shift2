@@ -1,6 +1,5 @@
 import express from 'express';
 import { SpecialShiftModel } from '../models/SpecialShift';
-import { CalendarService } from '../services/CalendarService';
 
 const router = express.Router();
 
@@ -97,18 +96,7 @@ router.post('/', (req, res) => {
       });
     }
 
-    // カレンダーに同期（バックグラウンド）
-    if (shift.uuid) {
-      CalendarService.addShiftToCalendar({
-        uuid: shift.uuid,
-        user_id,
-        date,
-        time_slot: `${start_time}-${end_time}`,
-        type: 'special_shift'
-      }).catch(error => {
-        console.error('カレンダー同期エラー:', error);
-      });
-    }
+    // 特別シフトはカレンダーに同期しない
 
     res.status(201).json({
       success: true,
@@ -127,7 +115,7 @@ router.post('/', (req, res) => {
  * DELETE /api/special-shifts/:uuid
  * UUIDで特別シフトを削除
  */
-router.delete('/:uuid', async (req, res) => {
+router.delete('/:uuid', (req, res) => {
   try {
     const uuid = req.params.uuid as string;
 
@@ -140,10 +128,7 @@ router.delete('/:uuid', async (req, res) => {
       });
     }
 
-    // 先にカレンダーから削除（データベースのCASCADE削除前に実行）
-    const calendarResult = await CalendarService.deleteShiftFromCalendar(uuid, 'special_shift');
-
-    // その後データベースから削除
+    // 特別シフトはカレンダーに同期しないため、直接削除
     const success = SpecialShiftModel.delete(uuid);
 
     if (!success) {
@@ -155,9 +140,7 @@ router.delete('/:uuid', async (req, res) => {
 
     res.json({
       success: true,
-      message: '特別シフトを削除しました',
-      calendarSync: calendarResult.success ? 'success' : 'failed',
-      calendarError: calendarResult.error
+      message: '特別シフトを削除しました'
     });
   } catch (error) {
     console.error('Error deleting special shift:', error);
@@ -172,7 +155,7 @@ router.delete('/:uuid', async (req, res) => {
  * POST /api/special-shifts/delete-multiple
  * 複数のUUIDで特別シフトを削除
  */
-router.post('/delete-multiple', async (req, res) => {
+router.post('/delete-multiple', (req, res) => {
   try {
     const { uuids } = req.body;
 
@@ -183,29 +166,12 @@ router.post('/delete-multiple', async (req, res) => {
       });
     }
 
-    // 先にカレンダーから削除（データベースのCASCADE削除前に実行）
-    let calendarSyncSuccess = 0;
-    let calendarSyncFailed = 0;
-    for (const uuid of uuids) {
-      const calendarResult = await CalendarService.deleteShiftFromCalendar(uuid, 'special_shift');
-      if (calendarResult.success) {
-        calendarSyncSuccess++;
-      } else {
-        calendarSyncFailed++;
-        console.error('カレンダー削除エラー:', calendarResult.error);
-      }
-    }
-
-    // その後データベースから削除
+    // 特別シフトはカレンダーに同期しないため、直接削除
     const result = SpecialShiftModel.deleteMultiple(uuids);
 
     res.json({
       success: true,
       data: result,
-      calendarSync: {
-        success: calendarSyncSuccess,
-        failed: calendarSyncFailed
-      },
       message: `${result.deleted}件の特別シフトを削除しました`
     });
   } catch (error) {

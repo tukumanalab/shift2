@@ -53,10 +53,10 @@ router.post('/sync-shift', async (req: Request, res: Response) => {
       });
     }
 
-    if (type !== 'shift' && type !== 'special_shift') {
+    if (type !== 'shift') {
       return res.status(400).json({
         success: false,
-        error: 'typeは "shift" または "special_shift" である必要があります',
+        error: 'typeは "shift" である必要があります（特別シフトはカレンダーに同期されません）',
       });
     }
 
@@ -65,7 +65,7 @@ router.post('/sync-shift', async (req: Request, res: Response) => {
       user_id,
       date,
       time_slot,
-      type,
+      type: 'shift',
     });
 
     if (result.success) {
@@ -99,16 +99,16 @@ router.delete('/sync-shift/:shiftUuid', async (req: Request, res: Response) => {
     const typeParam = req.query.type;
     const type = typeof typeParam === 'string' ? typeParam : undefined;
 
-    if (!type || (type !== 'shift' && type !== 'special_shift')) {
+    if (!type || type !== 'shift') {
       return res.status(400).json({
         success: false,
-        error: 'typeクエリパラメータは "shift" または "special_shift" である必要があります',
+        error: 'typeクエリパラメータは "shift" である必要があります（特別シフトはカレンダーに同期されません）',
       });
     }
 
     const result = await CalendarService.deleteShiftFromCalendar(
       shiftUuid,
-      type
+      type as 'shift'
     );
 
     if (result.success) {
