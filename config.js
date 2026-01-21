@@ -1,23 +1,18 @@
-// アプリケーション設定（サンプル）
-// このファイルは参考用です。実際の設定は.envファイルで管理されます。
-
-// 注意: 設定は起動時にサーバーの/api/configエンドポイントから自動的に取得されます。
-// .envファイルに以下の環境変数を設定してください:
-//   - GOOGLE_CLIENT_ID
-//   - AUTHORIZED_EMAILS
-//   - GOOGLE_APPS_SCRIPT_URL（オプション）
-
+// アプリケーション設定
+// このファイルは起動時にサーバーから設定を取得して更新されます
 const config = {
-    // これらの値は起動時にサーバーから取得されます
+    // サーバーから取得する設定（初期値）
     GOOGLE_CLIENT_ID: '',
     AUTHORIZED_EMAILS: '',
-    GOOGLE_APPS_SCRIPT_URL: '',
 
-    // APIベースURL（自動設定）
-    API_BASE_URL: window.location.origin + '/api'
+    // サーバーURL（静的設定）
+    API_BASE_URL: window.location.origin + '/api',
+
+    // レガシー（後方互換性のため残す）
+    GOOGLE_APPS_SCRIPT_URL: ''
 };
 
-// サーバーから設定を取得する関数
+// サーバーから設定を取得
 async function loadConfig() {
     try {
         const response = await fetch(`${config.API_BASE_URL}/config`);
