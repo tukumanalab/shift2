@@ -119,21 +119,19 @@ export class CalendarService {
 
       const events = eventsResponse.data.items || [];
 
-      // シフトイベントを識別して削除（タイトルに ' - ' が含まれ、説明に「担当者:」が含まれる）
+      console.log(`削除対象イベント数: ${events.length}`);
+
+      // シフト管理専用カレンダーなので、すべてのイベントを削除
       for (const event of events) {
-        if (
-          event.summary &&
-          event.summary.includes('(') &&
-          event.description &&
-          event.description.includes('担当者:')
-        ) {
-          try {
-            await calendar.events.delete({
-              calendarId,
-              eventId: event.id!,
-            });
-          } catch (error) {
-            console.error(`イベント削除エラー (${event.id}):`, error);
+        try {
+          await calendar.events.delete({
+            calendarId,
+            eventId: event.id!,
+          });
+          console.log(`  ✓ イベント削除: ${event.id}`);
+        } catch (error: any) {
+          if (error.code !== 404) {
+            console.error(`  ✗ イベント削除エラー (${event.id}):`, error.message);
           }
         }
       }
