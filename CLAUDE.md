@@ -79,6 +79,20 @@ This is a Japanese shift management web application with Google OAuth authentica
 - **Date Range**: Supports shifts from current date through next fiscal year (March 31)
 - **Real-time Availability**: Shows remaining slots based on capacity settings and current applications
 
+**シフトの種類**:
+1. **通常シフト (shifts)**:
+   - 固定の30分単位の時間枠（13:00-13:30、13:30-14:00など）
+   - Googleカレンダーに自動同期される
+   - `shifts`テーブルに`calendar_event_id`と共に保存される
+
+2. **特別シフト (special_shifts)**:
+   - 柔軟な時間帯（例：13:15-15:45、10:00-12:30など）
+   - Googleカレンダーには同期されない
+   - `special_shifts`テーブルに保存される
+   - 不定期なスケジュールや特別なイベント用
+
+**重要**: 通常シフト（shiftsテーブル）のみがGoogleカレンダーと同期されます。特別シフトは内部管理用であり、共有カレンダーには表示されません。
+
 #### 3. Capacity Management
 - **Default Capacity by Day of Week**:
   - Sunday/Saturday: 0 people (no shifts)
@@ -114,20 +128,33 @@ This is a Japanese shift management web application with Google OAuth authentica
 - **Calendar Sync**: Automatic event creation in Google Calendar
 - **Property Service**: Secure storage of configuration settings
 
-**Migration Status**:
-- ✅ User Management: Migrated to Express + TypeScript + SQLite
-- ⏳ Shift Management: Still using Google Apps Script
-- ⏳ Capacity Management: Still using Google Apps Script
-- ⏳ Calendar Integration: Still using Google Apps Script
+**移行状況**:
+- ✅ ユーザー管理: Express + TypeScript + SQLiteに移行済み
+- ✅ カレンダー連携: Express + TypeScriptに移行済み（通常シフトのみ）
+- ⏳ シフト管理: Google Apps Scriptを使用中
+- ⏳ 人数設定管理: Google Apps Scriptを使用中
 
 #### Data Structure
 
-**SQLite Database (New - for User Management)**:
-- **users**: User registration data
-  - Columns: id, user_id, name, email, picture, nickname, real_name, created_at, updated_at
+**SQLite Database (Express + TypeScript Backend)**:
+- **users**: ユーザー登録データ
+  - カラム: id, user_id, name, email, picture, nickname, real_name, created_at, updated_at
   - Primary Key: id (auto-increment)
   - Unique Index: user_id
   - Indexes: user_id, email
+
+- **shifts**: 通常シフト（Googleカレンダーに同期）
+  - カラム: id, uuid, user_id, user_name, date, time_slot, calendar_event_id, created_at, updated_at
+  - 固定の30分単位の時間枠
+  - calendar_event_idがGoogleカレンダーイベントにリンク
+
+- **special_shifts**: 特別シフト（Googleカレンダーには同期されない）
+  - カラム: id, uuid, user_id, user_name, date, start_time, end_time, created_at, updated_at
+  - 柔軟な時間帯
+  - calendar_event_idなし（同期されない）
+
+- **capacity_settings**: 日次の人数設定
+  - カラム: id, date, capacity, memo, user_id, user_name, created_at, updated_at
 
 **Spreadsheet Sheets (Legacy - for Shifts and Capacity)**:
 1. **シフト (Shifts)**: Individual shift applications

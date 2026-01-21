@@ -7,6 +7,7 @@ import specialShiftsRouter from './routes/specialShifts';
 import shiftsRouter from './routes/shifts';
 import capacitySettingsRouter from './routes/capacitySettings';
 import configRouter from './routes/config';
+import calendarRouter from './routes/calendar';
 
 // 環境変数を読み込む
 dotenv.config();
@@ -24,6 +25,7 @@ app.use('/api/users', usersRouter);
 app.use('/api/special-shifts', specialShiftsRouter);
 app.use('/api/shifts', shiftsRouter);
 app.use('/api/capacity-settings', capacitySettingsRouter);
+app.use('/api/calendar', calendarRouter);
 
 // ヘルスチェックエンドポイント
 app.get('/health', (req, res) => {
@@ -67,6 +69,10 @@ app.listen(PORT, () => {
   console.log(`   - POST   /api/capacity-settings/bulk`);
   console.log(`   - PUT    /api/capacity-settings/:date`);
   console.log(`   - DELETE /api/capacity-settings/:date`);
+  console.log(`   - POST   /api/calendar/sync`);
+  console.log(`   - POST   /api/calendar/sync-shift`);
+  console.log(`   - DELETE /api/calendar/sync-shift/:shiftUuid`);
+  console.log(`   - GET    /api/calendar/sync-status`);
 });
 
 export default app;

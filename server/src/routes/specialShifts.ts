@@ -96,6 +96,8 @@ router.post('/', (req, res) => {
       });
     }
 
+    // 特別シフトはカレンダーに同期しない
+
     res.status(201).json({
       success: true,
       data: shift
@@ -116,12 +118,23 @@ router.post('/', (req, res) => {
 router.delete('/:uuid', (req, res) => {
   try {
     const uuid = req.params.uuid as string;
+
+    // 特別シフトが存在するか確認
+    const shift = SpecialShiftModel.getByUuid(uuid);
+    if (!shift) {
+      return res.status(404).json({
+        success: false,
+        error: '特別シフトが見つかりません'
+      });
+    }
+
+    // 特別シフトはカレンダーに同期しないため、直接削除
     const success = SpecialShiftModel.delete(uuid);
 
     if (!success) {
-      return res.status(404).json({
+      return res.status(500).json({
         success: false,
-        error: '特別シフトが見つからないか、削除に失敗しました'
+        error: '特別シフトの削除に失敗しました'
       });
     }
 
@@ -153,6 +166,7 @@ router.post('/delete-multiple', (req, res) => {
       });
     }
 
+    // 特別シフトはカレンダーに同期しないため、直接削除
     const result = SpecialShiftModel.deleteMultiple(uuids);
 
     res.json({

@@ -46,6 +46,7 @@ db.exec(`
     user_name TEXT NOT NULL,
     date TEXT NOT NULL,
     time_slot TEXT NOT NULL,
+    calendar_event_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
