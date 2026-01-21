@@ -4,7 +4,6 @@ data/
 .env
 .env.local
 .env.production
-config.js
 .DS_Store
 
 # clasp files
