@@ -8,6 +8,7 @@ export interface Shift {
   user_name: string;
   date: string;
   time_slot: string;
+  calendar_event_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -206,8 +207,13 @@ export class ShiftModel {
   /**
    * 複数シフトを一括作成
    */
-  static bulkCreate(shifts: ShiftCreateData[]): { success: number; failed: number; duplicates: number } {
-    const result = { success: 0, failed: 0, duplicates: 0 };
+  static bulkCreate(shifts: ShiftCreateData[]): {
+    success: number;
+    failed: number;
+    duplicates: number;
+    created: Shift[];
+  } {
+    const result = { success: 0, failed: 0, duplicates: 0, created: [] as Shift[] };
 
     try {
       const insertStmt = db.prepare(`
@@ -227,6 +233,12 @@ export class ShiftModel {
             const uuid = uuidv4();
             insertStmt.run(uuid, shift.user_id, shift.user_name, shift.date, shift.time_slot);
             result.success++;
+
+            // 作成されたシフトを記録
+            const createdShift = this.getByUuid(uuid);
+            if (createdShift) {
+              result.created.push(createdShift);
+            }
           } catch (error) {
             console.error('Error in bulk create:', error);
             result.failed++;

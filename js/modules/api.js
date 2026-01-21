@@ -150,20 +150,14 @@ const API = {
     // ===== Google Apps Script API =====
 
     // カレンダー同期（全シフト）
-    async syncAllShiftsToCalendar(userId) {
-        await fetch(getGoogleAppsScriptUrl(), {
+    async syncAllShiftsToCalendar() {
+        const response = await fetch(`${config.API_BASE_URL}/calendar/sync`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-            },
-            mode: 'no-cors',
-            body: JSON.stringify({
-                type: 'syncAll',
-                userId: userId
-            })
+            }
         });
-        // no-corsモードのため、レスポンスは取得できない
-        return { success: true };
+        return await response.json();
     },
 
     // ユーザー情報保存（GAS）
