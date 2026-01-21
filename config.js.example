@@ -1,5 +1,41 @@
+// アプリケーション設定（サンプル）
+// このファイルは参考用です。実際の設定は.envファイルで管理されます。
+
+// 注意: 設定は起動時にサーバーの/api/configエンドポイントから自動的に取得されます。
+// .envファイルに以下の環境変数を設定してください:
+//   - GOOGLE_CLIENT_ID
+//   - AUTHORIZED_EMAILS
+//   - GOOGLE_APPS_SCRIPT_URL（オプション）
+
 const config = {
-    GOOGLE_APPS_SCRIPT_URL: 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
-    GOOGLE_CLIENT_ID: 'your_google_client_id_here',
-    AUTHORIZED_EMAILS: 'email1@example.com,email2@example.com'
+    // これらの値は起動時にサーバーから取得されます
+    GOOGLE_CLIENT_ID: '',
+    AUTHORIZED_EMAILS: '',
+    GOOGLE_APPS_SCRIPT_URL: '',
+
+    // APIベースURL（自動設定）
+    API_BASE_URL: window.location.origin + '/api'
 };
+
+// サーバーから設定を取得する関数
+async function loadConfig() {
+    try {
+        const response = await fetch(`${config.API_BASE_URL}/config`);
+        const result = await response.json();
+
+        if (result.success && result.data) {
+            config.GOOGLE_CLIENT_ID = result.data.googleClientId;
+            config.AUTHORIZED_EMAILS = result.data.authorizedEmails;
+            config.GOOGLE_APPS_SCRIPT_URL = result.data.googleAppsScriptUrl || '';
+
+            console.log('✅ 設定をサーバーから読み込みました');
+            return true;
+        } else {
+            console.error('設定の読み込みに失敗しました:', result);
+            return false;
+        }
+    } catch (error) {
+        console.error('設定の読み込みエラー:', error);
+        return false;
+    }
+}

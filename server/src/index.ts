@@ -7,6 +7,7 @@ import specialShiftsRouter from './routes/specialShifts';
 import shiftsRouter from './routes/shifts';
 import capacitySettingsRouter from './routes/capacitySettings';
 import calendarRouter from './routes/calendar';
+import configRouter from './routes/config';
 
 // 環境変数を読み込む
 dotenv.config();
@@ -19,6 +20,7 @@ app.use(cors());
 app.use(express.json());
 
 // APIルーティング（静的ファイルより前に配置）
+app.use('/api/config', configRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/special-shifts', specialShiftsRouter);
 app.use('/api/shifts', shiftsRouter);

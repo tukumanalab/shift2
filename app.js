@@ -35,7 +35,10 @@ async function syncAllShiftsToCalendar() {
 }
 
 // アプリケーション初期化
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // サーバーから設定を読み込む
+    await loadConfig();
+
     // タブ切り替えのセットアップ
     setupTabSwitching();
 
