@@ -20,7 +20,7 @@ async function syncAllShiftsToCalendar() {
     syncBtn.textContent = '削除・同期中...';
 
     try {
-        await API.syncAllShiftsToCalendar(currentUser.sub);
+        await API.syncAllShiftsToCalendar();
 
         console.log('既存のシフトを削除してから全シフトをカレンダーに同期しました');
         alert('カレンダーから既存のシフトを削除し、全シフトを再同期しました！');

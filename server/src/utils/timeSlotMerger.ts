@@ -9,9 +9,9 @@ export function mergeConsecutiveTimeSlots(timeSlots: string[]): string[] {
 
   // 時間帯を開始時刻でソート
   const sorted = timeSlots.sort((a, b) => {
-    const timeA = a.replace(/(\d+):(\d+)-(\d+):(\d+)/, '$1$2');
-    const timeB = b.replace(/(\d+):(\d+)-(\d+):(\d+)/, '$1$2');
-    return parseInt(timeA) - parseInt(timeB);
+    const startA = a.split('-')[0];
+    const startB = b.split('-')[0];
+    return startA.localeCompare(startB);
   });
 
   const merged: string[] = [];

@@ -12,18 +12,13 @@ export class CalendarService {
    * ユーザーの表示名を取得
    */
   private static getDisplayName(userInfo: UserDisplayInfo): string {
-    const hasNickname = userInfo.nickname && userInfo.nickname.trim() !== '';
-    const hasRealName = userInfo.real_name && userInfo.real_name.trim() !== '';
+    const nickname = userInfo.nickname?.trim();
+    const realName = userInfo.real_name?.trim();
 
-    if (hasNickname && hasRealName) {
-      return `${userInfo.nickname!}(${userInfo.real_name!})`;
-    } else if (hasNickname) {
-      return userInfo.nickname!;
-    } else if (hasRealName) {
-      return userInfo.real_name!;
-    } else {
-      return userInfo.email || 'ユーザー';
+    if (nickname && realName) {
+      return `${nickname}(${realName})`;
     }
+    return nickname || realName || userInfo.email || 'ユーザー';
   }
 
   /**
@@ -48,7 +43,7 @@ export class CalendarService {
   /**
    * カレンダーイベントを削除（Google Calendar API）
    */
-  private static async deleteCalendarEvent(calendarEventId: string): Promise<boolean> {
+  static async deleteCalendarEvent(calendarEventId: string): Promise<boolean> {
     try {
       const { calendar, calendarId } = getCalendarClient();
 
@@ -69,7 +64,7 @@ export class CalendarService {
         calendarEventId,
         errorCode: error.code,
         errorMessage: error.message,
-        errorDetails: error.errors || error.cause,
+        errorDetails: error.errors,
       });
       return false;
     }
@@ -82,10 +77,12 @@ export class CalendarService {
     operation: () => Promise<T>,
     maxRetries: number = 3
   ): Promise<T> {
+    let lastError: any;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         return await operation();
       } catch (error: any) {
+        lastError = error;
         if (attempt === maxRetries - 1) {
           throw error;
         }
@@ -94,7 +91,7 @@ export class CalendarService {
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-    throw new Error('リトライ回数を超過しました');
+    throw lastError;
   }
 
   /**
