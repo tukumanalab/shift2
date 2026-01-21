@@ -52,18 +52,20 @@ export class CalendarService {
     try {
       const { calendar, calendarId } = getCalendarClient();
 
+      console.log(`[Calendar] イベント削除開始: ${calendarEventId}`);
       await calendar.events.delete({
         calendarId,
         eventId: calendarEventId,
       });
 
+      console.log(`[Calendar] ✓ イベント削除成功: ${calendarEventId}`);
       return true;
     } catch (error: any) {
       if (error.code === 404) {
-        console.log(`イベントが見つかりません（既に削除済み）: ${calendarEventId}`);
+        console.log(`[Calendar] イベントが見つかりません（既に削除済み）: ${calendarEventId}`);
         return true;
       }
-      console.error('カレンダーイベント削除エラー:', {
+      console.error('[Calendar] ✗ カレンダーイベント削除エラー:', {
         calendarEventId,
         errorCode: error.code,
         errorMessage: error.message,
@@ -262,6 +264,9 @@ export class CalendarService {
     date: string
   ): Promise<CalendarSyncResult> {
     try {
+      console.log(`[Calendar] ==== シフト同期開始 ====`);
+      console.log(`[Calendar] ユーザーID: ${userId}, 日付: ${date}`);
+
       const { calendar, calendarId } = getCalendarClient();
 
       // 該当ユーザーの該当日付のシフトを取得
@@ -290,6 +295,11 @@ export class CalendarService {
         )
         .all(userId, date) as Array<{ calendar_event_id: string }>;
 
+      console.log(`[Calendar] 既存イベント数: ${existingEvents.length}`);
+      if (existingEvents.length > 0) {
+        console.log(`[Calendar] 削除する既存イベントID:`, existingEvents.map(e => e.calendar_event_id));
+      }
+
       // 既存のカレンダーイベントを削除
       for (const event of existingEvents) {
         await this.deleteCalendarEvent(event.calendar_event_id);
@@ -303,6 +313,8 @@ export class CalendarService {
 
       // シフトがない場合は、削除だけして終了
       if (shifts.length === 0) {
+        console.log(`[Calendar] シフトが0件のため、削除のみで終了`);
+        console.log(`[Calendar] ==== シフト同期完了 ====`);
         return { success: true };
       }
 
@@ -316,8 +328,12 @@ export class CalendarService {
         type: 'shift',
       }));
 
+      console.log(`[Calendar] シフト数: ${shifts.length}`);
+      console.log(`[Calendar] シフト時間帯:`, shifts.map(s => s.time_slot).join(', '));
+
       // 連続する時間枠をマージ
       const mergedSlots = groupAndMergeShifts(shiftInfos);
+      console.log(`[Calendar] マージ後のスロット数: ${mergedSlots.length}`);
 
       // ユーザー情報を取得
       const user = UserModel.getByUserId(userId);
@@ -332,8 +348,13 @@ export class CalendarService {
       });
 
       // マージされたスロットごとにカレンダーイベントを作成
-      for (const slot of mergedSlots) {
+      for (let i = 0; i < mergedSlots.length; i++) {
+        const slot = mergedSlots[i];
         const timeRange = `${slot.start_time}-${slot.end_time}`;
+
+        console.log(`[Calendar] [${i + 1}/${mergedSlots.length}] イベント作成: ${timeRange}`);
+        console.log(`[Calendar]   含まれるシフトUUID: ${slot.shift_uuids.length}個`);
+
         const { start, end } = this.parseTimeSlot(slot.date, timeRange);
 
         const eventData: calendar_v3.Schema$Event = {
@@ -365,17 +386,23 @@ export class CalendarService {
         );
 
         if (response.data.id) {
+          console.log(`[Calendar]   ✓ イベント作成成功: ${response.data.id}`);
+
           // このマージされたスロットに含まれるすべてのシフトにcalendar_event_idを設定
           const updateStmt = db.prepare('UPDATE shifts SET calendar_event_id = ? WHERE uuid = ?');
           for (const shiftUuid of slot.shift_uuids) {
             updateStmt.run(response.data.id, shiftUuid);
           }
+          console.log(`[Calendar]   ✓ ${slot.shift_uuids.length}個のシフトにイベントIDを設定`);
+        } else {
+          console.error(`[Calendar]   ✗ イベントIDが取得できませんでした`);
         }
       }
 
+      console.log(`[Calendar] ==== シフト同期完了 ====`);
       return { success: true };
     } catch (error: any) {
-      console.error('シフト同期エラー:', error);
+      console.error('[Calendar] ✗ シフト同期エラー:', error);
       return { success: false, error: error.message };
     }
   }
