@@ -1,12 +1,7 @@
-export interface CalendarEventData {
-  calendar_event_id: string;
-  shift_uuid?: string;
-  special_shift_uuid?: string;
-  event_type: 'shift' | 'special_shift';
-  user_id: string;
-  date: string;
-  time_range: string;
-  synced_at?: string;
+export interface CalendarSyncResult {
+  success: boolean;
+  error?: string;
+  calendarEventId?: string;
 }
 
 export interface ShiftInfo {

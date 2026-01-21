@@ -2,9 +2,8 @@ import { calendar_v3 } from 'googleapis';
 import db from '../database/db';
 import { getCalendarClient } from '../utils/googleAuth';
 import { groupAndMergeShifts } from '../utils/timeSlotMerger';
-import { CalendarEventModel } from '../models/CalendarEvent';
 import { UserModel } from '../models/User';
-import { ShiftInfo, SyncResult, CalendarEvent, UserDisplayInfo } from '../types/calendar';
+import { ShiftInfo, SyncResult, UserDisplayInfo, CalendarSyncResult } from '../types/calendar';
 
 const TIMEZONE = process.env.TIMEZONE || 'Asia/Tokyo';
 
@@ -64,7 +63,12 @@ export class CalendarService {
         console.log(`イベントが見つかりません（既に削除済み）: ${calendarEventId}`);
         return true;
       }
-      console.error('カレンダーイベント削除エラー:', error);
+      console.error('カレンダーイベント削除エラー:', {
+        calendarEventId,
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetails: error.errors || error.cause,
+      });
       return false;
     }
   }
@@ -132,8 +136,9 @@ export class CalendarService {
         }
       }
 
-      // データベースの calendar_events テーブルをクリア
-      CalendarEventModel.deleteAll();
+      // データベースの calendar_event_id をクリア
+      db.prepare('UPDATE shifts SET calendar_event_id = NULL').run();
+      db.prepare('UPDATE special_shifts SET calendar_event_id = NULL').run();
 
       // 通常シフトと特別シフトを取得
       const shifts = this.getAllShifts();
@@ -202,17 +207,14 @@ export class CalendarService {
           );
 
           if (response.data.id) {
-            // calendar_events テーブルに記録（各シフトUUIDごとに）
+            // calendar_event_id を各シフトレコードに記録
+            const updateStmt =
+              slot.type === 'shift'
+                ? db.prepare('UPDATE shifts SET calendar_event_id = ? WHERE uuid = ?')
+                : db.prepare('UPDATE special_shifts SET calendar_event_id = ? WHERE uuid = ?');
+
             for (const shiftUuid of slot.shift_uuids) {
-              CalendarEventModel.create({
-                calendar_event_id: response.data.id,
-                shift_uuid: slot.type === 'shift' ? shiftUuid : undefined,
-                special_shift_uuid: slot.type === 'special_shift' ? shiftUuid : undefined,
-                event_type: slot.type,
-                user_id: slot.user_id,
-                date: slot.date,
-                time_range: timeRange,
-              });
+              updateStmt.run(response.data.id, shiftUuid);
             }
 
             created++;
@@ -264,7 +266,7 @@ export class CalendarService {
     date: string;
     time_slot: string;
     type: 'shift' | 'special_shift';
-  }): Promise<{ success: boolean; error?: string }> {
+  }): Promise<CalendarSyncResult> {
     try {
       const { calendar, calendarId } = getCalendarClient();
 
@@ -310,17 +312,15 @@ export class CalendarService {
       );
 
       if (response.data.id) {
-        CalendarEventModel.create({
-          calendar_event_id: response.data.id,
-          shift_uuid: shiftData.type === 'shift' ? shiftData.uuid : undefined,
-          special_shift_uuid: shiftData.type === 'special_shift' ? shiftData.uuid : undefined,
-          event_type: shiftData.type,
-          user_id: shiftData.user_id,
-          date: shiftData.date,
-          time_range: shiftData.time_slot,
-        });
+        // calendar_event_id をシフトレコードに記録
+        const updateStmt =
+          shiftData.type === 'shift'
+            ? db.prepare('UPDATE shifts SET calendar_event_id = ? WHERE uuid = ?')
+            : db.prepare('UPDATE special_shifts SET calendar_event_id = ? WHERE uuid = ?');
 
-        return { success: true };
+        updateStmt.run(response.data.id, shiftData.uuid);
+
+        return { success: true, calendarEventId: response.data.id };
       } else {
         return { success: false, error: 'イベントIDが取得できませんでした' };
       }
@@ -336,24 +336,31 @@ export class CalendarService {
   static async deleteShiftFromCalendar(
     shiftUuid: string,
     type: 'shift' | 'special_shift'
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<CalendarSyncResult> {
     try {
-      // calendar_events テーブルからイベントIDを取得
-      const calendarEvent =
+      // shifts または special_shifts テーブルから calendar_event_id を取得
+      const query =
         type === 'shift'
-          ? CalendarEventModel.getByShiftUuid(shiftUuid)
-          : CalendarEventModel.getBySpecialShiftUuid(shiftUuid);
+          ? 'SELECT calendar_event_id FROM shifts WHERE uuid = ?'
+          : 'SELECT calendar_event_id FROM special_shifts WHERE uuid = ?';
 
-      if (!calendarEvent) {
+      const row = db.prepare(query).get(shiftUuid) as { calendar_event_id: string | null } | undefined;
+
+      if (!row || !row.calendar_event_id) {
         return { success: false, error: 'カレンダーイベントが見つかりません' };
       }
 
       // Google Calendar からイベントを削除
-      const deleted = await this.deleteCalendarEvent(calendarEvent.calendar_event_id);
+      const deleted = await this.deleteCalendarEvent(row.calendar_event_id);
 
       if (deleted) {
-        // データベースからも削除
-        CalendarEventModel.deleteByCalendarEventId(calendarEvent.calendar_event_id);
+        // データベースの calendar_event_id をクリア
+        const updateStmt =
+          type === 'shift'
+            ? db.prepare('UPDATE shifts SET calendar_event_id = NULL WHERE uuid = ?')
+            : db.prepare('UPDATE special_shifts SET calendar_event_id = NULL WHERE uuid = ?');
+
+        updateStmt.run(shiftUuid);
         return { success: true };
       } else {
         return { success: false, error: 'カレンダーイベントの削除に失敗しました' };
@@ -433,12 +440,45 @@ export class CalendarService {
     total_events: number;
     last_synced: string | null;
   } {
-    const events = CalendarEventModel.getAll();
-    const lastSynced = events.length > 0 ? events[0].synced_at : null;
+    // calendar_event_id が設定されているシフトの数をカウント
+    const shiftsCount = db
+      .prepare('SELECT COUNT(*) as count FROM shifts WHERE calendar_event_id IS NOT NULL')
+      .get() as { count: number };
+
+    const specialShiftsCount = db
+      .prepare('SELECT COUNT(*) as count FROM special_shifts WHERE calendar_event_id IS NOT NULL')
+      .get() as { count: number };
+
+    const totalEvents = shiftsCount.count + specialShiftsCount.count;
+
+    // 最新の updated_at を取得（last_synced の代わり）
+    const lastShiftUpdate = db
+      .prepare(
+        'SELECT updated_at FROM shifts WHERE calendar_event_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1'
+      )
+      .get() as { updated_at: string } | undefined;
+
+    const lastSpecialShiftUpdate = db
+      .prepare(
+        'SELECT updated_at FROM special_shifts WHERE calendar_event_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1'
+      )
+      .get() as { updated_at: string } | undefined;
+
+    let lastSynced: string | null = null;
+    if (lastShiftUpdate && lastSpecialShiftUpdate) {
+      lastSynced =
+        lastShiftUpdate.updated_at > lastSpecialShiftUpdate.updated_at
+          ? lastShiftUpdate.updated_at
+          : lastSpecialShiftUpdate.updated_at;
+    } else if (lastShiftUpdate) {
+      lastSynced = lastShiftUpdate.updated_at;
+    } else if (lastSpecialShiftUpdate) {
+      lastSynced = lastSpecialShiftUpdate.updated_at;
+    }
 
     return {
-      total_events: events.length,
-      last_synced: lastSynced || null,
+      total_events: totalEvents,
+      last_synced: lastSynced,
     };
   }
 }

@@ -8,6 +8,7 @@ export interface Shift {
   user_name: string;
   date: string;
   time_slot: string;
+  calendar_event_id: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -32,6 +32,7 @@ db.exec(`
     end_time TEXT NOT NULL,
     user_id TEXT NOT NULL,
     user_name TEXT NOT NULL,
+    calendar_event_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
@@ -46,6 +47,7 @@ db.exec(`
     user_name TEXT NOT NULL,
     date TEXT NOT NULL,
     time_slot TEXT NOT NULL,
+    calendar_event_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
@@ -65,23 +67,6 @@ db.exec(`
   )
 `);
 
-// カレンダーイベントテーブルの作成
-db.exec(`
-  CREATE TABLE IF NOT EXISTS calendar_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    calendar_event_id TEXT UNIQUE NOT NULL,
-    shift_uuid TEXT,
-    special_shift_uuid TEXT,
-    event_type TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    date TEXT NOT NULL,
-    time_range TEXT NOT NULL,
-    synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (shift_uuid) REFERENCES shifts(uuid) ON DELETE CASCADE,
-    FOREIGN KEY (special_shift_uuid) REFERENCES special_shifts(uuid) ON DELETE CASCADE
-  )
-`);
-
 // インデックスを作成（検索パフォーマンスのため）
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id);
@@ -94,10 +79,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
   CREATE INDEX IF NOT EXISTS idx_shifts_user_date ON shifts(user_id, date);
   CREATE INDEX IF NOT EXISTS idx_capacity_settings_date ON capacity_settings(date);
-  CREATE INDEX IF NOT EXISTS idx_calendar_events_shift_uuid ON calendar_events(shift_uuid);
-  CREATE INDEX IF NOT EXISTS idx_calendar_events_special_shift_uuid ON calendar_events(special_shift_uuid);
-  CREATE INDEX IF NOT EXISTS idx_calendar_events_date ON calendar_events(date);
-  CREATE INDEX IF NOT EXISTS idx_calendar_events_user_id ON calendar_events(user_id);
 `);
 
 export default db;

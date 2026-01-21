@@ -168,7 +168,7 @@ router.post('/check-multiple-duplicates', (req, res) => {
  * POST /api/shifts
  * シフトを作成
  */
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { user_id, user_name, date, time_slot } = req.body;
 
@@ -203,22 +203,27 @@ router.post('/', (req, res) => {
       });
     }
 
-    // カレンダーに同期（バックグラウンド）
+    // カレンダーに同期（同期的に実行）
+    let calendarSyncResult = null;
     if (shift.uuid) {
-      CalendarService.addShiftToCalendar({
+      calendarSyncResult = await CalendarService.addShiftToCalendar({
         uuid: shift.uuid,
         user_id,
         date,
         time_slot,
         type: 'shift'
-      }).catch(error => {
-        console.error('カレンダー同期エラー:', error);
       });
+
+      if (!calendarSyncResult.success) {
+        console.error('カレンダー同期エラー:', calendarSyncResult.error);
+      }
     }
 
     res.status(201).json({
       success: true,
-      data: shift
+      data: shift,
+      calendarSync: calendarSyncResult ? (calendarSyncResult.success ? 'success' : 'failed') : 'skipped',
+      calendarError: calendarSyncResult?.error
     });
   } catch (error) {
     console.error('Error creating shift:', error);
@@ -233,7 +238,7 @@ router.post('/', (req, res) => {
  * POST /api/shifts/multiple
  * 複数シフトを一括作成
  */
-router.post('/multiple', (req, res) => {
+router.post('/multiple', async (req, res) => {
   try {
     const { user_id, user_name, date, time_slots } = req.body;
 
@@ -260,21 +265,33 @@ router.post('/multiple', (req, res) => {
 
     const result = ShiftModel.bulkCreate(shifts);
 
-    // カレンダーに同期（バックグラウンド）
+    // カレンダーに同期（同期的に実行）
+    let calendarSyncSuccess = 0;
+    let calendarSyncFailed = 0;
+    const calendarErrors: string[] = [];
+
     if (result.created && result.created.length > 0) {
-      result.created.forEach(shift => {
+      for (const shift of result.created) {
         if (shift.uuid) {
-          CalendarService.addShiftToCalendar({
+          const syncResult = await CalendarService.addShiftToCalendar({
             uuid: shift.uuid,
             user_id: shift.user_id,
             date: shift.date,
             time_slot: shift.time_slot,
             type: 'shift'
-          }).catch(error => {
-            console.error('カレンダー同期エラー:', error);
           });
+
+          if (syncResult.success) {
+            calendarSyncSuccess++;
+          } else {
+            calendarSyncFailed++;
+            if (syncResult.error) {
+              calendarErrors.push(`${shift.time_slot}: ${syncResult.error}`);
+            }
+            console.error('カレンダー同期エラー:', syncResult.error);
+          }
         }
-      });
+      }
     }
 
     res.json({
@@ -285,6 +302,11 @@ router.post('/multiple', (req, res) => {
         success: result.success,
         failed: result.failed,
         duplicates: result.duplicates
+      },
+      calendarSync: {
+        success: calendarSyncSuccess,
+        failed: calendarSyncFailed,
+        errors: calendarErrors.length > 0 ? calendarErrors : undefined
       },
       message: `${result.success}件のシフトを作成しました`
     });
@@ -301,26 +323,37 @@ router.post('/multiple', (req, res) => {
  * DELETE /api/shifts/:uuid
  * シフトを削除
  */
-router.delete('/:uuid', (req, res) => {
+router.delete('/:uuid', async (req, res) => {
   try {
     const uuid = req.params.uuid as string;
-    const success = ShiftModel.delete(uuid);
 
-    if (!success) {
+    // シフトが存在するか確認
+    const shift = ShiftModel.getByUuid(uuid);
+    if (!shift) {
       return res.status(404).json({
         success: false,
-        error: '指定されたシフトが見つからないか、削除に失敗しました'
+        error: '指定されたシフトが見つかりません'
       });
     }
 
-    // カレンダーから削除（バックグラウンド）
-    CalendarService.deleteShiftFromCalendar(uuid, 'shift').catch(error => {
-      console.error('カレンダー削除エラー:', error);
-    });
+    // 先にカレンダーから削除（データベースのCASCADE削除前に実行）
+    const calendarResult = await CalendarService.deleteShiftFromCalendar(uuid, 'shift');
+
+    // その後データベースから削除（CASCADEでcalendar_eventsも削除される）
+    const success = ShiftModel.delete(uuid);
+
+    if (!success) {
+      return res.status(500).json({
+        success: false,
+        error: 'シフトの削除に失敗しました'
+      });
+    }
 
     res.json({
       success: true,
-      message: 'シフトを削除しました'
+      message: 'シフトを削除しました',
+      calendarSync: calendarResult.success ? 'success' : 'failed',
+      calendarError: calendarResult.error
     });
   } catch (error) {
     console.error('Error deleting shift:', error);
@@ -335,7 +368,7 @@ router.delete('/:uuid', (req, res) => {
  * POST /api/shifts/delete-multiple
  * 複数シフトを一括削除
  */
-router.post('/delete-multiple', (req, res) => {
+router.post('/delete-multiple', async (req, res) => {
   try {
     const { uuids } = req.body;
 
@@ -346,19 +379,30 @@ router.post('/delete-multiple', (req, res) => {
       });
     }
 
-    const result = ShiftModel.deleteMultiple(uuids);
+    // 先にカレンダーから削除（データベースのCASCADE削除前に実行）
+    let calendarSyncSuccess = 0;
+    let calendarSyncFailed = 0;
+    for (const uuid of uuids) {
+      const calendarResult = await CalendarService.deleteShiftFromCalendar(uuid, 'shift');
+      if (calendarResult.success) {
+        calendarSyncSuccess++;
+      } else {
+        calendarSyncFailed++;
+        console.error('カレンダー削除エラー:', calendarResult.error);
+      }
+    }
 
-    // カレンダーから削除（バックグラウンド）
-    uuids.forEach(uuid => {
-      CalendarService.deleteShiftFromCalendar(uuid, 'shift').catch(error => {
-        console.error('カレンダー削除エラー:', error);
-      });
-    });
+    // その後データベースから削除
+    const result = ShiftModel.deleteMultiple(uuids);
 
     res.json({
       success: true,
       deletedCount: result.success,
       failedCount: result.failed,
+      calendarSync: {
+        success: calendarSyncSuccess,
+        failed: calendarSyncFailed
+      },
       message: `${result.success}件のシフトを削除しました`
     });
   } catch (error) {

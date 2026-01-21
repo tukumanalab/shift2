@@ -9,6 +9,7 @@ export interface SpecialShift {
   end_time: string;
   user_id: string;
   user_name: string;
+  calendar_event_id: string | null;
   created_at: string;
   updated_at: string;
 }
