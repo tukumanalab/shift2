@@ -336,7 +336,7 @@ router.delete('/:uuid', async (req, res) => {
       });
     }
 
-    const { user_id, date } = shift;
+    const { user_id, date, calendar_event_id } = shift;
 
     // データベースから削除
     const success = ShiftModel.delete(uuid);
@@ -346,6 +346,23 @@ router.delete('/:uuid', async (req, res) => {
         success: false,
         error: 'シフトの削除に失敗しました'
       });
+    }
+
+    // 削除したシフトのカレンダーイベントIDがあれば、明示的に削除してから再同期
+    // これにより、孤立したイベントが残らないようにする
+    if (calendar_event_id) {
+      try {
+        // CalendarServiceのprivateメソッドを使えないので、直接削除
+        const { getCalendarClient } = await import('../utils/googleAuth');
+        const { calendar, calendarId } = getCalendarClient();
+        await calendar.events.delete({ calendarId, eventId: calendar_event_id });
+        console.log(`[Routes] 削除されたシフトのカレンダーイベントを削除: ${calendar_event_id}`);
+      } catch (error: any) {
+        // 404エラー（既に削除済み）は無視
+        if (error.code !== 404) {
+          console.error('[Routes] カレンダーイベント削除エラー:', error);
+        }
+      }
     }
 
     // 削除後、その日付のシフトを再同期してマージ
@@ -381,17 +398,42 @@ router.post('/delete-multiple', async (req, res) => {
       });
     }
 
-    // 削除前にシフト情報を収集（影響を受けるuser_idとdateの組み合わせ）
+    // 削除前にシフト情報を収集（影響を受けるuser_idとdateの組み合わせ、カレンダーイベントID）
     const affectedUserDates = new Set<string>();
+    const calendarEventIdsToDelete = new Set<string>();
     for (const uuid of uuids) {
       const shift = ShiftModel.getByUuid(uuid);
       if (shift) {
         affectedUserDates.add(`${shift.user_id}:${shift.date}`);
+        if (shift.calendar_event_id) {
+          calendarEventIdsToDelete.add(shift.calendar_event_id);
+        }
       }
     }
 
     // データベースから削除
     const result = ShiftModel.deleteMultiple(uuids);
+
+    // 削除されたシフトのカレンダーイベントを明示的に削除
+    if (calendarEventIdsToDelete.size > 0) {
+      try {
+        const { getCalendarClient } = await import('../utils/googleAuth');
+        const { calendar, calendarId } = getCalendarClient();
+        for (const eventId of calendarEventIdsToDelete) {
+          try {
+            await calendar.events.delete({ calendarId, eventId });
+            console.log(`[Routes] 削除されたシフトのカレンダーイベントを削除: ${eventId}`);
+          } catch (error: any) {
+            // 404エラー（既に削除済み）は無視
+            if (error.code !== 404) {
+              console.error('[Routes] カレンダーイベント削除エラー:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Routes] カレンダー削除処理エラー:', error);
+      }
+    }
 
     // 削除後、影響を受けた各(user_id, date)について再同期
     let calendarSyncSuccess = 0;
