@@ -151,7 +151,7 @@ const API = {
 
     // カレンダー同期（全シフト）
     async syncAllShiftsToCalendar(userId) {
-        const response = await fetch(`${this.baseURL}/calendar/sync`, {
+        const response = await fetch(`${config.API_BASE_URL}/calendar/sync`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
