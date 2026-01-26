@@ -23,13 +23,25 @@ jest.mock('../../database/db', () => ({
 
 describe('Shifts API Routes', () => {
   let app: Express;
+  let consoleErrorSpy: jest.SpyInstance;
+  let consoleLogSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // Suppress console output during tests
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
     app = express();
     app.use(express.json());
     app.use('/api/shifts', shiftsRouter);
+  });
+
+  afterEach(() => {
+    // Restore console methods
+    consoleErrorSpy.mockRestore();
+    consoleLogSpy.mockRestore();
   });
 
   describe('GET /api/shifts', () => {

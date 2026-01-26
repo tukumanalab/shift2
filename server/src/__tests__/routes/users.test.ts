@@ -8,15 +8,27 @@ jest.mock('../../models/User');
 
 describe('Users API Routes', () => {
   let app: Express;
+  let consoleErrorSpy: jest.SpyInstance;
+  let consoleLogSpy: jest.SpyInstance;
 
   beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
 
+    // Suppress console output during tests
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
     // Setup Express app with users router
     app = express();
     app.use(express.json());
     app.use('/api/users', usersRouter);
+  });
+
+  afterEach(() => {
+    // Restore console methods
+    consoleErrorSpy.mockRestore();
+    consoleLogSpy.mockRestore();
   });
 
   describe('POST /api/users', () => {
