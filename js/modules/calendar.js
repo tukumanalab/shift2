@@ -510,32 +510,47 @@ function getDefaultCapacity(dayOfWeek) {
  * @returns {Array} マージされたシフト配列
  */
 function mergeShiftsByPerson(shiftsForDate) {
-    // 個人ごとにグループ化
+    // 個人ごとにグループ化（時間帯とUUIDのマッピングを保持）
     const shiftsByPerson = {};
     shiftsForDate.forEach(shift => {
         const personKey = `${getShiftDisplayName(shift)}_${shift.userEmail || shift.email}`;
         if (!shiftsByPerson[personKey]) {
             shiftsByPerson[personKey] = {
                 person: shift,
-                timeSlots: [],
-                uuids: [] // UUID配列を追加
+                shiftsData: [] // 元のシフトデータを保持
             };
         }
-        shiftsByPerson[personKey].timeSlots.push(shift.timeSlot || shift.time);
-        shiftsByPerson[personKey].uuids.push(shift.uuid); // UUIDを収集
+        shiftsByPerson[personKey].shiftsData.push({
+            timeSlot: shift.timeSlot || shift.time,
+            uuid: shift.uuid
+        });
     });
 
     // 各個人の時間帯をマージ
     const mergedShifts = [];
     Object.keys(shiftsByPerson).forEach(personKey => {
         const personData = shiftsByPerson[personKey];
-        const mergedTimeSlots = mergeConsecutiveTimeSlots(personData.timeSlots);
 
-        mergedTimeSlots.forEach(timeSlot => {
+        // 時間帯だけを抽出してマージ
+        const timeSlots = personData.shiftsData.map(s => s.timeSlot);
+        const mergedTimeSlots = mergeConsecutiveTimeSlots(timeSlots);
+
+        mergedTimeSlots.forEach(mergedTimeSlot => {
+            // このマージされた時間帯に対応するUUIDだけを抽出
+            const correspondingUuids = personData.shiftsData
+                .filter(s => {
+                    // マージされた時間帯に含まれる元の時間帯かチェック
+                    // 例: 13:00-14:00には13:00-13:30と13:30-14:00が含まれる
+                    const [mergedStart, mergedEnd] = mergedTimeSlot.split('-');
+                    const [slotStart, slotEnd] = s.timeSlot.split('-');
+                    return slotStart >= mergedStart && slotEnd <= mergedEnd;
+                })
+                .map(s => s.uuid);
+
             mergedShifts.push({
                 ...personData.person,
-                timeSlot: timeSlot,
-                uuids: personData.uuids // UUID配列を保持
+                timeSlot: mergedTimeSlot,
+                uuids: correspondingUuids // このマージ時間帯に対応するUUIDのみ
             });
         });
     });

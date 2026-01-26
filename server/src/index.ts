@@ -8,6 +8,7 @@ import shiftsRouter from './routes/shifts';
 import capacitySettingsRouter from './routes/capacitySettings';
 import configRouter from './routes/config';
 import calendarRouter from './routes/calendar';
+import configRouter from './routes/config';
 
 // 環境変数を読み込む
 dotenv.config();

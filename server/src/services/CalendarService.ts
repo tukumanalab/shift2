@@ -481,6 +481,131 @@ export class CalendarService {
   }
 
   /**
+   * 特定のシフトグループでカレンダーイベントを作成
+   * シフト削除後の関連シフト再作成などに使用
+   */
+  static async createEventForShifts(
+    shiftUuids: string[]
+  ): Promise<CalendarSyncResult> {
+    try {
+      if (shiftUuids.length === 0) {
+        return { success: true };
+      }
+
+      console.log(`[Calendar] ==== シフトグループのイベント作成開始 ====`);
+      console.log(`[Calendar] 対象シフト数: ${shiftUuids.length}`);
+
+      const { calendar, calendarId } = getCalendarClient();
+
+      // シフト情報を取得
+      const placeholders = shiftUuids.map(() => '?').join(',');
+      const shifts = db
+        .prepare(
+          `SELECT uuid, user_id, user_name, date, time_slot
+           FROM shifts
+           WHERE uuid IN (${placeholders})
+           ORDER BY date, time_slot`
+        )
+        .all(...shiftUuids) as Array<{
+        uuid: string;
+        user_id: string;
+        user_name: string;
+        date: string;
+        time_slot: string;
+      }>;
+
+      if (shifts.length === 0) {
+        console.log(`[Calendar] シフトが見つかりませんでした`);
+        return { success: true };
+      }
+
+      // ShiftInfo形式に変換
+      const shiftInfos: ShiftInfo[] = shifts.map((shift) => ({
+        uuid: shift.uuid,
+        user_id: shift.user_id,
+        user_name: shift.user_name,
+        date: shift.date,
+        time_slot: shift.time_slot,
+        type: 'shift',
+      }));
+
+      // 連続する時間枠をマージ
+      const mergedSlots = groupAndMergeShifts(shiftInfos);
+      console.log(`[Calendar] マージ後のスロット数: ${mergedSlots.length}`);
+
+      // 各マージされたスロットでカレンダーイベントを作成
+      for (let i = 0; i < mergedSlots.length; i++) {
+        const slot = mergedSlots[i];
+
+        // ユーザー情報を取得
+        const user = UserModel.getByUserId(slot.user_id);
+        if (!user) {
+          console.error(`[Calendar] ユーザーが見つかりません: ${slot.user_id}`);
+          continue;
+        }
+
+        const displayName = this.getDisplayName({
+          nickname: user.nickname,
+          real_name: user.real_name,
+          email: user.email,
+        });
+
+        const timeRange = `${slot.start_time}-${slot.end_time}`;
+        console.log(`[Calendar] [${i + 1}/${mergedSlots.length}] イベント作成: ${timeRange}`);
+
+        const { start, end } = this.parseTimeSlot(slot.date, timeRange);
+
+        const eventData: calendar_v3.Schema$Event = {
+          summary: displayName,
+          description: `担当者: ${displayName}\nメール: ${user.email}\n時間: ${timeRange}`,
+          location: 'つくまなラボ',
+          start: {
+            dateTime: start.toISOString(),
+            timeZone: TIMEZONE,
+          },
+          end: {
+            dateTime: end.toISOString(),
+            timeZone: TIMEZONE,
+          },
+          extendedProperties: {
+            private: {
+              user_id: slot.user_id,
+              user_email: user.email,
+              shift_time: timeRange,
+            },
+          },
+        };
+
+        const response = await this.withRetry(() =>
+          calendar.events.insert({
+            calendarId,
+            requestBody: eventData,
+          })
+        );
+
+        if (response.data.id) {
+          console.log(`[Calendar] ✓ イベント作成成功: ${response.data.id}`);
+
+          // このマージされたスロットに含まれるすべてのシフトにcalendar_event_idを設定
+          const updateStmt = db.prepare('UPDATE shifts SET calendar_event_id = ? WHERE uuid = ?');
+          for (const shiftUuid of slot.shift_uuids) {
+            updateStmt.run(response.data.id, shiftUuid);
+          }
+          console.log(`[Calendar] ✓ ${slot.shift_uuids.length}個のシフトにイベントIDを設定`);
+        } else {
+          console.error(`[Calendar] ✗ イベントIDが取得できませんでした`);
+        }
+      }
+
+      console.log(`[Calendar] ==== シフトグループのイベント作成完了 ====`);
+      return { success: true };
+    } catch (error: any) {
+      console.error('[Calendar] ✗ シフトグループのイベント作成エラー:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * 同期ステータスを取得（通常シフトのみ）
    */
   static getSyncStatus(): {
