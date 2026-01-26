@@ -5,6 +5,14 @@ import { CapacitySettingModel } from '../../models/CapacitySetting';
 
 // Mock CapacitySettingModel
 jest.mock('../../models/CapacitySetting');
+jest.mock('../../database/db', () => ({
+  default: {
+    prepare: jest.fn().mockReturnValue({
+      all: jest.fn().mockReturnValue([]),
+      run: jest.fn()
+    })
+  }
+}));
 
 describe('Capacity Settings API Routes', () => {
   let app: Express;

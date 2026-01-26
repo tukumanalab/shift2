@@ -5,6 +5,14 @@ import { UserModel } from '../../models/User';
 
 // Mock UserModel
 jest.mock('../../models/User');
+jest.mock('../../database/db', () => ({
+  default: {
+    prepare: jest.fn().mockReturnValue({
+      all: jest.fn().mockReturnValue([]),
+      run: jest.fn()
+    })
+  }
+}));
 
 describe('Users API Routes', () => {
   let app: Express;
