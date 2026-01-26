@@ -114,13 +114,21 @@ async function loadShiftList() {
 async function loadMyShifts() {
     console.log('自分のシフト一覧を表示中...');
     const container = document.getElementById('myShiftsContent');
-    if (!container) return;
+    if (!container) {
+        console.error('[loadMyShifts] myShiftsContent コンテナが見つかりません');
+        return;
+    }
 
     const currentUser = getCurrentUser();
+    console.log('[loadMyShifts] currentUser:', currentUser);
+
     if (!currentUser) {
+        console.error('[loadMyShifts] ユーザーがログインしていません');
         container.innerHTML = '<p>ログインが必要です。</p>';
         return;
     }
+
+    console.log('[loadMyShifts] userId:', currentUser.sub);
 
     // ローディング表示
     container.innerHTML = `
@@ -131,10 +139,13 @@ async function loadMyShifts() {
     `;
 
     try {
+        console.log('[loadMyShifts] APIリクエスト開始');
         // APIからシフトデータを取得
         const result = await API.getUserShifts(currentUser.sub);
+        console.log('[loadMyShifts] APIレスポンス:', result);
 
         if (result.success) {
+            console.log('[loadMyShifts] データ取得成功。件数:', result.data?.length || 0);
             // データ形式を統一
             const myShifts = (result.data || []).map(shift => ({
                 shiftDate: shift.date,
@@ -147,14 +158,15 @@ async function loadMyShifts() {
 
             displayMyShifts(container, myShifts);
 
-            // シフト申請後のスクロール&ハイライト処理
-            scrollToNewlyAddedShift();
+            // シフト申請後のスクロール&ハイライト処理は displayMyShifts() 内で実行されます
         } else {
+            console.error('[loadMyShifts] result.success が false:', result);
             container.innerHTML = '<p>シフトデータの取得に失敗しました。</p>';
         }
     } catch (error) {
-        console.error('シフトデータの読み込みに失敗:', error);
-        container.innerHTML = '<p>シフトデータの読み込みに失敗しました。</p>';
+        console.error('[loadMyShifts] エラー発生:', error);
+        console.error('[loadMyShifts] エラーの詳細:', error.message, error.stack);
+        container.innerHTML = `<p>シフトデータの読み込みに失敗しました。</p><p style="color: red; font-size: 0.8em;">エラー: ${error.message}</p>`;
     }
 }
 
