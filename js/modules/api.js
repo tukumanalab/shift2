@@ -45,8 +45,22 @@ const API = {
 
     // ユーザーシフト取得
     async getUserShifts(userId) {
-        const response = await fetch(`${config.API_BASE_URL}/shifts?userId=${userId}`);
-        return await response.json();
+        try {
+            console.log('[API.getUserShifts] リクエスト:', `${config.API_BASE_URL}/shifts?userId=${userId}`);
+            const response = await fetch(`${config.API_BASE_URL}/shifts?userId=${userId}`);
+            console.log('[API.getUserShifts] レスポンスステータス:', response.status, response.statusText);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('[API.getUserShifts] レスポンスデータ:', data);
+            return data;
+        } catch (error) {
+            console.error('[API.getUserShifts] エラー発生:', error);
+            throw error;
+        }
     },
 
     // 日付別シフト取得
