@@ -1,6 +1,7 @@
 import express from 'express';
 import { ShiftModel } from '../models/Shift';
 import { CalendarService } from '../services/CalendarService';
+import db from '../database/db';
 
 const router = express.Router();
 
@@ -338,6 +339,23 @@ router.delete('/:uuid', async (req, res) => {
 
     const { user_id, date, calendar_event_id } = shift;
 
+    // 同じcalendar_event_idを持つ他のシフトを取得（削除前に）
+    const relatedShifts = calendar_event_id
+      ? db
+          .prepare(
+            'SELECT uuid, user_id, date, time_slot FROM shifts WHERE calendar_event_id = ? AND uuid != ?'
+          )
+          .all(calendar_event_id, uuid) as Array<{
+          uuid: string;
+          user_id: string;
+          date: string;
+          time_slot: string;
+        }>
+      : [];
+
+    console.log(`[Shift Delete] 削除対象: ${uuid} (${date} ${shift.time_slot})`);
+    console.log(`[Shift Delete] 同じカレンダーイベントの関連シフト数: ${relatedShifts.length}`);
+
     // データベースから削除
     const success = ShiftModel.delete(uuid);
 
@@ -348,20 +366,36 @@ router.delete('/:uuid', async (req, res) => {
       });
     }
 
-    // 削除したシフトのカレンダーイベントIDがあれば、明示的に削除してから再同期
-    // これにより、孤立したイベントが残らないようにする
-    if (calendar_event_id) {
-      await CalendarService.deleteCalendarEvent(calendar_event_id);
-    }
+    // カレンダーイベントの処理
+    let calendarResult = { success: true };
 
-    // 削除後、その日付のシフトを再同期してマージ
-    const calendarResult = await CalendarService.syncShiftsForUserAndDate(user_id, date);
+    if (calendar_event_id) {
+      // カレンダーイベントを削除
+      await CalendarService.deleteCalendarEvent(calendar_event_id);
+
+      // 関連する他のシフトがある場合のみ再作成
+      if (relatedShifts.length > 0) {
+        console.log(`[Shift Delete] 関連シフトのカレンダーイベントを再作成`);
+
+        // 関連シフトのcalendar_event_idをクリア
+        const clearStmt = db.prepare('UPDATE shifts SET calendar_event_id = NULL WHERE uuid = ?');
+        for (const relatedShift of relatedShifts) {
+          clearStmt.run(relatedShift.uuid);
+        }
+
+        // 関連シフトだけで新しいカレンダーイベントを作成（他のシフトには影響しない）
+        const relatedUuids = relatedShifts.map(s => s.uuid);
+        calendarResult = await CalendarService.createEventForShifts(relatedUuids);
+      } else {
+        console.log(`[Shift Delete] 関連シフトがないため、再作成なし`);
+      }
+    }
 
     res.json({
       success: true,
       message: 'シフトを削除しました',
       calendarSync: calendarResult.success ? 'success' : 'failed',
-      calendarError: calendarResult.error
+      calendarError: calendarResult.success ? undefined : (calendarResult as any).error
     });
   } catch (error) {
     console.error('Error deleting shift:', error);
