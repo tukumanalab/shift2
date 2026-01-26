@@ -22,6 +22,7 @@ npm run test:coverage
 #### フロントエンドのテスト
 - `test/shift-application.test.js`: シフト申請機能
 - `test/shift-delete-functions.test.js`: シフト削除機能
+- `test/shift-list-loading.test.js`: **シフト一覧読み込み機能（未定義関数エラー防止）**
 - `test/regression-bugs.test.js`: **過去のバグの再発防止テスト**
 
 #### バックエンドのテスト
@@ -48,6 +49,10 @@ npm run test:all
 ```
 
 **注意**: E2Eテストは現在スキップされています。`E2E_TEST_ENABLED=true`を設定すると有効化されます。
+
+#### E2Eテストファイル
+- `e2e/shift-deletion.spec.ts`: シフト削除機能のE2Eテスト
+- `e2e/shift-list-loading.spec.ts`: **シフト一覧読み込みのE2Eテスト（コンソールエラー検出）**
 
 ## リグレッション防止テスト
 
@@ -90,6 +95,30 @@ npm test -- regression-bugs
 ```bash
 npm test -- regression-bugs
 ```
+
+### Issue #4: シフト一覧タブで未定義関数エラー
+
+**問題**: ユーザーモードでシフト一覧タブを開くと「シフトデータの読み込みに失敗しました。」と表示される。原因は存在しない`scrollToNewlyAddedShift()`関数を呼び出していたこと。
+
+**テスト内容**:
+- `loadMyShifts`関数が正常に実行されることを確認
+- 存在しない関数を呼び出していないことを確認
+- APIエラー時に適切なエラーメッセージを表示することを確認
+- `displayMyShifts`関数内でスクロール処理が実行されることを確認
+- 必要な関数（`getCurrentUser`, `displayMyShifts`, `getScrollToShiftAfterLoad`など）が全て定義されていることを確認
+
+**実行**:
+```bash
+# ユニットテスト
+npm test -- shift-list-loading
+
+# E2Eテスト（ブラウザで実際の動作を確認）
+npm run test:e2e -- e2e/shift-list-loading.spec.ts
+```
+
+**テストファイル**:
+- `test/shift-list-loading.test.js`: ユニットテスト
+- `e2e/shift-list-loading.spec.ts`: E2Eテスト
 
 ## CI/CDでの自動テスト
 
