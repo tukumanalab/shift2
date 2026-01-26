@@ -146,6 +146,9 @@ async function loadMyShifts() {
             }));
 
             displayMyShifts(container, myShifts);
+
+            // シフト申請後のスクロール&ハイライト処理
+            scrollToNewlyAddedShift();
         } else {
             container.innerHTML = '<p>シフトデータの取得に失敗しました。</p>';
         }
