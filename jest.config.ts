@@ -7,11 +7,8 @@ const config: Config = {
       testEnvironment: 'jsdom',
       setupFilesAfterEnv: ['<rootDir>/test/setup.js'],
       testMatch: ['**/test/**/*.test.js'],
-      collectCoverageFrom: [
-        'app.js',
-        'js/modules/**/*.js',
-        '!**/node_modules/**',
-      ],
+      // Disable coverage collection for frontend until proper tests are added
+      collectCoverageFrom: [],
     },
     {
       displayName: 'backend',
@@ -20,6 +17,9 @@ const config: Config = {
       roots: ['<rootDir>/server/src'],
       testMatch: ['**/__tests__/**/*.test.ts'],
       moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
+      transformIgnorePatterns: [
+        'node_modules/(?!(uuid)/)'
+      ],
       collectCoverageFrom: [
         'server/src/**/*.ts',
         '!server/src/**/*.d.ts',
@@ -28,6 +28,47 @@ const config: Config = {
     },
   ],
   coverageDirectory: 'coverage',
+  coverageReporters: [
+    'text',           // Console output
+    'text-summary',   // Summary
+    'html',           // Detailed HTML report
+    'lcov',           // For CI/CD integration
+    'json-summary'    // For badge generation
+  ],
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    '/test/',
+    'app.js',
+    '/js/modules/'
+  ],
+  coverageThreshold: {
+    // Global thresholds (very low since frontend tests don't have coverage yet)
+    global: {
+      statements: 5,
+      branches: 1,
+      functions: 0,
+      lines: 5
+    },
+    // API routes should maintain high coverage
+    './server/src/routes/users.ts': {
+      statements: 95,
+      branches: 95,
+      functions: 95,
+      lines: 95
+    },
+    './server/src/routes/capacitySettings.ts': {
+      statements: 95,
+      branches: 95,
+      functions: 95,
+      lines: 95
+    },
+    './server/src/routes/shifts.ts': {
+      statements: 80,
+      branches: 80,
+      functions: 90,
+      lines: 80
+    }
+  },
   verbose: true,
 };
 
