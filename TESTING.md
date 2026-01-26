@@ -26,12 +26,33 @@ npm run test:coverage
 - `test/regression-bugs.test.js`: **過去のバグの再発防止テスト**
 
 #### バックエンドのテスト
-- `server/src/__tests__/CalendarService.test.ts`: カレンダーサービス
+
+**サービス層:**
+- `server/src/__tests__/CalendarService.test.ts`: カレンダーサービス (6テスト)
+
+**APIルート (79テスト):**
+- `server/src/__tests__/routes/users.test.ts`: ユーザーAPI (24テスト)
+  - ユーザー作成/取得、プロフィール管理、全ユーザー取得、削除
+- `server/src/__tests__/routes/shifts.test.ts`: シフトAPI (30テスト)
+  - シフト取得/作成/削除、重複チェック、複数シフト操作
+- `server/src/__tests__/routes/capacitySettings.test.ts`: 人数設定API (25テスト)
+  - 人数設定の取得/作成/更新/削除、一括操作
 
 ```bash
 # バックエンドのテストのみ実行
 npm run test:backend
+
+# 特定のAPIルートのテストのみ実行
+npm test -- users.test.ts
+npm test -- shifts.test.ts
+npm test -- capacitySettings.test.ts
 ```
+
+**APIルートのカバレッジ:**
+- users.ts: 100%
+- capacitySettings.ts: 100%
+- shifts.ts: 83.53%
+- 平均: 90.62%
 
 ### 2. E2Eテスト（End-to-End Tests）
 
@@ -173,15 +194,41 @@ touch e2e/new-feature.spec.ts
 ## カバレッジレポート
 
 ```bash
+# カバレッジ付きでテストを実行
 npm run test:coverage
-```
 
-カバレッジレポートは`coverage/`ディレクトリに生成されます。
-
-ブラウザで確認:
-```bash
+# HTMLレポートをブラウザで開く
 open coverage/lcov-report/index.html
 ```
+
+### 現在のカバレッジ状況
+
+**全体:**
+- Statements: 37.64% (291/773)
+- Branches: 50% (102/204)
+- Functions: 27.9% (24/86)
+- Lines: 38.19% (288/754)
+
+**APIルート (高カバレッジ):**
+- users.ts: 100%
+- capacitySettings.ts: 100%
+- shifts.ts: 83.53%
+- 平均: **90.62%**
+
+**カバレッジ閾値:**
+- users.ts: statements/branches/functions/lines ≥ 95%
+- capacitySettings.ts: statements/branches/functions/lines ≥ 95%
+- shifts.ts: statements ≥ 80%, branches ≥ 80%, functions ≥ 90%, lines ≥ 80%
+
+**注意:** フロントエンドコードとモデル層のテストは今後追加予定です。現在はバックエンドAPIルートに焦点を当てています。
+
+### カバレッジレポートの見方
+
+1. **緑色**: カバーされている行（テストで実行された）
+2. **赤色**: カバーされていない行（テストで未実行）
+3. **黄色**: 部分的にカバーされている分岐
+
+HTMLレポートでは、各ファイルをクリックして詳細を確認できます。
 
 ## トラブルシューティング
 

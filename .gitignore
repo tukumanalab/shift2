@@ -6,6 +6,9 @@ data/
 .env.production
 .DS_Store
 
+# Test coverage
+coverage/
+
 # clasp files
 gas/.clasp.json
 

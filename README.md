@@ -1,5 +1,8 @@
 # アルバイトシフト管理
 
+[![Tests](https://github.com/tukumanalab/shift2/actions/workflows/test.yml/badge.svg)](https://github.com/tukumanalab/shift2/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/tukumanalab/shift2/branch/main/graph/badge.svg)](https://codecov.io/gh/tukumanalab/shift2)
+
 Google OAuth認証とGoogle Sheets連携による高機能なシフト管理アプリケーションです。
 
 ## 概要
@@ -184,3 +187,43 @@ Google Apps Scriptの設定：
 ### データバックアップ
 - データはGoogle Sheetsに保存されるため、定期的なバックアップを推奨
 - Googleアカウントの2段階認証を有効にすることを推奨
+
+## テスト
+
+### テストの実行
+
+```bash
+# 全テストを実行
+npm test
+
+# カバレッジ付きで実行
+npm run test:coverage
+
+# ウォッチモードで実行
+npm run test:watch
+```
+
+### テストスイート
+
+**総テスト数: 119テスト**
+
+- **フロントエンドテスト (40テスト):**
+  - シフト申請機能 (7テスト)
+  - シフト削除機能 (18テスト)
+  - シフト一覧読み込み (9テスト)
+  - リグレッションテスト (6テスト)
+
+- **バックエンドテスト (79テスト):**
+  - Users API (24テスト) - カバレッジ 100%
+  - Shifts API (30テスト) - カバレッジ 83.53%
+  - Capacity Settings API (25テスト) - カバレッジ 100%
+
+### コードカバレッジ
+
+**APIルート全体: 90.62%**
+
+- users.ts: 100%
+- capacitySettings.ts: 100%
+- shifts.ts: 83.53%
+
+詳細は[TESTING.md](./TESTING.md)を参照してください。
