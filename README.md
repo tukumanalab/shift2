@@ -1,5 +1,8 @@
 # アルバイトシフト管理
 
+[![Tests](https://github.com/tukumanalab/shift2/actions/workflows/test.yml/badge.svg)](https://github.com/tukumanalab/shift2/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/tukumanalab/shift2/branch/main/graph/badge.svg)](https://codecov.io/gh/tukumanalab/shift2)
+
 Google OAuth認証とGoogle Sheets連携による高機能なシフト管理アプリケーションです。
 
 ## 概要
