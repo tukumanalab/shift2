@@ -13,3 +13,7 @@ coverage/
 gas/.clasp.json
 
 .playwright-mcp
+
+# Deployment
+deploy/
+deploy.tar.gz
