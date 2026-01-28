@@ -6,7 +6,11 @@ const config = {
     AUTHORIZED_EMAILS: '',
 
     // サーバーURL（静的設定）
-    API_BASE_URL: window.location.origin + '/api',
+    API_BASE_URL: (() => {
+      const currentPath = window.location.pathname;
+      const basePath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+      return window.location.origin + basePath + '/api';
+    })(),
 
     // レガシー（後方互換性のため残す）
     GOOGLE_APPS_SCRIPT_URL: ''
