@@ -85,10 +85,7 @@ function displayUserList(users) {
                     ${users.map(user => `
                         <tr data-user-id="${escapeHtml(user.user_id)}">
                             <td>
-                                <div class="user-name-cell">
-                                    ${user.picture ? `<img src="${user.picture}" alt="${user.name}" class="user-avatar">` : ''}
-                                    <span>${escapeHtml(user.name)}</span>
-                                </div>
+                                <span>${escapeHtml(user.name)}</span>
                             </td>
                             <td>${escapeHtml(user.nickname || '-')}</td>
                             <td>${escapeHtml(user.real_name || '-')}</td>
