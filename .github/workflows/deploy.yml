@@ -63,8 +63,8 @@ jobs:
 
           # フロントエンドの静的ファイルをコピー
           cp index.html deploy/
-          cp app.js deploy/
-          cp config.js deploy/
+          cp app.js deploy/ 2>/dev/null || true
+          cp -r js deploy/
           cp -r styles deploy/ 2>/dev/null || true
           cp -r assets deploy/ 2>/dev/null || true
           cp -r public deploy/ 2>/dev/null || true
