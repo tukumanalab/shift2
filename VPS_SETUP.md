@@ -43,7 +43,7 @@ nano shared/.env
 
 ```bash
 # Server Configuration
-PORT=3000
+PORT=4050
 
 # Database Configuration
 DATABASE_PATH=/srv/shift2/shared/data/shift.db
@@ -120,7 +120,7 @@ server {
 
     # /shift2/ へのリクエストをNode.jsアプリにプロキシ
     location /shift2/ {
-        proxy_pass http://localhost:3000/;
+        proxy_pass http://localhost:4050/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';

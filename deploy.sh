@@ -35,7 +35,7 @@ fi
 if [ ! -f "$SHARED_DIR/.env" ]; then
     echo "Warning: $SHARED_DIR/.env does not exist. Creating template..."
     cat > "$SHARED_DIR/.env" << 'EOF'
-PORT=3000
+PORT=4050
 DATABASE_PATH=/srv/shift2/shared/data/shift.db
 GOOGLE_APPS_SCRIPT_URL=https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
