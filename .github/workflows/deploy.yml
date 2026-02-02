@@ -78,7 +78,22 @@ jobs:
           ls -lh deploy.tar.gz
 
       #################################################
-      # 7. VPSへの転送（SCP）
+      # 7. VPS上のディレクトリ準備
+      #################################################
+      - name: Prepare VPS directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            sudo mkdir -p /srv/shift2
+            sudo chown -R $USER:www-data /srv/shift2
+            sudo chmod 775 /srv/shift2
+
+      #################################################
+      # 8. VPSへの転送（SCP）
       #################################################
       - name: Copy files to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -91,7 +106,7 @@ jobs:
           target: "/srv/shift2/"
 
       #################################################
-      # 8. VPSでデプロイスクリプト実行
+      # 9. VPSでデプロイスクリプト実行
       #################################################
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -109,7 +124,7 @@ jobs:
             ./deploy.sh
 
       #################################################
-      # 9. デプロイ後のヘルスチェック
+      # 10. デプロイ後のヘルスチェック
       #################################################
       - name: Health check
         run: |
@@ -137,7 +152,7 @@ jobs:
           exit 1
 
       #################################################
-      # 10. デプロイ完了通知（オプション）
+      # 11. デプロイ完了通知（オプション）
       #################################################
       - name: Deployment success
         if: success()
