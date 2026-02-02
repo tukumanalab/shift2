@@ -88,7 +88,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           source: "deploy.tar.gz"
-          target: "/var/www/shift/"
+          target: "/srv/shift2/"
 
       #################################################
       # 8. VPSでデプロイスクリプト実行
@@ -104,7 +104,7 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           envs: APP_URL
           script: |
-            cd /var/www/shift
+            cd /srv/shift2
             chmod +x deploy.sh
             ./deploy.sh
 
@@ -156,4 +156,4 @@ jobs:
           echo "========================================="
           echo "Please check the logs and rollback if necessary:"
           echo "  ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}"
-          echo "  cd /var/www/shift && ./rollback.sh"
+          echo "  cd /srv/shift2 && ./rollback.sh"
