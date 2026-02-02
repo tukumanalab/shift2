@@ -16,7 +16,8 @@
 ```bash
 # rootまたはsudo権限で実行
 sudo mkdir -p /srv/shift2
-sudo chown $USER:$USER /srv/shift2
+sudo chown $USER:www-data /srv/shift2
+chmod 775 /srv/shift2
 cd /srv/shift2
 ```
 
@@ -26,6 +27,10 @@ cd /srv/shift2
 mkdir -p releases
 mkdir -p shared/data
 mkdir -p shared/logs
+
+# グループ権限の設定
+chgrp -R www-data shared
+chmod -R 775 shared
 ```
 
 ### 1.3 環境変数ファイルの作成

@@ -25,6 +25,12 @@ mkdir -p "$RELEASES_DIR"
 mkdir -p "$SHARED_DIR/data"
 mkdir -p "$SHARED_DIR/logs"
 
+# グループ権限の設定（www-dataグループ）
+if [ -d "$SHARED_DIR" ]; then
+    chgrp -R www-data "$SHARED_DIR" 2>/dev/null || true
+    chmod -R 775 "$SHARED_DIR" 2>/dev/null || true
+fi
+
 # 初回デプロイ時に.envファイルが存在しない場合は作成
 if [ ! -f "$SHARED_DIR/.env" ]; then
     echo "Warning: $SHARED_DIR/.env does not exist. Creating template..."
