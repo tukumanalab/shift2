@@ -10,10 +10,10 @@ module.exports = {
     env: {
       NODE_ENV: 'production'
     },
-    env_file: '/var/www/shift/shared/.env',
+    env_file: '/srv/shift2/shared/.env',
     log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-    error_file: '/var/www/shift/shared/logs/error.log',
-    out_file: '/var/www/shift/shared/logs/out.log',
+    error_file: '/srv/shift2/shared/logs/error.log',
+    out_file: '/srv/shift2/shared/logs/out.log',
     merge_logs: true,
     time: true
   }]
