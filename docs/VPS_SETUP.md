@@ -2,14 +2,6 @@
 
 このドキュメントは、VPS上でシフト管理アプリケーションをセットアップする手順を説明します。
 
-## 前提条件
-
-- VPS: Ubuntu 20.04 LTS以降
-- Node.js: 20.x
-- Git
-- SSH接続が可能
-- sudo権限
-
 ## 1. 必要なパッケージのインストール
 
 ```bash
@@ -39,11 +31,7 @@ cd /srv/shift2
 ## 3. リポジトリのクローン
 
 ```bash
-# GitHubからクローン（SSHまたはHTTPS）
-git clone https://github.com/tukumanalab/shift2.git .
-
-# または SSH:
-# git clone git@github.com:tukumanalab/shift2.git .
+git clone git@github.com:tukumanalab/shift2.git .
 ```
 
 ## 4. 環境変数ファイルの作成
@@ -239,99 +227,3 @@ pm2 restart shift-app
 # ログを確認
 pm2 logs shift-app
 ```
-
-## 11. トラブルシューティング
-
-### アプリケーションが起動しない
-
-```bash
-# PM2ログの確認
-pm2 logs shift-app --lines 100
-
-# PM2プロセスの再起動
-pm2 restart shift-app
-
-# PM2プロセスの削除と再起動
-pm2 delete shift-app
-pm2 start dist/src/index.js --name shift-app
-pm2 save
-```
-
-### データベース接続エラー
-
-```bash
-# データベースファイルの存在確認
-ls -l /srv/shift2/data/shift.db
-
-# データベースディレクトリの作成
-mkdir -p /srv/shift2/data
-
-# 権限の確認・修正
-chmod 664 /srv/shift2/data/shift.db
-```
-
-### Nginx 502 Bad Gateway
-
-```bash
-# Node.jsアプリが起動しているか確認
-pm2 status
-
-# ポート4050でリスニングしているか確認
-sudo netstat -tlnp | grep 4050
-
-# Nginxエラーログの確認
-sudo tail -f /var/log/nginx/error.log
-```
-
-### ポート番号の確認
-
-```bash
-# .envファイルでPORTが正しく設定されているか確認
-cat /srv/shift2/.env | grep PORT
-
-# アプリケーションが使用しているポートを確認
-sudo lsof -i :4050
-```
-
-## 12. 定期メンテナンス
-
-### ログローテーション
-
-```bash
-# PM2ログローテーションのインストール
-pm2 install pm2-logrotate
-
-# 設定
-pm2 set pm2-logrotate:max_size 10M
-pm2 set pm2-logrotate:retain 7
-```
-
-### データベースバックアップ
-
-```bash
-# バックアップスクリプトの作成
-cat > /srv/shift2/backup.sh << 'EOF'
-#!/bin/bash
-BACKUP_DIR="/srv/shift2/backups"
-mkdir -p $BACKUP_DIR
-DATE=$(date +%Y%m%d_%H%M%S)
-cp /srv/shift2/data/shift.db $BACKUP_DIR/shift_$DATE.db
-# 7日以上古いバックアップを削除
-find $BACKUP_DIR -name "shift_*.db" -mtime +7 -delete
-EOF
-
-chmod +x /srv/shift2/backup.sh
-
-# cronジョブに追加（毎日午前3時）
-crontab -e
-# 以下を追加:
-# 0 3 * * * /srv/shift2/backup.sh
-```
-
-## 参考情報
-
-- アプリケーションディレクトリ: `/srv/shift2`
-- データベースファイル: `/srv/shift2/data/shift.db`
-- PM2ログ: `pm2 logs shift-app`
-- Nginxログ: `/var/log/nginx/`
-- アプリケーションURL: `https://tukumana.si.aoyama.ac.jp/shift2/`
