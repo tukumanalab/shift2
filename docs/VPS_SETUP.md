@@ -95,7 +95,7 @@ mkdir -p data
 
 ```bash
 # アプリケーションを起動
-pm2 start dist/src/index.js --name shift-app
+pm2 start dist/src/index.js --name shift2
 
 # PM2の設定を保存
 pm2 save
@@ -184,7 +184,7 @@ npm run migrate:special-shifts
 
 ```bash
 pm2 status
-pm2 logs shift-app
+pm2 logs shift2
 ```
 
 ### ヘルスチェック
@@ -226,8 +226,8 @@ npm ci
 npm run build
 
 # PM2でアプリを再起動
-pm2 restart shift-app
+pm2 restart shift2
 
 # ログを確認
-pm2 logs shift-app
+pm2 logs shift2
 ```
