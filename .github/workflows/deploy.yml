@@ -83,10 +83,10 @@ jobs:
       - name: Prepare VPS directory
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
+          host: ${{ vars.VPS_HOST }}
+          username: ${{ vars.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
+          port: ${{ vars.VPS_PORT }}
           script: |
             sudo mkdir -p /srv/shift2
             sudo chown -R $USER:www-data /srv/shift2
@@ -98,10 +98,10 @@ jobs:
       - name: Copy files to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
+          host: ${{ vars.VPS_HOST }}
+          username: ${{ vars.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
+          port: ${{ vars.VPS_PORT }}
           source: "deploy.tar.gz"
           target: "/srv/shift2/"
 
@@ -111,12 +111,12 @@ jobs:
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v1.0.3
         env:
-          APP_URL: ${{ secrets.APP_URL }}
+          APP_URL: ${{ vars.APP_URL }}
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
+          host: ${{ vars.VPS_HOST }}
+          username: ${{ vars.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
+          port: ${{ vars.VPS_PORT }}
           envs: APP_URL
           script: |
             cd /srv/shift2
@@ -135,7 +135,7 @@ jobs:
           ATTEMPT=0
 
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            if curl -sf "${{ secrets.APP_URL }}/api/health" > /dev/null; then
+            if curl -sf "${{ vars.APP_URL }}/api/health" > /dev/null; then
               echo "Health check passed!"
               exit 0
             else
@@ -160,7 +160,7 @@ jobs:
           echo "========================================="
           echo "Deployment successful!"
           echo "========================================="
-          echo "Application URL: ${{ secrets.APP_URL }}"
+          echo "Application URL: ${{ vars.APP_URL }}"
           echo "Deployed at: $(date)"
 
       - name: Deployment failed
@@ -170,5 +170,5 @@ jobs:
           echo "Deployment failed!"
           echo "========================================="
           echo "Please check the logs and rollback if necessary:"
-          echo "  ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}"
+          echo "  ssh ${{ vars.VPS_USERNAME }}@${{ vars.VPS_HOST }}"
           echo "  cd /srv/shift2 && ./rollback.sh"
