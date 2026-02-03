@@ -32,7 +32,7 @@ sudo apt install -y nginx
 ```bash
 # アプリケーションディレクトリを作成
 sudo mkdir -p /srv/shift2
-sudo chown $USER:$USER /srv/shift2
+sudo chown $USER:www-data /srv/shift2
 cd /srv/shift2
 ```
 
@@ -59,7 +59,7 @@ nano .env
 PORT=4050
 
 # Database Configuration
-DATABASE_PATH=/srv/shift2/data/shift.db
+DATABASE_PATH=./data/shift.db
 
 # Google Apps Script URL
 GOOGLE_APPS_SCRIPT_URL=https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
