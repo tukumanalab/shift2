@@ -320,67 +320,69 @@ function displayMyShifts(container, shiftsData) {
     const scrollToShiftAfterLoad = getScrollToShiftAfterLoad();
     if (scrollToShiftAfterLoad) {
         const { date, timeSlots } = scrollToShiftAfterLoad;
+        const targetRows = findMatchingShiftRows(date, timeSlots);
 
-        // 該当する行を探す
-        const allRows = document.querySelectorAll('.my-shifts-table tr');
-        const targetRows = [];
-
-        for (const row of allRows) {
-            const rowDate = row.dataset.date;
-            const rowTimeRange = row.dataset.timeRange;
-
-            // 日付が一致する行のみチェック
-            if (rowDate === date && rowTimeRange) {
-                // 申請した時間枠のいずれかが行の時間範囲に含まれているかチェック
-                const [rowStart, rowEnd] = rowTimeRange.split('-');
-                const rowStartMinutes = timeToMinutes(rowStart);
-                const rowEndMinutes = timeToMinutes(rowEnd);
-
-                for (const slot of timeSlots) {
-                    const [slotStart, slotEnd] = slot.split('-');
-                    const slotStartMinutes = timeToMinutes(slotStart);
-                    const slotEndMinutes = timeToMinutes(slotEnd);
-
-                    // 申請した時間枠が行の時間範囲に含まれているか、または一致するかチェック
-                    if (slotStartMinutes >= rowStartMinutes && slotEndMinutes <= rowEndMinutes) {
-                        targetRows.push(row);
-                        break;
-                    }
-                }
-            }
-        }
-
-        // 該当行が見つかった場合、スクロール＆ハイライト
         if (targetRows.length > 0) {
-            // 複数ある場合は最初の行にスクロール
-            const firstRow = targetRows[0];
-
-            setTimeout(() => {
-                firstRow.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center'
-                });
-
-                // すべての該当行をハイライト
-                targetRows.forEach(row => {
-                    row.classList.add('highlight-shift');
-
-                    // 3秒後にフェードアウト開始
-                    setTimeout(() => {
-                        row.classList.add('highlight-shift-fade-out');
-
-                        // フェードアウトアニメーション完了後にクラスを削除（1秒後）
-                        setTimeout(() => {
-                            row.classList.remove('highlight-shift', 'highlight-shift-fade-out');
-                        }, 1000);
-                    }, 3000);
-                });
-            }, 100);  // DOM更新を待つため少し遅延
+            scrollToAndHighlightRows(targetRows);
         }
 
-        // スクロール情報をクリア
         setScrollToShiftAfterLoad(null);
     }
+}
+
+// 該当するシフト行を探す関数
+function findMatchingShiftRows(date, timeSlots) {
+    const allRows = document.querySelectorAll('.my-shifts-table tr');
+    const targetRows = [];
+
+    for (const row of allRows) {
+        const rowDate = row.dataset.date;
+        const rowTimeRange = row.dataset.timeRange;
+
+        if (rowDate === date && rowTimeRange && isTimeSlotInRange(timeSlots, rowTimeRange)) {
+            targetRows.push(row);
+        }
+    }
+
+    return targetRows;
+}
+
+// 申請した時間枠が行の時間範囲に含まれているかチェック
+function isTimeSlotInRange(timeSlots, rowTimeRange) {
+    const [rowStart, rowEnd] = rowTimeRange.split('-');
+    const rowStartMinutes = timeToMinutes(rowStart);
+    const rowEndMinutes = timeToMinutes(rowEnd);
+
+    return timeSlots.some(slot => {
+        const [slotStart, slotEnd] = slot.split('-');
+        const slotStartMinutes = timeToMinutes(slotStart);
+        const slotEndMinutes = timeToMinutes(slotEnd);
+        return slotStartMinutes >= rowStartMinutes && slotEndMinutes <= rowEndMinutes;
+    });
+}
+
+// 行にスクロールしてハイライトを適用
+function scrollToAndHighlightRows(targetRows) {
+    setTimeout(() => {
+        targetRows[0].scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+
+        targetRows.forEach(applyHighlightWithFadeout);
+    }, 100);
+}
+
+// ハイライトとフェードアウトを適用
+function applyHighlightWithFadeout(row) {
+    row.classList.add('highlight-shift');
+
+    setTimeout(() => {
+        row.classList.add('highlight-shift-fade-out');
+        setTimeout(() => {
+            row.classList.remove('highlight-shift', 'highlight-shift-fade-out');
+        }, 1000);
+    }, 3000);
 }
 
 // 時間を分に変換するヘルパー関数

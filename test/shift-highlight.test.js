@@ -9,10 +9,8 @@ describe('シフトハイライト機能のテスト', () => {
   let mockScrollToShiftInfo;
 
   beforeEach(() => {
-    // タイマーのモック化
     jest.useFakeTimers();
 
-    // DOM要素のモック
     document.body.innerHTML = `
       <div id="myShiftsContent">
         <div class="my-shifts-table-container">
@@ -37,16 +35,44 @@ describe('シフトハイライト機能のテスト', () => {
     `;
 
     mockContainer = document.getElementById('myShiftsContent');
-
-    // scrollIntoView のモック
     Element.prototype.scrollIntoView = jest.fn();
 
-    // グローバル関数のモック
     global.getScrollToShiftAfterLoad = jest.fn(() => mockScrollToShiftInfo);
     global.setScrollToShiftAfterLoad = jest.fn();
     global.timeToMinutes = (time) => {
       const [hours, minutes] = time.split(':').map(Number);
       return hours * 60 + minutes;
+    };
+
+    // ハイライト処理のヘルパー関数
+    global.applyHighlight = (date, timeSlots) => {
+      const allRows = document.querySelectorAll('.my-shifts-table tr');
+      const targetRows = [];
+
+      for (const row of allRows) {
+        const rowDate = row.dataset.date;
+        const rowTimeRange = row.dataset.timeRange;
+
+        if (rowDate === date && rowTimeRange) {
+          const [rowStart, rowEnd] = rowTimeRange.split('-');
+          const rowStartMinutes = timeToMinutes(rowStart);
+          const rowEndMinutes = timeToMinutes(rowEnd);
+
+          for (const slot of timeSlots) {
+            const [slotStart, slotEnd] = slot.split('-');
+            const slotStartMinutes = timeToMinutes(slotStart);
+            const slotEndMinutes = timeToMinutes(slotEnd);
+
+            if (slotStartMinutes >= rowStartMinutes && slotEndMinutes <= rowEndMinutes) {
+              targetRows.push(row);
+              break;
+            }
+          }
+        }
+      }
+
+      targetRows.forEach(row => row.classList.add('highlight-shift'));
+      return targetRows;
     };
   });
 
@@ -58,49 +84,17 @@ describe('シフトハイライト機能のテスト', () => {
 
   describe('新規シフト申請後のハイライト', () => {
     test('単一の時間枠を申請した場合、該当行がハイライトされること', () => {
-      // スクロール情報を設定
       mockScrollToShiftInfo = {
         date: '2026-01-27',
         timeSlots: ['13:00-13:30']
       };
 
-      // ハイライト処理を実行（displayMyShifts内で実行される処理を再現）
       const scrollToShiftAfterLoad = getScrollToShiftAfterLoad();
       if (scrollToShiftAfterLoad) {
         const { date, timeSlots } = scrollToShiftAfterLoad;
-        const allRows = document.querySelectorAll('.my-shifts-table tr');
-        const targetRows = [];
-
-        for (const row of allRows) {
-          const rowDate = row.dataset.date;
-          const rowTimeRange = row.dataset.timeRange;
-
-          if (rowDate === date && rowTimeRange) {
-            const [rowStart, rowEnd] = rowTimeRange.split('-');
-            const rowStartMinutes = timeToMinutes(rowStart);
-            const rowEndMinutes = timeToMinutes(rowEnd);
-
-            for (const slot of timeSlots) {
-              const [slotStart, slotEnd] = slot.split('-');
-              const slotStartMinutes = timeToMinutes(slotStart);
-              const slotEndMinutes = timeToMinutes(slotEnd);
-
-              if (slotStartMinutes >= rowStartMinutes && slotEndMinutes <= rowEndMinutes) {
-                targetRows.push(row);
-                break;
-              }
-            }
-          }
-        }
-
-        if (targetRows.length > 0) {
-          targetRows.forEach(row => {
-            row.classList.add('highlight-shift');
-          });
-        }
+        applyHighlight(date, timeSlots);
       }
 
-      // 検証
       const allRows = document.querySelectorAll('.my-shifts-table tr');
       expect(allRows[0].classList.contains('highlight-shift')).toBe(true);
       expect(allRows[1].classList.contains('highlight-shift')).toBe(false);
@@ -108,50 +102,17 @@ describe('シフトハイライト機能のテスト', () => {
     });
 
     test('同じ日の別の時間帯を申請した場合、該当行がハイライトされること', () => {
-      // 既存シフト: 13:00-13:30, 15:00-16:00
-      // 新規申請: 15:00-15:30（15:00-16:00に含まれる）
       mockScrollToShiftInfo = {
         date: '2026-01-27',
         timeSlots: ['15:00-15:30']
       };
 
-      // ハイライト処理を実行
       const scrollToShiftAfterLoad = getScrollToShiftAfterLoad();
       if (scrollToShiftAfterLoad) {
         const { date, timeSlots } = scrollToShiftAfterLoad;
-        const allRows = document.querySelectorAll('.my-shifts-table tr');
-        const targetRows = [];
-
-        for (const row of allRows) {
-          const rowDate = row.dataset.date;
-          const rowTimeRange = row.dataset.timeRange;
-
-          if (rowDate === date && rowTimeRange) {
-            const [rowStart, rowEnd] = rowTimeRange.split('-');
-            const rowStartMinutes = timeToMinutes(rowStart);
-            const rowEndMinutes = timeToMinutes(rowEnd);
-
-            for (const slot of timeSlots) {
-              const [slotStart, slotEnd] = slot.split('-');
-              const slotStartMinutes = timeToMinutes(slotStart);
-              const slotEndMinutes = timeToMinutes(slotEnd);
-
-              if (slotStartMinutes >= rowStartMinutes && slotEndMinutes <= rowEndMinutes) {
-                targetRows.push(row);
-                break;
-              }
-            }
-          }
-        }
-
-        if (targetRows.length > 0) {
-          targetRows.forEach(row => {
-            row.classList.add('highlight-shift');
-          });
-        }
+        applyHighlight(date, timeSlots);
       }
 
-      // 検証: 15:00-16:00の行（2行目）がハイライトされる
       const allRows = document.querySelectorAll('.my-shifts-table tr');
       expect(allRows[0].classList.contains('highlight-shift')).toBe(false);
       expect(allRows[1].classList.contains('highlight-shift')).toBe(true);
@@ -159,98 +120,33 @@ describe('シフトハイライト機能のテスト', () => {
     });
 
     test('マージされたシフトの一部を申請した場合、該当行がハイライトされること', () => {
-      // 既存シフト（マージ済み）: 15:00-16:00
-      // 新規申請: 15:30-16:00（15:00-16:00に含まれる）
       mockScrollToShiftInfo = {
         date: '2026-01-27',
         timeSlots: ['15:30-16:00']
       };
 
-      // ハイライト処理を実行
       const scrollToShiftAfterLoad = getScrollToShiftAfterLoad();
       if (scrollToShiftAfterLoad) {
         const { date, timeSlots } = scrollToShiftAfterLoad;
-        const allRows = document.querySelectorAll('.my-shifts-table tr');
-        const targetRows = [];
-
-        for (const row of allRows) {
-          const rowDate = row.dataset.date;
-          const rowTimeRange = row.dataset.timeRange;
-
-          if (rowDate === date && rowTimeRange) {
-            const [rowStart, rowEnd] = rowTimeRange.split('-');
-            const rowStartMinutes = timeToMinutes(rowStart);
-            const rowEndMinutes = timeToMinutes(rowEnd);
-
-            for (const slot of timeSlots) {
-              const [slotStart, slotEnd] = slot.split('-');
-              const slotStartMinutes = timeToMinutes(slotStart);
-              const slotEndMinutes = timeToMinutes(slotEnd);
-
-              if (slotStartMinutes >= rowStartMinutes && slotEndMinutes <= rowEndMinutes) {
-                targetRows.push(row);
-                break;
-              }
-            }
-          }
-        }
-
-        if (targetRows.length > 0) {
-          targetRows.forEach(row => {
-            row.classList.add('highlight-shift');
-          });
-        }
+        applyHighlight(date, timeSlots);
       }
 
-      // 検証
       const allRows = document.querySelectorAll('.my-shifts-table tr');
       expect(allRows[1].classList.contains('highlight-shift')).toBe(true);
     });
 
     test('複数の時間枠を同時申請した場合、該当行がすべてハイライトされること', () => {
-      // 新規申請: 13:00-13:30, 15:00-15:30
       mockScrollToShiftInfo = {
         date: '2026-01-27',
         timeSlots: ['13:00-13:30', '15:00-15:30']
       };
 
-      // ハイライト処理を実行
       const scrollToShiftAfterLoad = getScrollToShiftAfterLoad();
       if (scrollToShiftAfterLoad) {
         const { date, timeSlots } = scrollToShiftAfterLoad;
-        const allRows = document.querySelectorAll('.my-shifts-table tr');
-        const targetRows = [];
-
-        for (const row of allRows) {
-          const rowDate = row.dataset.date;
-          const rowTimeRange = row.dataset.timeRange;
-
-          if (rowDate === date && rowTimeRange) {
-            const [rowStart, rowEnd] = rowTimeRange.split('-');
-            const rowStartMinutes = timeToMinutes(rowStart);
-            const rowEndMinutes = timeToMinutes(rowEnd);
-
-            for (const slot of timeSlots) {
-              const [slotStart, slotEnd] = slot.split('-');
-              const slotStartMinutes = timeToMinutes(slotStart);
-              const slotEndMinutes = timeToMinutes(slotEnd);
-
-              if (slotStartMinutes >= rowStartMinutes && slotEndMinutes <= rowEndMinutes) {
-                targetRows.push(row);
-                break;
-              }
-            }
-          }
-        }
-
-        if (targetRows.length > 0) {
-          targetRows.forEach(row => {
-            row.classList.add('highlight-shift');
-          });
-        }
+        applyHighlight(date, timeSlots);
       }
 
-      // 検証: 1行目と2行目の両方がハイライトされる
       const allRows = document.querySelectorAll('.my-shifts-table tr');
       expect(allRows[0].classList.contains('highlight-shift')).toBe(true);
       expect(allRows[1].classList.contains('highlight-shift')).toBe(true);
@@ -258,49 +154,17 @@ describe('シフトハイライト機能のテスト', () => {
     });
 
     test('該当する日付が存在しない場合、何もハイライトされないこと', () => {
-      // 新規申請: 存在しない日付
       mockScrollToShiftInfo = {
         date: '2026-01-30',
         timeSlots: ['13:00-13:30']
       };
 
-      // ハイライト処理を実行
       const scrollToShiftAfterLoad = getScrollToShiftAfterLoad();
       if (scrollToShiftAfterLoad) {
         const { date, timeSlots } = scrollToShiftAfterLoad;
-        const allRows = document.querySelectorAll('.my-shifts-table tr');
-        const targetRows = [];
-
-        for (const row of allRows) {
-          const rowDate = row.dataset.date;
-          const rowTimeRange = row.dataset.timeRange;
-
-          if (rowDate === date && rowTimeRange) {
-            const [rowStart, rowEnd] = rowTimeRange.split('-');
-            const rowStartMinutes = timeToMinutes(rowStart);
-            const rowEndMinutes = timeToMinutes(rowEnd);
-
-            for (const slot of timeSlots) {
-              const [slotStart, slotEnd] = slot.split('-');
-              const slotStartMinutes = timeToMinutes(slotStart);
-              const slotEndMinutes = timeToMinutes(slotEnd);
-
-              if (slotStartMinutes >= rowStartMinutes && slotEndMinutes <= rowEndMinutes) {
-                targetRows.push(row);
-                break;
-              }
-            }
-          }
-        }
-
-        if (targetRows.length > 0) {
-          targetRows.forEach(row => {
-            row.classList.add('highlight-shift');
-          });
-        }
+        applyHighlight(date, timeSlots);
       }
 
-      // 検証: どの行もハイライトされない
       const allRows = document.querySelectorAll('.my-shifts-table tr');
       expect(allRows[0].classList.contains('highlight-shift')).toBe(false);
       expect(allRows[1].classList.contains('highlight-shift')).toBe(false);
@@ -315,76 +179,46 @@ describe('シフトハイライト機能のテスト', () => {
         timeSlots: ['13:00-13:30']
       };
 
-      // ハイライト処理とタイマーを実行
       const scrollToShiftAfterLoad = getScrollToShiftAfterLoad();
       if (scrollToShiftAfterLoad) {
         const { date, timeSlots } = scrollToShiftAfterLoad;
-        const allRows = document.querySelectorAll('.my-shifts-table tr');
-        const targetRows = [];
+        const targetRows = applyHighlight(date, timeSlots);
 
-        for (const row of allRows) {
-          const rowDate = row.dataset.date;
-          const rowTimeRange = row.dataset.timeRange;
-
-          if (rowDate === date && rowTimeRange) {
-            const [rowStart, rowEnd] = rowTimeRange.split('-');
-            const rowStartMinutes = timeToMinutes(rowStart);
-            const rowEndMinutes = timeToMinutes(rowEnd);
-
-            for (const slot of timeSlots) {
-              const [slotStart, slotEnd] = slot.split('-');
-              const slotStartMinutes = timeToMinutes(slotStart);
-              const slotEndMinutes = timeToMinutes(slotEnd);
-
-              if (slotStartMinutes >= rowStartMinutes && slotEndMinutes <= rowEndMinutes) {
-                targetRows.push(row);
-                break;
-              }
-            }
-          }
-        }
-
-        if (targetRows.length > 0) {
-          targetRows.forEach(row => {
-            row.classList.add('highlight-shift');
-
-            // 3秒後にフェードアウト開始
+        // フェードアウト処理を再現
+        targetRows.forEach(row => {
+          setTimeout(() => {
+            row.classList.add('highlight-shift-fade-out');
             setTimeout(() => {
-              row.classList.add('highlight-shift-fade-out');
+              row.classList.remove('highlight-shift', 'highlight-shift-fade-out');
+            }, 1000);
+          }, 3000);
+        });
 
-              // フェードアウトアニメーション完了後にクラスを削除（1秒後）
-              setTimeout(() => {
-                row.classList.remove('highlight-shift', 'highlight-shift-fade-out');
-              }, 1000);
-            }, 3000);
-          });
-        }
+        const targetRow = targetRows[0];
+
+        // 初期状態: ハイライトクラスのみ
+        expect(targetRow.classList.contains('highlight-shift')).toBe(true);
+        expect(targetRow.classList.contains('highlight-shift-fade-out')).toBe(false);
+
+        // 3秒経過後: フェードアウトクラスが追加される
+        jest.advanceTimersByTime(3000);
+        expect(targetRow.classList.contains('highlight-shift')).toBe(true);
+        expect(targetRow.classList.contains('highlight-shift-fade-out')).toBe(true);
+
+        // さらに1秒経過後: 両方のクラスが削除される
+        jest.advanceTimersByTime(1000);
+        expect(targetRow.classList.contains('highlight-shift')).toBe(false);
+        expect(targetRow.classList.contains('highlight-shift-fade-out')).toBe(false);
       }
-
-      const targetRow = document.querySelectorAll('.my-shifts-table tr')[0];
-
-      // 初期状態: ハイライトクラスのみ
-      expect(targetRow.classList.contains('highlight-shift')).toBe(true);
-      expect(targetRow.classList.contains('highlight-shift-fade-out')).toBe(false);
-
-      // 3秒経過後: フェードアウトクラスが追加される
-      jest.advanceTimersByTime(3000);
-      expect(targetRow.classList.contains('highlight-shift')).toBe(true);
-      expect(targetRow.classList.contains('highlight-shift-fade-out')).toBe(true);
-
-      // さらに1秒経過後: 両方のクラスが削除される
-      jest.advanceTimersByTime(1000);
-      expect(targetRow.classList.contains('highlight-shift')).toBe(false);
-      expect(targetRow.classList.contains('highlight-shift-fade-out')).toBe(false);
     });
   });
 
   describe('timeToMinutes ヘルパー関数', () => {
     test('時間文字列を正しく分に変換できること', () => {
-      expect(timeToMinutes('13:00')).toBe(780); // 13 * 60 = 780
-      expect(timeToMinutes('13:30')).toBe(810); // 13 * 60 + 30 = 810
-      expect(timeToMinutes('15:00')).toBe(900); // 15 * 60 = 900
-      expect(timeToMinutes('16:00')).toBe(960); // 16 * 60 = 960
+      expect(timeToMinutes('13:00')).toBe(780);
+      expect(timeToMinutes('13:30')).toBe(810);
+      expect(timeToMinutes('15:00')).toBe(900);
+      expect(timeToMinutes('16:00')).toBe(960);
     });
   });
 });
