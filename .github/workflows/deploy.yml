@@ -1,9 +1,10 @@
 name: Deploy to VPS
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:  # 手動実行のみ（一時的に無効化）
+  # push:
+  #   branches:
+  #     - main
 
 env:
   NODE_VERSION: '20.x'
