@@ -102,15 +102,10 @@ export class CalendarService {
       const { calendar, calendarId } = getCalendarClient();
 
       // 既存のシフトイベントを削除
-      const now = new Date();
-      const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
-
-      console.log('既存イベントを削除中...');
+      console.log('既存イベントを削除中（すべての期間）...');
 
       const eventsResponse = await calendar.events.list({
         calendarId,
-        timeMin: now.toISOString(),
-        timeMax: oneYearLater.toISOString(),
         singleEvents: true,
       });
 
