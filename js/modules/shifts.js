@@ -321,49 +321,72 @@ function displayMyShifts(container, shiftsData) {
     if (scrollToShiftAfterLoad) {
         const { date, timeSlots } = scrollToShiftAfterLoad;
 
-        // 申請した時間枠を連続時間範囲に変換（マージロジックと同じ）
-        const sortedSlots = [...timeSlots].sort();
-        let targetTimeRange = null;
-
-        // 連続する時間枠をマージ
-        if (sortedSlots.length > 0) {
-            const firstStart = sortedSlots[0].split('-')[0];
-            const lastEnd = sortedSlots[sortedSlots.length - 1].split('-')[1];
-            targetTimeRange = `${firstStart}-${lastEnd}`;
-        }
-
         // 該当する行を探す
         const allRows = document.querySelectorAll('.my-shifts-table tr');
-        let targetRow = null;
+        const targetRows = [];
 
         for (const row of allRows) {
             const rowDate = row.dataset.date;
             const rowTimeRange = row.dataset.timeRange;
 
-            // 日付と時間範囲が一致する行を探す
-            if (rowDate === date && rowTimeRange === targetTimeRange) {
-                targetRow = row;
-                break;
+            // 日付が一致する行のみチェック
+            if (rowDate === date && rowTimeRange) {
+                // 申請した時間枠のいずれかが行の時間範囲に含まれているかチェック
+                const [rowStart, rowEnd] = rowTimeRange.split('-');
+                const rowStartMinutes = timeToMinutes(rowStart);
+                const rowEndMinutes = timeToMinutes(rowEnd);
+
+                for (const slot of timeSlots) {
+                    const [slotStart, slotEnd] = slot.split('-');
+                    const slotStartMinutes = timeToMinutes(slotStart);
+                    const slotEndMinutes = timeToMinutes(slotEnd);
+
+                    // 申請した時間枠が行の時間範囲に含まれているか、または一致するかチェック
+                    if (slotStartMinutes >= rowStartMinutes && slotEndMinutes <= rowEndMinutes) {
+                        targetRows.push(row);
+                        break;
+                    }
+                }
             }
         }
 
         // 該当行が見つかった場合、スクロール＆ハイライト
-        if (targetRow) {
-            // スムーズスクロール
+        if (targetRows.length > 0) {
+            // 複数ある場合は最初の行にスクロール
+            const firstRow = targetRows[0];
+
             setTimeout(() => {
-                targetRow.scrollIntoView({
+                firstRow.scrollIntoView({
                     behavior: 'smooth',
                     block: 'center'
                 });
 
-                // ハイライト表示（永続的）
-                targetRow.classList.add('highlight-shift');
+                // すべての該当行をハイライト
+                targetRows.forEach(row => {
+                    row.classList.add('highlight-shift');
+
+                    // 3秒後にフェードアウト開始
+                    setTimeout(() => {
+                        row.classList.add('highlight-shift-fade-out');
+
+                        // フェードアウトアニメーション完了後にクラスを削除（1秒後）
+                        setTimeout(() => {
+                            row.classList.remove('highlight-shift', 'highlight-shift-fade-out');
+                        }, 1000);
+                    }, 3000);
+                });
             }, 100);  // DOM更新を待つため少し遅延
         }
 
         // スクロール情報をクリア
         setScrollToShiftAfterLoad(null);
     }
+}
+
+// 時間を分に変換するヘルパー関数
+function timeToMinutes(time) {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
 }
 
 // シフト削除機能（管理者専用）

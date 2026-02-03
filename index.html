@@ -1239,6 +1239,93 @@
             border-color: #4285f4;
             box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
         }
+
+        /* プロフィール表示モード */
+        .profile-display-mode {
+            position: relative;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .profile-field {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .profile-label {
+            font-weight: bold;
+            color: #555;
+            margin-right: 8px;
+        }
+
+        .profile-value {
+            color: #333;
+        }
+
+        .profile-display-mode .edit-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .profile-display-mode .edit-icon:hover {
+            opacity: 1;
+        }
+
+        /* プロフィール編集モード */
+        .profile-edit-mode {
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .profile-edit-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .save-profile-btn,
+        .cancel-profile-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .save-profile-btn {
+            background: #4285f4;
+            color: white;
+        }
+
+        .save-profile-btn:hover {
+            background: #357ae8;
+        }
+
+        .cancel-profile-btn {
+            background: #ddd;
+            color: #333;
+        }
+
+        .cancel-profile-btn:hover {
+            background: #ccc;
+        }
+
+        .save-profile-btn:disabled,
+        .cancel-profile-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .time-slot {
             display: flex;
             align-items: center;
@@ -1366,11 +1453,14 @@
         /* シフト申請後のハイライト表示 */
         .highlight-shift {
             background-color: #fff3cd !important;
-            border-left: 4px solid #ffc107;
-            transition: background-color 0.3s ease, border-left 0.3s ease;
+            transition: background-color 1s ease;
         }
         .highlight-shift:hover {
             background-color: #ffe69c !important;
+        }
+        /* ハイライトのフェードアウト（黄色の背景だけが徐々に薄くなる） */
+        .highlight-shift-fade-out {
+            background-color: white !important;
         }
         .shift-date {
             font-weight: bold;
@@ -2140,16 +2230,34 @@
                     <h2>設定</h2>
                     <div class="settings-section">
                         <h3 style="text-align: left;">プロフィール設定</h3>
-                        <div class="setting-item">
-                            <label for="realName">本名<span class="label-note">勤務簿に記載する本名を入力してください</span></label>
-                            <input type="text" id="realName" class="setting-input">
+
+                        <!-- 表示モード -->
+                        <div id="profile-display" class="profile-display-mode">
+                            <div class="profile-field">
+                                <span class="profile-label">本名:</span>
+                                <span id="display-real-name" class="profile-value">未設定</span>
+                            </div>
+                            <div class="profile-field">
+                                <span class="profile-label">ニックネーム:</span>
+                                <span id="display-nickname" class="profile-value">未設定</span>
+                            </div>
+                            <span class="edit-icon" onclick="toggleProfileEditMode()">✏️</span>
                         </div>
-                        <div class="setting-item">
-                            <label for="nickname">ニックネーム</label>
-                            <input type="text" id="nickname" class="setting-input">
-                        </div>
-                        <div class="setting-item">
-                            <button class="submit-btn" onclick="saveSettings()">設定を保存</button>
+
+                        <!-- 編集モード（初期は非表示） -->
+                        <div id="profile-edit" class="profile-edit-mode" style="display: none;">
+                            <div class="setting-item">
+                                <label for="realName">本名<span class="label-note">勤務簿に記載する本名を入力してください</span></label>
+                                <input type="text" id="realName" class="setting-input">
+                            </div>
+                            <div class="setting-item">
+                                <label for="nickname">ニックネーム</label>
+                                <input type="text" id="nickname" class="setting-input">
+                            </div>
+                            <div class="profile-edit-controls">
+                                <button class="save-profile-btn" onclick="saveProfileInline()">保存</button>
+                                <button class="cancel-profile-btn" onclick="cancelProfileEdit()">キャンセル</button>
+                            </div>
                         </div>
                     </div>
                 </div>
