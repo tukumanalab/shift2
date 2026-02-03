@@ -2008,11 +2008,252 @@
                 margin-bottom: 1px;
             }
         }
-        
+
         @media (max-width: 900px) {
             .shift-capacity-info {
                 font-size: 9px;
                 margin-bottom: 1px;
+            }
+        }
+
+        /* 全シフト一覧テーブルのスタイル */
+        .all-shifts-table-container {
+            padding: 20px;
+        }
+
+        .all-shifts-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .all-shifts-table th {
+            background: #4285f4;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 500;
+        }
+
+        .all-shifts-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            text-align: left;
+        }
+
+        .all-shifts-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .delete-shift-table-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .delete-shift-table-btn:hover {
+            background-color: #c82333;
+        }
+
+        .delete-shift-table-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* ページネーションのスタイル */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-btn {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            color: #333;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background-color: #4285f4;
+            color: white;
+            border-color: #4285f4;
+        }
+
+        .pagination-btn.active {
+            background-color: #4285f4;
+            color: white;
+            border-color: #4285f4;
+        }
+
+        .pagination-btn:disabled {
+            background-color: #f5f5f5;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
+            color: #666;
+            font-size: 14px;
+            margin-left: 16px;
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            .all-shifts-table th,
+            .all-shifts-table td {
+                padding: 8px;
+                font-size: 12px;
+            }
+
+            .pagination-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+
+            .pagination-info {
+                font-size: 12px;
+                width: 100%;
+                text-align: center;
+                margin-left: 0;
+                margin-top: 8px;
+            }
+        }
+
+        /* 曜日の色 */
+        .sunday {
+            color: #dc3545;
+        }
+
+        .saturday {
+            color: #007bff;
+        }
+
+        /* フィルター関連のスタイル */
+        .filter-container {
+            background: #f8f9fa;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-select,
+        .filter-input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 150px;
+            background-color: white;
+            height: 38px;
+            box-sizing: border-box;
+        }
+
+        .filter-select:focus,
+        .filter-input:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
+        }
+
+        .date-separator {
+            font-size: 16px;
+            color: #666;
+            margin: 0 -5px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 4px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            height: 38px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .filter-btn-apply {
+            background-color: #4285f4;
+            color: white;
+        }
+
+        .filter-btn-apply:hover {
+            background-color: #357ae8;
+        }
+
+        .filter-btn-reset {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
+        .filter-btn-reset:hover {
+            background-color: #d0d0d0;
+        }
+
+        .filter-active-indicator {
+            display: inline-block;
+            background-color: #4285f4;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-select,
+            .filter-input {
+                min-width: 100%;
+            }
+
+            .filter-buttons {
+                width: 100%;
+                flex-direction: row;
+            }
+
+            .filter-btn {
+                flex: 1;
+            }
+
+            .date-separator {
+                display: none;
             }
         }
     </style>
@@ -2082,6 +2323,7 @@
         <div id="appContent" class="hidden">
             <div class="tabs">
                 <button class="tab-button active" data-tab="shift-list" style="display: none;">シフト一覧</button>
+                <button class="tab-button" data-tab="all-shifts-table" style="display: none;">全シフト一覧（テーブル）</button>
                 <button class="tab-button" data-tab="capacity-settings" style="display: none;">シフト人数&メモ設定</button>
                 <button class="tab-button" data-tab="user-list" style="display: none;">ユーザー一覧</button>
                 <button class="tab-button" data-tab="special-shift-list" style="display: none;">特別シフト一覧</button>
@@ -2132,6 +2374,13 @@
             <div id="special-shift-list" class="tab-content">
                 <div id="specialShiftListContent">
                     <!-- 特別シフト一覧が動的に生成されます -->
+                </div>
+            </div>
+
+            <!-- 全シフト一覧テーブル -->
+            <div id="all-shifts-table" class="tab-content">
+                <div id="allShiftsTableContent">
+                    <!-- 全シフト一覧テーブルが動的に生成されます -->
                 </div>
             </div>
 
@@ -2273,6 +2522,7 @@
     <script src="js/modules/capacity.js"></script>
     <script src="js/modules/specialShifts.js"></script>
     <script src="js/modules/adminUsers.js"></script>
+    <script src="js/modules/allShiftsTable.js"></script>
 
     <!-- エントリーポイント -->
     <script src="app.js"></script>
