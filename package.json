@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon --watch server/src --exec ts-node server/src/index.ts",
     "dev:static": "npx http-server -p 8080",
-    "build": "node --max-old-space-size=4096 tsc",
+    "build": "node --max-old-space-size=4096 ./node_modules/.bin/tsc",
     "build:static": "echo 'No build needed for static files'",
     "start": "node dist/src/index.js",
     "preview": "npx http-server -p 8080",
