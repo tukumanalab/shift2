@@ -107,47 +107,58 @@ pm2 startup
 
 ## 7. Nginxの設定
 
-### 7.1 Nginx設定ファイルの作成
+### 7.1 shift2用の設定ファイルを作成
 
 ```bash
-sudo nano /etc/nginx/sites-available/shift2
+sudo nano /etc/nginx/shift2.conf
 ```
 
 以下の内容を入力:
 
 ```nginx
-server {
-    listen 80;
-    server_name tukumana.si.aoyama.ac.jp;
+location /shift2/ {
+        # パスをリライト（/shift2/xxx を /xxx に変換）
+        rewrite ^/shift2/(.*)$ /$1 break;
 
-    # /shift2/ へのリクエストをNode.jsアプリにプロキシ
-    location /shift2/ {
-        proxy_pass http://localhost:4050/;
+        proxy_pass http://localhost:4050;
         proxy_http_version 1.1;
+
+        # WebSocketサポート
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
+
+        # プロキシヘッダー
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
 
-    # 静的ファイルの配信（オプション）
-    location /shift2/assets/ {
-        alias /srv/shift2/assets/;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
+        # タイムアウト設定
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+
+        # キャッシュ無効化
+        proxy_cache_bypass $http_upgrade;
 }
 ```
 
-### 7.2 Nginx設定の有効化
+### 7.2 既存のNginx設定ファイルに追記
 
 ```bash
-# シンボリックリンクの作成
-sudo ln -s /etc/nginx/sites-available/shift2 /etc/nginx/sites-enabled/
+sudo nano /etc/nginx/sites-enabled/m-pass
+```
 
+既存の `server {` ブロック内に以下の行を追記:
+
+```nginx
+    # shift2アプリケーションへのプロキシ
+    include /etc/nginx/shift2.conf;
+```
+
+### 7.3 Nginx設定の再読み込み
+
+```bash
 # 設定のテスト
 sudo nginx -t
 
