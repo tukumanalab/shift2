@@ -190,16 +190,16 @@ pm2 logs shift-app
 ### ヘルスチェック
 
 ```bash
-curl http://localhost:4050/api/health
+curl http://localhost:4050/health
 # または
-curl https://tukumana.si.aoyama.ac.jp/shift2/api/health
+curl https://tukumana.si.aoyama.ac.jp/shift2/health
 ```
 
 期待されるレスポンス:
 ```json
 {
   "status": "ok",
-  "timestamp": "2026-02-03T12:34:56.789Z"
+  "message": "Server is running"
 }
 ```
 
