@@ -149,19 +149,6 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### 7.3 SSL証明書の設定（Let's Encrypt）
-
-```bash
-# Certbotのインストール
-sudo apt install -y certbot python3-certbot-nginx
-
-# 証明書の取得と自動設定
-sudo certbot --nginx -d tukumana.si.aoyama.ac.jp
-
-# 自動更新の確認
-sudo systemctl status certbot.timer
-```
-
 ## 8. データベースのマイグレーション（初回のみ）
 
 Google Spreadsheetから既存データを移行する場合:
