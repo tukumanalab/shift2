@@ -1,42 +1,55 @@
 # VPS セットアップガイド
 
-このドキュメントは、VPS上でアプリケーションをデプロイするための初期セットアップ手順を説明します。
+このドキュメントは、VPS上でシフト管理アプリケーションをセットアップする手順を説明します。
 
 ## 前提条件
 
 - VPS: Ubuntu 20.04 LTS以降
 - Node.js: 20.x
-- PM2: グローバルインストール済み
+- Git
 - SSH接続が可能
+- sudo権限
 
-## 1. 初期セットアップ
-
-### 1.1 アプリケーションディレクトリの作成
+## 1. 必要なパッケージのインストール
 
 ```bash
-# rootまたはsudo権限で実行
+# システムのアップデート
+sudo apt update && sudo apt upgrade -y
+
+# Node.js 20.xのインストール
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# PM2のグローバルインストール
+sudo npm install -g pm2
+
+# Nginxのインストール
+sudo apt install -y nginx
+```
+
+## 2. アプリケーションディレクトリの作成
+
+```bash
+# アプリケーションディレクトリを作成
 sudo mkdir -p /srv/shift2
-sudo chown $USER:www-data /srv/shift2
-chmod 775 /srv/shift2
+sudo chown $USER:$USER /srv/shift2
 cd /srv/shift2
 ```
 
-### 1.2 ディレクトリ構造の作成
+## 3. リポジトリのクローン
 
 ```bash
-mkdir -p releases
-mkdir -p shared/data
-mkdir -p shared/logs
+# GitHubからクローン（SSHまたはHTTPS）
+git clone https://github.com/tukumanalab/shift2.git .
 
-# グループ権限の設定
-chgrp -R www-data shared
-chmod -R 775 shared
+# または SSH:
+# git clone git@github.com:tukumanalab/shift2.git .
 ```
 
-### 1.3 環境変数ファイルの作成
+## 4. 環境変数ファイルの作成
 
 ```bash
-nano shared/.env
+nano .env
 ```
 
 以下の内容を入力（実際の値に置き換えてください）:
@@ -46,7 +59,7 @@ nano shared/.env
 PORT=4050
 
 # Database Configuration
-DATABASE_PATH=/srv/shift2/shared/data/shift.db
+DATABASE_PATH=/srv/shift2/data/shift.db
 
 # Google Apps Script URL
 GOOGLE_APPS_SCRIPT_URL=https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
@@ -68,44 +81,39 @@ TIMEZONE=Asia/Tokyo
 ```
 
 **重要**:
-- `GOOGLE_PRIVATE_KEY` は改行を `\n` に変換せず、そのまま複数行で記載してください
+- `GOOGLE_PRIVATE_KEY` は改行をそのまま複数行で記載してください
 - ダブルクォートで囲むことを忘れずに
 
-### 1.4 デプロイスクリプトのコピー
-
-リポジトリから `deploy.sh` と `rollback.sh` をVPSにコピー:
+## 5. 依存関係のインストールとビルド
 
 ```bash
-# ローカルマシンから実行
-scp deploy.sh rollback.sh user@your-vps:/srv/shift2/
+# 依存関係のインストール
+npm ci
 
-# VPS上で実行権限を付与
-ssh user@your-vps
-cd /srv/shift2
-chmod +x deploy.sh rollback.sh
+# TypeScriptのビルド
+npm run build
+
+# データベースディレクトリの作成
+mkdir -p data
 ```
 
-## 2. PM2のセットアップ
-
-### 2.1 PM2のインストール（まだの場合）
+## 6. PM2での起動
 
 ```bash
-sudo npm install -g pm2
-```
+# アプリケーションを起動
+pm2 start dist/src/index.js --name shift-app
 
-### 2.2 PM2の起動設定
+# PM2の設定を保存
+pm2 save
 
-```bash
 # PM2を自動起動に設定
 pm2 startup
-
 # 表示されたコマンドを実行（通常はsudo付き）
-# 例: sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u username --hp /home/username
 ```
 
-## 3. Nginxの設定
+## 7. Nginxの設定
 
-### 3.1 Nginx設定ファイルの作成
+### 7.1 Nginx設定ファイルの作成
 
 ```bash
 sudo nano /etc/nginx/sites-available/shift2
@@ -133,14 +141,14 @@ server {
 
     # 静的ファイルの配信（オプション）
     location /shift2/assets/ {
-        alias /srv/shift2/current/assets/;
+        alias /srv/shift2/assets/;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
 }
 ```
 
-### 3.2 Nginx設定の有効化
+### 7.2 Nginx設定の有効化
 
 ```bash
 # シンボリックリンクの作成
@@ -153,68 +161,44 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### 3.3 SSL証明書の設定（Let's Encrypt）
+### 7.3 SSL証明書の設定（Let's Encrypt）
 
 ```bash
-# Certbotのインストール（まだの場合）
-sudo apt update
-sudo apt install certbot python3-certbot-nginx
+# Certbotのインストール
+sudo apt install -y certbot python3-certbot-nginx
 
 # 証明書の取得と自動設定
 sudo certbot --nginx -d tukumana.si.aoyama.ac.jp
+
+# 自動更新の確認
+sudo systemctl status certbot.timer
 ```
 
-## 4. データベースの準備
+## 8. データベースのマイグレーション（初回のみ）
 
-### 4.1 データベースファイルの配置
-
-既存のデータベースがある場合:
+Google Spreadsheetから既存データを移行する場合:
 
 ```bash
-# ローカルマシンから実行
-scp data/shift.db user@your-vps:/srv/shift2/shared/data/
-```
-
-新規の場合は、初回デプロイ時に自動的に作成されます。
-
-### 4.2 データベースのマイグレーション（必要に応じて）
-
-```bash
-cd /srv/shift2/current
+cd /srv/shift2
 npm run migrate:users
 npm run migrate:capacity-settings
 npm run migrate:shifts
 npm run migrate:special-shifts
 ```
 
-## 5. 初回デプロイ
+## 9. 動作確認
 
-GitHub Actionsから自動デプロイされるか、手動でテストする場合:
-
-```bash
-cd /srv/shift2
-
-# テスト用のダミーアーカイブを配置（GitHub Actionsから自動的に配置されます）
-# 手動テストの場合のみ:
-# scp deploy.tar.gz user@your-vps:/srv/shift2/
-
-# デプロイスクリプトの実行
-./deploy.sh
-```
-
-## 6. 動作確認
-
-### 6.1 PM2ステータスの確認
+### PM2ステータスの確認
 
 ```bash
 pm2 status
 pm2 logs shift-app
 ```
 
-### 6.2 ヘルスチェック
+### ヘルスチェック
 
 ```bash
-curl http://localhost:3000/api/health
+curl http://localhost:4050/api/health
 # または
 curl https://tukumana.si.aoyama.ac.jp/shift2/api/health
 ```
@@ -223,17 +207,40 @@ curl https://tukumana.si.aoyama.ac.jp/shift2/api/health
 ```json
 {
   "status": "ok",
-  "timestamp": "2026-02-02T12:34:56.789Z"
+  "timestamp": "2026-02-03T12:34:56.789Z"
 }
 ```
 
-### 6.3 ブラウザでアクセス
+### ブラウザでアクセス
 
 ```
 https://tukumana.si.aoyama.ac.jp/shift2/
 ```
 
-## 7. トラブルシューティング
+## 10. アプリケーションの更新
+
+新しいコードをデプロイする場合:
+
+```bash
+cd /srv/shift2
+
+# 最新のコードを取得
+git pull origin main
+
+# 依存関係の更新（package.jsonに変更がある場合）
+npm ci
+
+# TypeScriptの再ビルド
+npm run build
+
+# PM2でアプリを再起動
+pm2 restart shift-app
+
+# ログを確認
+pm2 logs shift-app
+```
+
+## 11. トラブルシューティング
 
 ### アプリケーションが起動しない
 
@@ -241,21 +248,26 @@ https://tukumana.si.aoyama.ac.jp/shift2/
 # PM2ログの確認
 pm2 logs shift-app --lines 100
 
-# エラーログの確認
-tail -f /srv/shift2/shared/logs/error.log
-
 # PM2プロセスの再起動
 pm2 restart shift-app
+
+# PM2プロセスの削除と再起動
+pm2 delete shift-app
+pm2 start dist/src/index.js --name shift-app
+pm2 save
 ```
 
 ### データベース接続エラー
 
 ```bash
-# データベースファイルの権限確認
-ls -l /srv/shift2/shared/data/shift.db
+# データベースファイルの存在確認
+ls -l /srv/shift2/data/shift.db
 
-# 権限の修正
-chmod 664 /srv/shift2/shared/data/shift.db
+# データベースディレクトリの作成
+mkdir -p /srv/shift2/data
+
+# 権限の確認・修正
+chmod 664 /srv/shift2/data/shift.db
 ```
 
 ### Nginx 502 Bad Gateway
@@ -264,20 +276,32 @@ chmod 664 /srv/shift2/shared/data/shift.db
 # Node.jsアプリが起動しているか確認
 pm2 status
 
-# ポート3000でリスニングしているか確認
-sudo netstat -tlnp | grep 3000
+# ポート4050でリスニングしているか確認
+sudo netstat -tlnp | grep 4050
 
 # Nginxエラーログの確認
 sudo tail -f /var/log/nginx/error.log
 ```
 
-## 8. 定期メンテナンス
+### ポート番号の確認
+
+```bash
+# .envファイルでPORTが正しく設定されているか確認
+cat /srv/shift2/.env | grep PORT
+
+# アプリケーションが使用しているポートを確認
+sudo lsof -i :4050
+```
+
+## 12. 定期メンテナンス
 
 ### ログローテーション
 
 ```bash
-# PM2ログのローテーション設定
+# PM2ログローテーションのインストール
 pm2 install pm2-logrotate
+
+# 設定
 pm2 set pm2-logrotate:max_size 10M
 pm2 set pm2-logrotate:retain 7
 ```
@@ -285,13 +309,13 @@ pm2 set pm2-logrotate:retain 7
 ### データベースバックアップ
 
 ```bash
-# 日次バックアップスクリプトの作成
+# バックアップスクリプトの作成
 cat > /srv/shift2/backup.sh << 'EOF'
 #!/bin/bash
-BACKUP_DIR="/srv/shift2/shared/backups"
+BACKUP_DIR="/srv/shift2/backups"
 mkdir -p $BACKUP_DIR
 DATE=$(date +%Y%m%d_%H%M%S)
-cp /srv/shift2/shared/data/shift.db $BACKUP_DIR/shift_$DATE.db
+cp /srv/shift2/data/shift.db $BACKUP_DIR/shift_$DATE.db
 # 7日以上古いバックアップを削除
 find $BACKUP_DIR -name "shift_*.db" -mtime +7 -delete
 EOF
@@ -304,45 +328,10 @@ crontab -e
 # 0 3 * * * /srv/shift2/backup.sh
 ```
 
-## 9. GitHub Secretsの設定
-
-GitHubリポジトリの Settings → Secrets and variables → Actions で以下を設定:
-
-| Secret名 | 値 |
-|---------|-----|
-| `VPS_HOST` | `tukumana.si.aoyama.ac.jp` |
-| `VPS_USERNAME` | SSH接続用のユーザー名 |
-| `VPS_SSH_KEY` | SSH秘密鍵（全体） |
-| `VPS_PORT` | `22` (またはカスタムポート) |
-| `APP_URL` | `https://tukumana.si.aoyama.ac.jp/shift2` |
-
-## 10. デプロイフロー
-
-mainブランチにpushすると自動的に:
-
-1. テストが実行される
-2. TypeScriptがビルドされる
-3. デプロイアーカイブが作成される
-4. VPSに転送される
-5. `deploy.sh` が実行される
-6. PM2でアプリが再起動される
-7. ヘルスチェックが実行される
-
-## 11. ロールバック方法
-
-問題が発生した場合:
-
-```bash
-ssh user@your-vps
-cd /srv/shift2
-./rollback.sh
-```
-
-これで前のリリースに戻ります。
-
 ## 参考情報
 
-- アプリケーションログ: `/srv/shift2/shared/logs/`
+- アプリケーションディレクトリ: `/srv/shift2`
+- データベースファイル: `/srv/shift2/data/shift.db`
 - PM2ログ: `pm2 logs shift-app`
-- リリース一覧: `ls -lt /srv/shift2/releases/`
-- 現在のリリース: `ls -l /srv/shift2/current`
+- Nginxログ: `/var/log/nginx/`
+- アプリケーションURL: `https://tukumana.si.aoyama.ac.jp/shift2/`
