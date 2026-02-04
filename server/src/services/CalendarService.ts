@@ -102,30 +102,72 @@ export class CalendarService {
       console.log(`[Calendar] ==== すべてのイベント削除開始 ====`);
       const { calendar, calendarId } = getCalendarClient();
 
-      // 削除前にイベント数を取得（ログ用）
-      console.log('[Calendar] 削除前のイベント数を確認中...');
+      // 既存のシフトイベントを取得
+      console.log('[Calendar] カレンダー上の既存イベントを取得中...');
+
       const eventsResponse = await calendar.events.list({
         calendarId,
         singleEvents: true,
-        maxResults: 1,
       });
-      const eventCount = eventsResponse.data.items?.length || 0;
-      console.log(`[Calendar] 削除対象イベント: ${eventCount > 0 ? '存在します' : '0件'}`);
 
-      // calendars.clear APIで一括削除（1回のAPIコールで全イベントを削除）
-      console.log('[Calendar] カレンダーをクリア中（一括削除）...');
-      await calendar.calendars.clear({
-        calendarId,
-      });
+      const events = eventsResponse.data.items || [];
+      console.log(`[Calendar] 削除対象イベント数: ${events.length}`);
+
+      if (events.length === 0) {
+        console.log('[Calendar] 削除するイベントがありません');
+        // データベースの calendar_event_id をクリア
+        db.prepare('UPDATE shifts SET calendar_event_id = NULL').run();
+        return {
+          success: true,
+          deleted: 0,
+        };
+      }
+
+      // 並列削除（Promise.allSettledで一括処理）
+      console.log('[Calendar] イベントを並列削除中...');
+      const BATCH_SIZE = 50; // 50件ずつバッチ処理
+      let deleted = 0;
+      let failed = 0;
+
+      for (let i = 0; i < events.length; i += BATCH_SIZE) {
+        const batch = events.slice(i, i + BATCH_SIZE);
+        const deletePromises = batch.map(event =>
+          calendar.events.delete({
+            calendarId,
+            eventId: event.id!,
+          }).then(() => {
+            console.log(`[Calendar]   ✓ イベント削除: ${event.id}`);
+            return { success: true };
+          }).catch((error: any) => {
+            if (error.code === 404) {
+              console.log(`[Calendar]   ℹ イベント既に削除済み: ${event.id}`);
+              return { success: true }; // 既に削除済みは成功扱い
+            }
+            console.error(`[Calendar]   ✗ イベント削除エラー (${event.id}):`, error.message);
+            return { success: false };
+          })
+        );
+
+        const results = await Promise.allSettled(deletePromises);
+        results.forEach(result => {
+          if (result.status === 'fulfilled' && result.value.success) {
+            deleted++;
+          } else {
+            failed++;
+          }
+        });
+
+        console.log(`[Calendar] 進捗: ${i + batch.length}/${events.length} (削除: ${deleted}, 失敗: ${failed})`);
+      }
 
       // データベースの calendar_event_id をクリア（通常シフトのみ）
       db.prepare('UPDATE shifts SET calendar_event_id = NULL').run();
       console.log(`[Calendar] DBのcalendar_event_idをクリアしました`);
-      console.log(`[Calendar] ==== すべてのイベント一括削除完了 ====`);
+      console.log(`[Calendar] ==== すべてのイベント削除完了（${deleted}件）====`);
 
       return {
         success: true,
-        deleted: eventCount, // 正確な件数は取得しないが、0以外なら存在していた
+        deleted,
       };
     } catch (error: any) {
       console.error('[Calendar] すべてのイベント削除エラー:', error);
