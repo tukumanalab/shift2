@@ -17,17 +17,32 @@ async function syncAllShiftsToCalendar() {
 
     const syncBtn = document.getElementById('syncBtn');
     syncBtn.disabled = true;
-    syncBtn.textContent = '削除・同期中...';
+    syncBtn.textContent = '削除・同期中（数分かかる場合があります）...';
 
     try {
-        await API.syncAllShiftsToCalendar();
+        const result = await API.syncAllShiftsToCalendar();
 
-        console.log('既存のシフトを削除してから全シフトをカレンダーに同期しました');
-        alert('カレンダーから既存のシフトを削除し、全シフトを再同期しました！');
+        console.log('既存のシフトを削除してから全シフトをカレンダーに同期しました:', result);
+
+        if (result.success) {
+            const message = `カレンダーから既存のシフトを削除し、${result.data?.created || 0}件のシフトを再同期しました！`;
+            alert(message);
+        } else {
+            console.error('同期エラー:', result);
+            alert('同期中にエラーが発生しました。詳細はコンソールを確認してください。');
+        }
 
     } catch (error) {
         console.error('同期に失敗しました:', error);
-        alert('同期に失敗しました。再度お試しください。');
+
+        // エラーの種類に応じてメッセージを変更
+        if (error.name === 'AbortError') {
+            alert('同期処理がタイムアウトしました。\n処理は継続中の可能性があります。数分後に再度確認してください。');
+        } else if (error.message && error.message.includes('Failed to fetch')) {
+            alert('ネットワークエラーが発生しました。\n処理は継続中の可能性があります。数分後に再度確認してください。');
+        } else {
+            alert('同期に失敗しました。再度お試しください。\nエラー: ' + (error.message || '不明なエラー'));
+        }
     } finally {
         syncBtn.disabled = false;
         syncBtn.textContent = 'Googleカレンダーと同期し直す';
@@ -56,17 +71,31 @@ async function deleteAllCalendarEvents() {
 
     const deleteBtn = document.getElementById('deleteAllBtn');
     deleteBtn.disabled = true;
-    deleteBtn.textContent = 'クリア中...';
+    deleteBtn.textContent = 'クリア中（数分かかる場合があります）...';
 
     try {
         const result = await API.deleteAllCalendarEvents();
 
         console.log('カレンダーからすべてのイベントを削除しました:', result);
-        alert(`カレンダーから${result.deleted || 0}件のイベントを削除しました。`);
+
+        if (result.success) {
+            alert(`カレンダーから${result.deleted || 0}件のイベントを削除しました。`);
+        } else {
+            console.error('削除エラー:', result);
+            alert('削除中にエラーが発生しました。詳細はコンソールを確認してください。');
+        }
 
     } catch (error) {
         console.error('削除に失敗しました:', error);
-        alert('削除に失敗しました。再度お試しください。');
+
+        // エラーの種類に応じてメッセージを変更
+        if (error.name === 'AbortError') {
+            alert('削除処理がタイムアウトしました。\n処理は継続中の可能性があります。数分後に再度確認してください。');
+        } else if (error.message && error.message.includes('Failed to fetch')) {
+            alert('ネットワークエラーが発生しました。\n処理は継続中の可能性があります。数分後に再度確認してください。');
+        } else {
+            alert('削除に失敗しました。再度お試しください。\nエラー: ' + (error.message || '不明なエラー'));
+        }
     } finally {
         deleteBtn.disabled = false;
         deleteBtn.textContent = 'Googleカレンダーをクリア';
