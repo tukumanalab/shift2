@@ -102,54 +102,30 @@ export class CalendarService {
       console.log(`[Calendar] ==== すべてのイベント削除開始 ====`);
       const { calendar, calendarId } = getCalendarClient();
 
-      // 既存のシフトイベントを取得
-      console.log('[Calendar] カレンダー上の既存イベントを取得中...');
-
+      // 削除前にイベント数を取得（ログ用）
+      console.log('[Calendar] 削除前のイベント数を確認中...');
       const eventsResponse = await calendar.events.list({
         calendarId,
         singleEvents: true,
+        maxResults: 1,
       });
+      const eventCount = eventsResponse.data.items?.length || 0;
+      console.log(`[Calendar] 削除対象イベント: ${eventCount > 0 ? '存在します' : '0件'}`);
 
-      const events = eventsResponse.data.items || [];
-      console.log(`[Calendar] 削除対象イベント数: ${events.length}`);
-
-      if (events.length === 0) {
-        console.log('[Calendar] 削除するイベントがありません');
-        // データベースの calendar_event_id をクリア
-        db.prepare('UPDATE shifts SET calendar_event_id = NULL').run();
-        return {
-          success: true,
-          deleted: 0,
-        };
-      }
-
-      let deleted = 0;
-      // シフト管理専用カレンダーなので、すべてのイベントを削除
-      for (const event of events) {
-        try {
-          await calendar.events.delete({
-            calendarId,
-            eventId: event.id!,
-          });
-          console.log(`[Calendar]   ✓ イベント削除: ${event.id}`);
-          deleted++;
-        } catch (error: any) {
-          if (error.code !== 404) {
-            console.error(`[Calendar]   ✗ イベント削除エラー (${event.id}):`, error.message);
-          } else {
-            deleted++; // 既に削除済みの場合もカウント
-          }
-        }
-      }
+      // calendars.clear APIで一括削除（1回のAPIコールで全イベントを削除）
+      console.log('[Calendar] カレンダーをクリア中（一括削除）...');
+      await calendar.calendars.clear({
+        calendarId,
+      });
 
       // データベースの calendar_event_id をクリア（通常シフトのみ）
       db.prepare('UPDATE shifts SET calendar_event_id = NULL').run();
       console.log(`[Calendar] DBのcalendar_event_idをクリアしました`);
-      console.log(`[Calendar] ==== すべてのイベント削除完了（${deleted}件）====`);
+      console.log(`[Calendar] ==== すべてのイベント一括削除完了 ====`);
 
       return {
         success: true,
-        deleted,
+        deleted: eventCount, // 正確な件数は取得しないが、0以外なら存在していた
       };
     } catch (error: any) {
       console.error('[Calendar] すべてのイベント削除エラー:', error);
