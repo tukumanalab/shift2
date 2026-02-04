@@ -123,41 +123,23 @@ export class CalendarService {
         };
       }
 
-      // 並列削除（Promise.allSettledで一括処理）
-      console.log('[Calendar] イベントを並列削除中...');
-      const BATCH_SIZE = 50; // 50件ずつバッチ処理
+      // イベントを一個ずつ削除
       let deleted = 0;
-      let failed = 0;
-
-      for (let i = 0; i < events.length; i += BATCH_SIZE) {
-        const batch = events.slice(i, i + BATCH_SIZE);
-        const deletePromises = batch.map(event =>
-          calendar.events.delete({
+      for (const event of events) {
+        try {
+          await calendar.events.delete({
             calendarId,
             eventId: event.id!,
-          }).then(() => {
-            console.log(`[Calendar]   ✓ イベント削除: ${event.id}`);
-            return { success: true };
-          }).catch((error: any) => {
-            if (error.code === 404) {
-              console.log(`[Calendar]   ℹ イベント既に削除済み: ${event.id}`);
-              return { success: true }; // 既に削除済みは成功扱い
-            }
+          });
+          console.log(`[Calendar]   ✓ イベント削除: ${event.id}`);
+          deleted++;
+        } catch (error: any) {
+          if (error.code !== 404) {
             console.error(`[Calendar]   ✗ イベント削除エラー (${event.id}):`, error.message);
-            return { success: false };
-          })
-        );
-
-        const results = await Promise.allSettled(deletePromises);
-        results.forEach(result => {
-          if (result.status === 'fulfilled' && result.value.success) {
-            deleted++;
           } else {
-            failed++;
+            deleted++; // 既に削除済みの場合もカウント
           }
-        });
-
-        console.log(`[Calendar] 進捗: ${i + batch.length}/${events.length} (削除: ${deleted}, 失敗: ${failed})`);
+        }
       }
 
       // データベースの calendar_event_id をクリア（通常シフトのみ）
