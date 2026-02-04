@@ -338,6 +338,21 @@
             background-color: #6c757d;
             cursor: not-allowed;
         }
+        .delete-all-btn {
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .delete-all-btn:hover:not(:disabled) {
+            background-color: #c82333;
+        }
+        .delete-all-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
         #reloadBtn {
             background-color: #28a745;
         }
@@ -2184,6 +2199,9 @@
                 <div class="sync-buttons">
                     <button id="syncBtn" class="sync-btn" onclick="syncAllShiftsToCalendar()">
                         Googleカレンダーと同期し直す
+                    </button>
+                    <button id="deleteAllBtn" class="delete-all-btn" onclick="deleteAllCalendarEvents()">
+                        Googleカレンダーをクリア
                     </button>
                 </div>
                 <div id="shiftCalendarContainer" class="calendar-container">
