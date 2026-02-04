@@ -38,7 +38,7 @@ console.log(`📁 Serving static files from: ${staticPath}`);
 app.use(express.static(staticPath));
 
 // サーバー起動
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
   console.log(`🌐 Frontend: http://localhost:${PORT}`);
   console.log(`📊 API endpoints:`);
@@ -75,5 +75,12 @@ app.listen(PORT, () => {
   console.log(`   - GET    /api/calendar/sync-status`);
   console.log(`   - DELETE /api/calendar/all`);
 });
+
+// タイムアウトを10分に設定（カレンダー同期処理に時間がかかるため）
+server.timeout = 10 * 60 * 1000; // 10分
+server.keepAliveTimeout = 10 * 60 * 1000 + 1000; // 10分 + 1秒
+server.headersTimeout = 10 * 60 * 1000 + 2000; // 10分 + 2秒
+
+console.log(`⏱️  Server timeout: ${server.timeout / 1000}秒`);
 
 export default app;

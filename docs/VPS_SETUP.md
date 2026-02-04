@@ -133,10 +133,10 @@ location /shift2/ {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # タイムアウト設定
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
+        # タイムアウト設定（カレンダー同期処理に時間がかかるため10分に設定）
+        proxy_connect_timeout 600s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
 
         # キャッシュ無効化
         proxy_cache_bypass $http_upgrade;
