@@ -73,6 +73,7 @@ app.listen(PORT, () => {
   console.log(`   - POST   /api/calendar/sync-shift`);
   console.log(`   - DELETE /api/calendar/sync-shift/:shiftUuid`);
   console.log(`   - GET    /api/calendar/sync-status`);
+  console.log(`   - DELETE /api/calendar/all`);
 });
 
 export default app;
