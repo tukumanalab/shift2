@@ -165,24 +165,46 @@ const API = {
 
     // カレンダー同期（全シフト）
     async syncAllShiftsToCalendar() {
-        const response = await fetch(`${config.API_BASE_URL}/calendar/sync`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-        return await response.json();
+        // タイムアウトを10分に設定（大量のシフト同期に時間がかかるため）
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10分
+
+        try {
+            const response = await fetch(`${config.API_BASE_URL}/calendar/sync`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            return await response.json();
+        } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+        }
     },
 
     // カレンダーのすべてのイベントを削除
     async deleteAllCalendarEvents() {
-        const response = await fetch(`${config.API_BASE_URL}/calendar/all`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-        return await response.json();
+        // タイムアウトを5分に設定
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5分
+
+        try {
+            const response = await fetch(`${config.API_BASE_URL}/calendar/all`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            return await response.json();
+        } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+        }
     },
 
     // ユーザー情報保存（GAS）
