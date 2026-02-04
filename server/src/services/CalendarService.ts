@@ -99,10 +99,11 @@ export class CalendarService {
    */
   static async syncAllShifts(): Promise<SyncResult> {
     try {
+      console.log(`[Calendar] ==== 全シフト同期開始 ====`);
       const { calendar, calendarId } = getCalendarClient();
 
       // 既存のシフトイベントを削除
-      console.log('既存イベントを削除中（すべての期間）...');
+      console.log('[Calendar] カレンダー上の既存イベントを削除中...');
 
       const eventsResponse = await calendar.events.list({
         calendarId,
@@ -134,7 +135,9 @@ export class CalendarService {
       // 通常シフトと特別シフトを取得
       const shifts = this.getAllShifts();
 
+      console.log(`[Calendar] 同期対象シフト数: ${shifts.length}件`);
       if (shifts.length === 0) {
+        console.log(`[Calendar] シフトが0件のため、同期処理を終了`);
         return {
           success: true,
           total: 0,
@@ -145,13 +148,23 @@ export class CalendarService {
 
       // シフトをユーザー・日付でグループ化し、連続する時間帯をマージ
       const mergedSlots = groupAndMergeShifts(shifts);
+      console.log(`[Calendar] マージ後のスロット数: ${mergedSlots.length}個`);
+      if (shifts.length > 0) {
+        const dates = shifts.map(s => s.date).sort();
+        console.log(`[Calendar] 期間: ${dates[0]} 〜 ${dates[dates.length - 1]}`);
+      }
 
       let created = 0;
       let failed = 0;
       const errors: Array<{ shift: ShiftInfo; error: string }> = [];
 
+      // バッチ処理設定
+      const BATCH_SIZE = 50;  // 50件ごとに待機
+      const BATCH_DELAY = 1000; // 1秒待機
+
       // 各マージされたスロットをカレンダーに追加
-      for (const slot of mergedSlots) {
+      for (let i = 0; i < mergedSlots.length; i++) {
+        const slot = mergedSlots[i];
         try {
           const user = UserModel.getByUserId(slot.user_id);
           if (!user) {
@@ -223,6 +236,17 @@ export class CalendarService {
             },
             error: error.message,
           });
+        }
+
+        // プログレス表示
+        if ((i + 1) % 10 === 0 || i === mergedSlots.length - 1) {
+          console.log(`[Calendar] 進捗: ${created + failed}/${mergedSlots.length} (作成: ${created}, 失敗: ${failed})`);
+        }
+
+        // バッチディレイ
+        if ((i + 1) % BATCH_SIZE === 0 && i < mergedSlots.length - 1) {
+          console.log(`[Calendar] バッチ処理: ${i + 1}件完了 - 1秒待機中...`);
+          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
         }
       }
 
@@ -446,11 +470,10 @@ export class CalendarService {
   private static getAllShifts(): ShiftInfo[] {
     const shifts: ShiftInfo[] = [];
 
-    // 通常シフトを取得
+    // 通常シフトを取得（全期間）
     const stmt = db.prepare(`
       SELECT uuid, user_id, user_name, date, time_slot
       FROM shifts
-      WHERE date >= date('now')
       ORDER BY date, time_slot
     `);
     const regularShifts = stmt.all() as Array<{
