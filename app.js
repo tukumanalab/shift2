@@ -58,14 +58,8 @@ async function deleteAllCalendarEvents() {
     }
 
     // 確認ダイアログを表示
-    const confirmDelete = confirm('本当にGoogleカレンダーのすべての予定を削除しますか？\n\n⚠️ 警告: この操作は元に戻せません。\nカレンダー上のすべてのシフトイベントが削除されます。');
+    const confirmDelete = confirm('本当にGoogleカレンダーのすべての予定を削除しますか？\n\n⚠️ 警告: この操作は元に戻せません。\nカレンダー上のすべてのシフトイベントが削除されます。\n\n削除後は「Googleカレンダーと同期し直す」ボタンで再同期できます。');
     if (!confirmDelete) {
-        return;
-    }
-
-    // 二重確認
-    const doubleConfirm = confirm('最終確認: 本当に削除しますか？\n削除後は「Googleカレンダーと同期し直す」ボタンで再同期できます。');
-    if (!doubleConfirm) {
         return;
     }
 
