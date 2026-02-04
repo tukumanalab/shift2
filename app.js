@@ -34,6 +34,45 @@ async function syncAllShiftsToCalendar() {
     }
 }
 
+// カレンダーのすべての予定を削除
+async function deleteAllCalendarEvents() {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+        alert('ログインが必要です。');
+        return;
+    }
+
+    // 確認ダイアログを表示
+    const confirmDelete = confirm('本当にGoogleカレンダーのすべての予定を削除しますか？\n\n⚠️ 警告: この操作は元に戻せません。\nカレンダー上のすべてのシフトイベントが削除されます。');
+    if (!confirmDelete) {
+        return;
+    }
+
+    // 二重確認
+    const doubleConfirm = confirm('最終確認: 本当に削除しますか？\n削除後は「Googleカレンダーと同期し直す」ボタンで再同期できます。');
+    if (!doubleConfirm) {
+        return;
+    }
+
+    const deleteBtn = document.getElementById('deleteAllBtn');
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = 'クリア中...';
+
+    try {
+        const result = await API.deleteAllCalendarEvents();
+
+        console.log('カレンダーからすべてのイベントを削除しました:', result);
+        alert(`カレンダーから${result.deleted || 0}件のイベントを削除しました。`);
+
+    } catch (error) {
+        console.error('削除に失敗しました:', error);
+        alert('削除に失敗しました。再度お試しください。');
+    } finally {
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = 'Googleカレンダーをクリア';
+    }
+}
+
 // Google Sign-Inを初期化
 function initializeGoogleSignIn() {
     const clientId = getGoogleClientId();

@@ -154,4 +154,34 @@ router.get('/sync-status', (req: Request, res: Response) => {
   }
 });
 
+/**
+ * DELETE /api/calendar/all
+ * Googleカレンダーのすべてのイベントを削除
+ */
+router.delete('/all', async (req: Request, res: Response) => {
+  try {
+    const result = await CalendarService.deleteAllEvents();
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: `${result.deleted}件のイベントを削除しました`,
+        deleted: result.deleted,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error || 'イベントの削除に失敗しました',
+      });
+    }
+  } catch (error: any) {
+    console.error('全イベント削除エラー:', error);
+    res.status(500).json({
+      success: false,
+      error: 'サーバーエラーが発生しました',
+      details: error.message,
+    });
+  }
+});
+
 export default router;

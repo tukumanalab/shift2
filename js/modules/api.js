@@ -174,6 +174,17 @@ const API = {
         return await response.json();
     },
 
+    // カレンダーのすべてのイベントを削除
+    async deleteAllCalendarEvents() {
+        const response = await fetch(`${config.API_BASE_URL}/calendar/all`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        return await response.json();
+    },
+
     // ユーザー情報保存（GAS）
     async saveUserToSpreadsheet(userData) {
         await fetch(getGoogleAppsScriptUrl(), {

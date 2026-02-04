@@ -95,15 +95,15 @@ export class CalendarService {
   }
 
   /**
-   * 全シフトをカレンダーに同期
+   * Googleカレンダーのすべてのイベントを削除
    */
-  static async syncAllShifts(): Promise<SyncResult> {
+  static async deleteAllEvents(): Promise<{ success: boolean; deleted: number; error?: string }> {
     try {
-      console.log(`[Calendar] ==== 全シフト同期開始 ====`);
+      console.log(`[Calendar] ==== すべてのイベント削除開始 ====`);
       const { calendar, calendarId } = getCalendarClient();
 
-      // 既存のシフトイベントを削除
-      console.log('[Calendar] カレンダー上の既存イベントを削除中...');
+      // 既存のシフトイベントを取得
+      console.log('[Calendar] カレンダー上の既存イベントを取得中...');
 
       const eventsResponse = await calendar.events.list({
         calendarId,
@@ -111,9 +111,19 @@ export class CalendarService {
       });
 
       const events = eventsResponse.data.items || [];
+      console.log(`[Calendar] 削除対象イベント数: ${events.length}`);
 
-      console.log(`削除対象イベント数: ${events.length}`);
+      if (events.length === 0) {
+        console.log('[Calendar] 削除するイベントがありません');
+        // データベースの calendar_event_id をクリア
+        db.prepare('UPDATE shifts SET calendar_event_id = NULL').run();
+        return {
+          success: true,
+          deleted: 0,
+        };
+      }
 
+      let deleted = 0;
       // シフト管理専用カレンダーなので、すべてのイベントを削除
       for (const event of events) {
         try {
@@ -121,18 +131,53 @@ export class CalendarService {
             calendarId,
             eventId: event.id!,
           });
-          console.log(`  ✓ イベント削除: ${event.id}`);
+          console.log(`[Calendar]   ✓ イベント削除: ${event.id}`);
+          deleted++;
         } catch (error: any) {
           if (error.code !== 404) {
-            console.error(`  ✗ イベント削除エラー (${event.id}):`, error.message);
+            console.error(`[Calendar]   ✗ イベント削除エラー (${event.id}):`, error.message);
+          } else {
+            deleted++; // 既に削除済みの場合もカウント
           }
         }
       }
 
       // データベースの calendar_event_id をクリア（通常シフトのみ）
       db.prepare('UPDATE shifts SET calendar_event_id = NULL').run();
+      console.log(`[Calendar] DBのcalendar_event_idをクリアしました`);
+      console.log(`[Calendar] ==== すべてのイベント削除完了（${deleted}件）====`);
 
-      // 通常シフトと特別シフトを取得
+      return {
+        success: true,
+        deleted,
+      };
+    } catch (error: any) {
+      console.error('[Calendar] すべてのイベント削除エラー:', error);
+      return {
+        success: false,
+        deleted: 0,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * 全シフトをカレンダーに同期
+   */
+  static async syncAllShifts(): Promise<SyncResult> {
+    try {
+      console.log(`[Calendar] ==== 全シフト同期開始 ====`);
+
+      // 既存のイベントを削除（deleteAllEventsを再利用）
+      const deleteResult = await this.deleteAllEvents();
+      if (!deleteResult.success) {
+        throw new Error(deleteResult.error || 'イベント削除に失敗しました');
+      }
+      console.log(`[Calendar] ${deleteResult.deleted}件のイベントを削除しました`);
+
+      const { calendar, calendarId } = getCalendarClient();
+
+      // 通常シフトを取得
       const shifts = this.getAllShifts();
 
       console.log(`[Calendar] 同期対象シフト数: ${shifts.length}件`);
