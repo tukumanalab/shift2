@@ -84,6 +84,31 @@ function formatDateTime(dateString) {
     }
 }
 
+// 日付を曜日付きでフォーマットする関数 (YYYY/MM/DD (曜))
+function formatDateWithWeekday(dateString) {
+    if (!dateString) return '-';
+
+    try {
+        const date = new Date(dateString);
+        const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const weekday = weekdays[date.getDay()];
+
+        // 日曜日は赤、土曜日は青
+        const colorClass = weekday === '日' ? 'sunday' : (weekday === '土' ? 'saturday' : '');
+
+        if (colorClass) {
+            return `${year}/${month}/${day} <span class="${colorClass}">(${weekday})</span>`;
+        }
+
+        return `${year}/${month}/${day} (${weekday})`;
+    } catch (error) {
+        return dateString;
+    }
+}
+
 // 日付を表示用にフォーマットする関数
 function formatDateForDisplay(dateKey) {
     const date = new Date(dateKey + 'T00:00:00');
