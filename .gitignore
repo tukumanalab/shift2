@@ -10,9 +10,6 @@ keys/
 # Test coverage
 coverage/
 
-# clasp files
-gas/.clasp.json
-
 .playwright-mcp
 
 # Deployment

@@ -235,16 +235,13 @@ npm run build
 
 コンパイル結果は `dist/` ディレクトリに出力されます。
 
-## Google Apps Scriptからの移行
+## アーキテクチャ
 
-このバックエンドは、Google Apps Scriptの「ユーザー」シートの機能を完全に置き換えます。
+このバックエンドは Express + TypeScript + SQLite で構築されています。
 
-### 主な変更点
+### 主な特徴
 
-- スプレッドシート → SQLite
-- Google Apps Script → Express + TypeScript
-- 同期処理 → 非同期処理（RESTful API）
-
-### データ移行
-
-Google スプレッドシートから SQLite にデータを移行する場合は、スプレッドシートからCSVをエクスポートし、SQLiteにインポートする必要があります。
+- **SQLite**: 軽量で高速なデータベース
+- **Express + TypeScript**: 型安全な RESTful API
+- **Google Calendar API**: カレンダー連携
+- **非同期処理**: パフォーマンスと拡張性を考慮した設計

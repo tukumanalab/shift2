@@ -3,11 +3,11 @@
 [![Tests](https://github.com/tukumanalab/shift2/actions/workflows/test.yml/badge.svg)](https://github.com/tukumanalab/shift2/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/tukumanalab/shift2/branch/main/graph/badge.svg)](https://codecov.io/gh/tukumanalab/shift2)
 
-Google OAuth認証とGoogle Sheets連携による高機能なシフト管理アプリケーションです。
+Google OAuth認証とExpress + SQLiteバックエンドによる高機能なシフト管理アプリケーションです。
 
 ## 概要
 
-このアプリケーションは、アルバイトや小規模チームのシフト管理を効率化するWebアプリケーションです。Google のサービス群（Google Identity Services、Google Sheets、Google Apps Script、Google Calendar）を活用し、認証からデータ管理、カレンダー連携まで統合的にサポートします。
+このアプリケーションは、アルバイトや小規模チームのシフト管理を効率化するWebアプリケーションです。Google のサービス群（Google Identity Services、Google Calendar）とExpress + TypeScript + SQLiteを活用し、認証からデータ管理、カレンダー連携まで統合的にサポートします。
 
 ### 主な特徴
 
@@ -77,10 +77,10 @@ npm run dev
 - **iCal購読URL**: 全シフトをカレンダーアプリから購読できるURLを表示・コピー
 
 ### データ管理・バックエンド
-- **Google Sheets統合**: データの永続化にGoogle Sheetsを使用
-- **Google Apps Script API**: サーバーレスなバックエンド処理
-- **RESTful API設計**: GET/POSTリクエストによるデータ操作
-- **プロパティサービス**: 設定情報の安全な保存
+- **SQLite統合**: データの永続化にSQLiteを使用
+- **Express + TypeScript**: 型安全なバックエンド処理
+- **RESTful API設計**: GET/POST/PUT/DELETEリクエストによるデータ操作
+- **環境変数管理**: 設定情報の安全な保存
 
 ### UI/UX機能
 - **レスポンシブデザイン**: デスクトップとモバイルデバイス対応
