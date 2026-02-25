@@ -813,6 +813,11 @@ async function submitDateDetailShiftRequest() {
             throw new Error(results.error || 'シフト申請に失敗しました');
         }
 
+        if (results.calendarSync?.failed > 0) {
+            console.warn('[Calendar] カレンダー同期に失敗したシフトがあります:', results.calendarSync);
+            alert('シフトは申請されましたが、Googleカレンダーへの同期に失敗しました。\n「Googleカレンダーと同期し直す」ボタンで再同期できます。');
+        }
+
         const successSlots = results.processed || [];
 
         // 申請した日付を保存（モーダルを閉じる前に）

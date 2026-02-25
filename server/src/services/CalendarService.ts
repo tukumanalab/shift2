@@ -26,17 +26,8 @@ export class CalendarService {
    */
   private static parseTimeSlot(date: string, timeSlot: string): { start: Date; end: Date } {
     const [startTime, endTime] = timeSlot.split('-');
-    const [startHour, startMinute] = startTime.trim().split(':').map(Number);
-    const [endHour, endMinute] = endTime.trim().split(':').map(Number);
-
-    const baseDate = new Date(date + 'T00:00:00');
-
-    const start = new Date(baseDate);
-    start.setHours(startHour, startMinute, 0, 0);
-
-    const end = new Date(baseDate);
-    end.setHours(endHour, endMinute, 0, 0);
-
+    const start = new Date(`${date}T${startTime.trim()}:00+09:00`);
+    const end = new Date(`${date}T${endTime.trim()}:00+09:00`);
     return { start, end };
   }
 

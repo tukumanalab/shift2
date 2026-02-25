@@ -511,7 +511,12 @@ async function deleteShiftFromModal(buttonElement, uuids) {
             throw new Error(result.error || 'シフトの削除に失敗しました');
         }
 
-        alert(`${userName}さんの${dateKey} ${displayTimeRange}のシフトを削除しました。`);
+        if (result.calendarSync?.failed > 0) {
+            console.warn('[Calendar] カレンダー同期に失敗したシフトがあります:', result.calendarSync);
+            alert(`${userName}さんの${dateKey} ${displayTimeRange}のシフトを削除しましたが、Googleカレンダーへの同期に失敗しました。\n「Googleカレンダーと同期し直す」ボタンで再同期できます。`);
+        } else {
+            alert(`${userName}さんの${dateKey} ${displayTimeRange}のシフトを削除しました。`);
+        }
 
         // モーダルを閉じる
         const modal = document.getElementById('shiftDetailModal');
@@ -613,7 +618,12 @@ async function deleteMyShift(buttonElement, uuids) {
                 throw new Error(deleteResult.error || 'シフトの削除に失敗しました');
             }
 
-            alert(`${shiftDate} ${displayTimeSlot}のシフトを削除しました。`);
+            if (deleteResult.calendarSync?.failed > 0) {
+                console.warn('[Calendar] カレンダー同期に失敗したシフトがあります:', deleteResult.calendarSync);
+                alert(`${shiftDate} ${displayTimeSlot}のシフトを削除しましたが、Googleカレンダーへの同期に失敗しました。\n「Googleカレンダーと同期し直す」ボタンで再同期できます。`);
+            } else {
+                alert(`${shiftDate} ${displayTimeSlot}のシフトを削除しました。`);
+            }
 
             // 自分のシフト一覧を再読み込み
             await loadMyShifts();

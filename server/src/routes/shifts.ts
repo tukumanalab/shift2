@@ -439,7 +439,10 @@ router.post('/delete-multiple', async (req, res) => {
 
     // 削除されたシフトのカレンダーイベントを明示的に削除
     for (const eventId of calendarEventIdsToDelete) {
-      await CalendarService.deleteCalendarEvent(eventId);
+      const deleted = await CalendarService.deleteCalendarEvent(eventId);
+      if (!deleted) {
+        console.error(`[Shift Delete] カレンダーイベント削除失敗（幽霊イベントの可能性）: ${eventId}`);
+      }
     }
 
     // 削除後、影響を受けた各(user_id, date)について再同期
