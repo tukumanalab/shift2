@@ -128,10 +128,6 @@ function setAllShiftsData(shifts) {
     window.allShiftsData = shifts;
 }
 
-function getGoogleAppsScriptUrl() {
-    return config.GOOGLE_APPS_SCRIPT_URL;
-}
-
 function getGoogleClientId() {
     return config.GOOGLE_CLIENT_ID;
 }

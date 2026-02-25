@@ -11,10 +11,7 @@ const config = {
       const currentPath = window.location.pathname;
       const basePath = currentPath.substring(0, currentPath.lastIndexOf('/'));
       return window.location.origin + basePath + '/api';
-    })(),
-
-    // レガシー（後方互換性のため残す）
-    GOOGLE_APPS_SCRIPT_URL: ''
+    })()
 };
 
 // サーバーから設定を取得
@@ -26,7 +23,6 @@ async function loadConfig() {
         if (result.success && result.data) {
             config.GOOGLE_CLIENT_ID = result.data.googleClientId;
             config.AUTHORIZED_EMAILS = result.data.authorizedEmails;
-            config.GOOGLE_APPS_SCRIPT_URL = result.data.googleAppsScriptUrl || '';
             config.ICAL_TOKEN = result.data.icalToken || '';
 
             console.log('✅ 設定をサーバーから読み込みました');

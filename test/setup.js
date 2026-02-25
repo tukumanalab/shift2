@@ -9,9 +9,6 @@ global.console = {
   // error: jest.fn(),
 };
 
-// Mock Google Apps Script URL
-global.GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/mock/test';
-
 // Mock current user
 global.currentUser = {
   sub: 'test_user_123',

@@ -1,24 +1,30 @@
 # データ移行スクリプト
 
+> **⚠️ 注意: このドキュメントは履歴資料です**
+>
+> このプロジェクトは既に Google Apps Script + Google Sheets から Express + TypeScript + SQLite への移行が完了しています。
+> このドキュメントに記載されている移行スクリプトは、過去の移行作業時に使用されたものであり、現在は使用されていません。
+>
+> 現在のアーキテクチャ:
+> - **バックエンド**: Express + TypeScript + SQLite
+> - **データ保存**: SQLite データベース (`server/shifts.db`)
+> - **カレンダー連携**: Google Calendar API (直接統合)
+>
+> Google Apps Script は使用していません。
+
+---
+
+## 過去の移行作業について
+
 SpreadsheetからSQLiteへデータを移行するためのスクリプト集です。
 
 ## ユーザーデータの移行
 
 Google SpreadsheetからSQLiteデータベースにユーザーデータを移行します。
 
-### 前提条件
+### 前提条件（過去の移行作業時）
 
-1. **Google Apps Scriptのデプロイ**
-
-   まず、更新されたGoogle Apps Scriptコードをデプロイする必要があります：
-
-   ```bash
-   npm run deploy:gas
-   ```
-
-   または、手動で`gas/google-apps-script.js`の内容をGoogle Apps Scriptエディタにコピー&ペーストしてください。
-
-2. **環境変数の設定**
+1. **環境変数の設定**
 
    `.env`ファイルに以下が設定されていることを確認してください：
 
@@ -95,21 +101,12 @@ npx ts-node server/scripts/migrate-users.ts
 - **トランザクション**: 各ユーザーは個別に処理されるため、一部が失敗しても他のユーザーには影響しません
 - **データの検証**: 移行前にSpreadsheetのデータが正しいことを確認してください
 
-### トラブルシューティング
-
-#### エラー: GOOGLE_APPS_SCRIPT_URL が設定されていません
-
-`.env`ファイルに`GOOGLE_APPS_SCRIPT_URL`を追加してください：
-
-```env
-GOOGLE_APPS_SCRIPT_URL=https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
-```
+### トラブルシューティング（過去の移行作業時）
 
 #### エラー: データ取得に失敗しました
 
-1. Google Apps Scriptが正しくデプロイされているか確認
-2. スクリプトのURLが正しいか確認
-3. スプレッドシートに「ユーザー」シートが存在するか確認
+1. スプレッドシートに「ユーザー」シートが存在するか確認
+2. データ形式が正しいか確認
 
 #### 既存データを削除して再移行したい場合
 

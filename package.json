@@ -10,7 +10,6 @@
     "build:static": "echo 'No build needed for static files'",
     "start": "node dist/src/index.js",
     "preview": "npx http-server -p 8080",
-    "deploy:gas": "cd gas && ./deploy.sh",
     "migrate:users": "ts-node server/scripts/migrate-users.ts",
     "migrate:special-shifts": "ts-node server/scripts/migrate-special-shifts.ts",
     "migrate:shifts": "ts-node server/scripts/migrate-shifts.ts",
