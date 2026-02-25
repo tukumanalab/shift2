@@ -92,9 +92,35 @@ function displayCapacityOnAdminCalendar(capacityData) {
     });
 }
 
+// iCal購読URLを入力欄にセットする
+function updateIcalUrl() {
+    const input = document.getElementById('icalAllUrl');
+    if (!input) return;
+    if (config.ICAL_TOKEN) {
+        input.value = `${config.API_BASE_URL}/ical/all?token=${config.ICAL_TOKEN}`;
+    } else {
+        input.value = '（ICAL_TOKEN が未設定です）';
+    }
+}
+
+// iCal購読URLをクリップボードにコピーする
+async function copyIcalUrl() {
+    const input = document.getElementById('icalAllUrl');
+    if (!input || !input.value) return;
+    await navigator.clipboard.writeText(input.value);
+    const btn = document.querySelector('.ical-copy-btn');
+    if (btn) {
+        const original = btn.textContent;
+        btn.textContent = 'コピーしました';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+    }
+}
+
 // 管理者用シフト一覧を読み込む
 async function loadShiftList() {
     console.log('管理者モード: 全員のシフト一覧を読み込み中...');
+
+    updateIcalUrl();
 
     const container = document.getElementById('shiftCalendarContainer');
     if (!container) return;

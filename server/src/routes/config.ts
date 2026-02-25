@@ -12,6 +12,7 @@ router.get('/', (req: Request, res: Response) => {
       googleClientId: process.env.GOOGLE_CLIENT_ID || '',
       authorizedEmails: process.env.AUTHORIZED_EMAILS || '',
       googleAppsScriptUrl: process.env.GOOGLE_APPS_SCRIPT_URL || '',
+      icalToken: process.env.ICAL_TOKEN || '',
     };
 
     // 必須設定のバリデーション
