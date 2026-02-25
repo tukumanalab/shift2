@@ -8,6 +8,7 @@ import shiftsRouter from './routes/shifts';
 import capacitySettingsRouter from './routes/capacitySettings';
 import configRouter from './routes/config';
 import calendarRouter from './routes/calendar';
+import icalRouter from './routes/ical';
 
 // 環境変数を読み込む
 dotenv.config();
@@ -26,6 +27,7 @@ app.use('/api/special-shifts', specialShiftsRouter);
 app.use('/api/shifts', shiftsRouter);
 app.use('/api/capacity-settings', capacitySettingsRouter);
 app.use('/api/calendar', calendarRouter);
+app.use('/api/ical', icalRouter);
 
 // ヘルスチェックエンドポイント
 app.get('/health', (req, res) => {
@@ -74,6 +76,8 @@ const server = app.listen(PORT, () => {
   console.log(`   - DELETE /api/calendar/sync-shift/:shiftUuid`);
   console.log(`   - GET    /api/calendar/sync-status`);
   console.log(`   - DELETE /api/calendar/all`);
+  console.log(`   - GET    /api/ical/all?token=<token>`);
+  console.log(`   - GET    /api/ical/user/:user_id?token=<token>`);
 });
 
 // タイムアウトを10分に設定（カレンダー同期処理に時間がかかるため）
