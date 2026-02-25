@@ -317,6 +317,47 @@
         .logout-btn-small:hover {
             background-color: #c82333;
         }
+        .ical-url-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f0f7ff;
+            border: 1px solid #b8d4f0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .ical-url-box label {
+            font-size: 13px;
+            color: #555;
+            white-space: nowrap;
+            margin: 0;
+        }
+        .ical-url-box input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+            font-size: 12px;
+            font-family: monospace;
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: #fff;
+            color: #333;
+        }
+        .ical-copy-btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .ical-copy-btn:hover {
+            background: #3367d6;
+        }
         .sync-buttons {
             display: flex;
             gap: 10px;
@@ -2438,6 +2479,11 @@
             </div>
 
             <div id="shift-list" class="tab-content">
+                <div class="ical-url-box">
+                    <label>iCal 購読URL（全シフト）</label>
+                    <input type="text" id="icalAllUrl" readonly placeholder="読み込み中...">
+                    <button class="ical-copy-btn" onclick="copyIcalUrl()">コピー</button>
+                </div>
                 <div class="sync-buttons">
                     <button id="syncBtn" class="sync-btn" onclick="syncAllShiftsToCalendar()">
                         Googleカレンダーと同期し直す
