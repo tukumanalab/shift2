@@ -28,35 +28,9 @@ The server provides:
 - **Backend API**: RESTful endpoints for users, special shifts, etc.
 - **Database**: SQLite integration
 
-### Alternative: Frontend-only Server
-
-If you need to run just the frontend with a static file server:
-
-```bash
-# Static file server on port 8080
-npm run dev:static
-
-# Or use other tools
-npx http-server -p 8080
-python -m http.server 8080
-```
-
-**Note**: When using a separate frontend server, you'll need to update the API_BASE_URL in config.js accordingly.
-
 ### File Serving Requirements
 - Must run on localhost or HTTPS (Google OAuth requirement)
 - Port 3000 is the default (configurable via .env PORT)
-
-### Google Apps Script Deployment (Legacy)
-Deploy the backend Google Apps Script code using:
-
-```bash
-npm run deploy:gas
-```
-
-This command automatically updates the Google Apps Script project with the latest code from `gas/google-apps-script.js`.
-
-**Note**: User management has been migrated to Express + TypeScript backend with SQLite database.
 
 ## Current Specifications
 
@@ -102,8 +76,8 @@ This is a Japanese shift management web application with Google OAuth authentica
 - **Real-time Updates**: Capacity changes immediately reflect in available slots
 
 #### 4. Data Storage & Backend
-- **Google Spreadsheet Backend**: All data stored in Google Sheets
-- **Google Apps Script API**: Handles server-side logic and data processing
+- **SQLite Database**: All data stored in SQLite database
+- **Express + TypeScript API**: Handles server-side logic and data processing
 - **Google Calendar Integration**: Automatically syncs approved shifts to Google Calendar
 
 ### Technical Architecture
@@ -113,26 +87,22 @@ This is a Japanese shift management web application with Google OAuth authentica
 - **Responsive Design**: Works on desktop and mobile devices
 - **Real-time UI Updates**: Immediate feedback on capacity and availability changes
 
-#### Backend Architecture (Hybrid)
+#### Backend Architecture
 
-**Express + TypeScript Backend (New)**:
+**Express + TypeScript Backend**:
 - **Framework**: Express.js with TypeScript
 - **Database**: SQLite (better-sqlite3)
-- **User Management API**: RESTful endpoints for user operations
+- **RESTful API**: User management, shift management, capacity settings, special shifts
+- **Google Calendar Integration**: Automatic event creation and synchronization
 - **Hot Reload**: Nodemon for development
 - **Type Safety**: Full TypeScript support
 
-**Google Apps Script Backend (Legacy)**:
-- **RESTful API**: Handles GET/POST requests for shift and capacity operations
-- **Spreadsheet Integration**: Direct integration with Google Sheets for shift data
-- **Calendar Sync**: Automatic event creation in Google Calendar
-- **Property Service**: Secure storage of configuration settings
-
-**移行状況**:
-- ✅ ユーザー管理: Express + TypeScript + SQLiteに移行済み
-- ✅ カレンダー連携: Express + TypeScriptに移行済み（通常シフトのみ）
-- ⏳ シフト管理: Google Apps Scriptを使用中
-- ⏳ 人数設定管理: Google Apps Scriptを使用中
+**アーキテクチャ**:
+- ✅ ユーザー管理: Express + TypeScript + SQLite
+- ✅ カレンダー連携: Express + TypeScript + Google Calendar API
+- ✅ シフト管理: Express + TypeScript + SQLite
+- ✅ 人数設定管理: Express + TypeScript + SQLite
+- ✅ 特別シフト管理: Express + TypeScript + SQLite
 
 #### Data Structure
 
@@ -156,14 +126,6 @@ This is a Japanese shift management web application with Google OAuth authentica
 - **capacity_settings**: 日次の人数設定
   - カラム: id, date, capacity, memo, user_id, user_name, created_at, updated_at
 
-**Spreadsheet Sheets (Legacy - for Shifts and Capacity)**:
-1. **シフト (Shifts)**: Individual shift applications
-   - Columns: Timestamp, UserID, UserName, Email, Date, TimeSlot, Content
-2. **人数設定 (Capacity)**: Daily capacity settings
-   - Columns: Timestamp, Date, Capacity, UpdaterID, UpdaterName
-3. **ユーザー (Users)**: User registration data (**DEPRECATED - migrated to SQLite**)
-   - Columns: Timestamp, UserID, Name, Email, ProfileImageURL
-
 ### Key Algorithms
 
 #### Remaining Slots Calculation
@@ -182,23 +144,21 @@ remainingSlots = configuredCapacity - currentApplications
 ### Development & Deployment
 
 #### Local Development
-- Use `npm run dev` to start local server on port 8081
+- Use `npm run dev` to start local server on port 3000
 - Google OAuth requires localhost or HTTPS
-
-#### Backend Deployment  
-- Use `npm run deploy:gas` to deploy Google Apps Script code
-- Automatically updates backend with latest changes
+- Hot reload enabled with Nodemon
 
 #### Configuration
 - Google OAuth Client ID configured in both frontend and backend
-- Calendar ID stored securely in Google Apps Script Properties Service
+- Calendar ID stored securely in environment variables (.env)
 - Authorized user emails managed through configuration
+- Database: SQLite file stored locally
 
 ### Security Considerations
 - **Client-side Token Processing**: JWT tokens decoded on client-side only
 - **Email-based Access Control**: Restricts access to authorized users only
 - **No Server-side Session**: Stateless authentication using Google tokens
-- **Secure Configuration**: Sensitive settings stored in Google Apps Script Properties
+- **Secure Configuration**: Sensitive settings stored in environment variables
 
 This system provides a complete shift management solution with real-time availability tracking and seamless integration with Google services.
 

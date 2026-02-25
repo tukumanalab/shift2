@@ -161,7 +161,7 @@ const API = {
         return await response.json();
     },
 
-    // ===== Google Apps Script API =====
+    // ===== Calendar API =====
 
     // カレンダー同期（全シフト）
     async syncAllShiftsToCalendar() {
@@ -205,22 +205,5 @@ const API = {
             clearTimeout(timeoutId);
             throw error;
         }
-    },
-
-    // ユーザー情報保存（GAS）
-    async saveUserToSpreadsheet(userData) {
-        await fetch(getGoogleAppsScriptUrl(), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            mode: 'no-cors',
-            body: JSON.stringify({
-                type: 'saveUser',
-                userData: userData
-            })
-        });
-        // no-corsモードのため、レスポンスは取得できない
-        return { success: true };
     }
 };

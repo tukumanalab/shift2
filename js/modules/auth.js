@@ -71,11 +71,6 @@ async function showProfile(profileData) {
         mobileSettingsItem.style.display = isAdmin() ? 'none' : 'block';
     }
 
-    // 一般ユーザーの場合、ユーザー情報をスプレッドシートに保存
-    if (!isAdmin()) {
-        await saveUserToSpreadsheet(profileData);
-    }
-
     // タブの表示制御
     updateTabVisibility();
 

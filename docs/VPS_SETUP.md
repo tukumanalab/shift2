@@ -55,9 +55,6 @@ PORT=4050
 # Database Configuration
 DATABASE_PATH=./data/shift.db
 
-# Google Apps Script URL
-GOOGLE_APPS_SCRIPT_URL=https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
-
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 AUTHORIZED_EMAILS=user1@example.com,user2@example.com,admin@example.com
