@@ -175,51 +175,6 @@ function mergeConsecutiveTimeSlots(timeSlots) {
     return merged;
 }
 
-// 時間範囲を30分単位のスロットに展開する関数
-function expandTimeRange(timeRange) {
-    console.log('expandTimeRange input:', timeRange);
-
-    // 時間範囲を解析
-    const rangeParts = timeRange.split('-');
-    if (rangeParts.length !== 2) {
-        // 単一時間の場合はそのまま返す
-        console.log('単一時間:', timeRange);
-        return [timeRange.trim()];
-    }
-
-    const startTime = rangeParts[0].trim();
-    const endTime = rangeParts[1].trim();
-
-    // 時間を分に変換
-    function timeToMinutes(timeStr) {
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        return hours * 60 + minutes;
-    }
-
-    // 分を時間に変換
-    function minutesToTime(minutes) {
-        const hours = Math.floor(minutes / 60);
-        const mins = minutes % 60;
-        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-    }
-
-    const startMinutes = timeToMinutes(startTime);
-    const endMinutes = timeToMinutes(endTime);
-
-    console.log('startMinutes:', startMinutes, 'endMinutes:', endMinutes);
-
-    // 30分単位でスロットを生成
-    const timeSlots = [];
-    for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
-        const slotStart = minutesToTime(minutes);
-        const slotEnd = minutesToTime(minutes + 30);
-        timeSlots.push(`${slotStart}-${slotEnd}`);
-    }
-
-    console.log('expandTimeRange output:', timeSlots);
-    return timeSlots;
-}
-
 // 日付が申請可能かどうかを判定する関数
 function isDateAvailableForRequest(targetDate, currentDate) {
     const target = new Date(targetDate);

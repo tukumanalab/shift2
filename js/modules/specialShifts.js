@@ -373,67 +373,6 @@ function checkHasSpecialShifts(dateKey) {
 }
 
 /**
- * 特別シフトを削除する関数（レガシー：日付と時間で検索）
- * @param {string} date - 日付
- * @param {string} startTime - 開始時刻
- * @param {string} endTime - 終了時刻
- * @deprecated deleteSpecialShiftByUuidを使用してください
- */
-async function deleteSpecialShift(date, startTime, endTime) {
-    console.log('=== deleteSpecialShift DEBUG ===');
-    console.log('元のパラメータ:', { date, startTime, endTime });
-
-    // JST時間に変換
-    const jstStartTime = convertTimeToJST(startTime);
-    const jstEndTime = convertTimeToJST(endTime);
-
-    console.log('JST変換後:', { date, startTime: jstStartTime, endTime: jstEndTime });
-
-    if (!confirm(`${date} ${jstStartTime}-${jstEndTime} の特別シフトを削除しますか？`)) {
-        return;
-    }
-
-    try {
-        // 特別シフトを日付と時間で検索して削除
-        const result = await API.getSpecialShiftsByDate(date);
-
-        if (!result.success) {
-            throw new Error('特別シフトの取得に失敗しました');
-        }
-
-        // 該当する特別シフトを検索
-        const targetShift = result.data.find(shift =>
-            shift.date === date &&
-            shift.start_time === jstStartTime &&
-            shift.end_time === jstEndTime
-        );
-
-        if (!targetShift) {
-            throw new Error('該当する特別シフトが見つかりませんでした');
-        }
-
-        // UUIDで削除
-        const deleteResult = await API.deleteSpecialShift(targetShift.uuid);
-
-        if (!deleteResult.success) {
-            throw new Error(deleteResult.error || '特別シフトの削除に失敗しました');
-        }
-
-        // 特別シフトデータを再読み込み
-        await loadSpecialShifts();
-
-        // 特別シフト表示を更新
-        refreshAllSpecialShiftsDisplay();
-
-        alert('特別シフトを削除しました！');
-
-    } catch (error) {
-        console.error('特別シフト削除エラー:', error);
-        alert('特別シフトの削除に失敗しました。');
-    }
-}
-
-/**
  * UUIDを使用して特別シフトを削除する関数
  * @param {string} uuid - 特別シフトのUUID
  * @param {string} dateKey - 日付キー（確認メッセージ用）

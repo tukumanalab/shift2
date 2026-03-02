@@ -187,35 +187,6 @@ function displayCapacityWithCountsOnCalendar(capacityData, shiftCounts = {}) {
 }
 
 /**
- * シフト申請モーダルを開く（旧関数 - 互換性のため残す）
- * @param {string} dateKey - 日付キー（YYYY-MM-DD形式）
- */
-function applyForShift(dateKey) {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-        alert('ログインが必要です。');
-        return;
-    }
-
-    setCurrentShiftRequestDate(dateKey);
-
-    // 人数を取得
-    const capacityElement = document.getElementById(`capacity-${dateKey}`);
-    if (capacityElement) {
-        const capacityNumberElement = capacityElement.querySelector('.capacity-number');
-        setCurrentShiftCapacity(parseInt(capacityNumberElement.textContent) || 0);
-    }
-
-    // 0人の日は申請不可
-    if (getCurrentShiftCapacity() === 0) {
-        alert('この日はシフト募集がありません。');
-        return;
-    }
-
-    openShiftRequestModal(dateKey);
-}
-
-/**
  * シフト申請モーダルを開く（旧UI用）
  * @param {string} dateKey - 日付キー（YYYY-MM-DD形式）
  */

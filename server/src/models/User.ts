@@ -82,19 +82,6 @@ export class UserModel {
   }
 
   /**
-   * メールアドレスでユーザーを取得
-   */
-  static getByEmail(email: string): User | null {
-    try {
-      const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
-      return stmt.get(email) as User || null;
-    } catch (error) {
-      console.error('ユーザー取得エラー:', error);
-      return null;
-    }
-  }
-
-  /**
    * ユーザープロフィールを取得
    */
   static getProfile(userId: string): UserProfile | null {
