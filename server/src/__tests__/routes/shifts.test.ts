@@ -73,6 +73,40 @@ describe('Shifts API Routes', () => {
       expect(ShiftModel.getAll).toHaveBeenCalled();
     });
 
+    test('nickname/real_nameフィールドを含むシフトデータを返す', async () => {
+      const mockShifts = [
+        {
+          uuid: 'shift-1',
+          user_id: 'user-1',
+          user_name: 'ユーザー1',
+          date: '2026-02-15',
+          time_slot: '13:00-13:30',
+          nickname: 'ニック',
+          real_name: '本名太郎'
+        },
+        {
+          uuid: 'shift-2',
+          user_id: 'user-2',
+          user_name: 'ユーザー2',
+          date: '2026-02-16',
+          time_slot: '14:00-14:30',
+          nickname: null,
+          real_name: null
+        }
+      ];
+
+      (ShiftModel.getAll as jest.Mock).mockReturnValue(mockShifts);
+
+      const response = await request(app).get('/api/shifts');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data[0].nickname).toBe('ニック');
+      expect(response.body.data[0].real_name).toBe('本名太郎');
+      expect(response.body.data[1].nickname).toBeNull();
+      expect(response.body.data[1].real_name).toBeNull();
+    });
+
     test('特定のユーザーのシフトを取得', async () => {
       const mockShifts = [
         {
