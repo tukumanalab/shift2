@@ -9,18 +9,6 @@ const API = {
         return await response.json();
     },
 
-    // ユーザープロフィール更新
-    async updateUserProfile(userId, profileData) {
-        const response = await fetch(`${config.API_BASE_URL}/users/${userId}/profile`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(profileData)
-        });
-        return await response.json();
-    },
-
     // ユーザー一覧取得
     async getAllUsers() {
         const response = await fetch(`${config.API_BASE_URL}/users`);
@@ -101,29 +89,11 @@ const API = {
         return await response.json();
     },
 
-    // シフト申請者数カウント取得
-    async getShiftCounts() {
-        const response = await fetch(`${config.API_BASE_URL}/shifts/counts`);
-        return await response.json();
-    },
-
     // ===== 容量設定関連API =====
 
     // 容量設定取得
     async getCapacitySettings() {
         const response = await fetch(`${config.API_BASE_URL}/capacity-settings`);
-        return await response.json();
-    },
-
-    // 容量一括保存
-    async saveCapacitySettings(capacityData) {
-        const response = await fetch(`${config.API_BASE_URL}/capacity-settings/bulk`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(capacityData)
-        });
         return await response.json();
     },
 

@@ -19,9 +19,6 @@ global.currentUser = {
 
 // Mock global variables
 global.isAdminUser = false;
-global.myShiftsCache = null;
-global.allShiftsCache = null;
-global.capacityCache = null;
 global.currentShiftCounts = {};
 global.currentShiftRequestDate = null;
 global.currentDetailDateKey = null;

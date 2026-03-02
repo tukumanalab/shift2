@@ -324,33 +324,6 @@ function displayCapacityOnAdminCalendar(capacityData) {
 }
 
 /**
- * カレンダーに容量を表示
- */
-function displayCapacityOnCalendar(capacityData) {
-    // データを日付をキーとするマップに変換
-    const capacityMap = {};
-    capacityData.forEach(item => {
-        if (item.date && item.date !== '') {
-            capacityMap[item.date] = item.capacity;
-        }
-    });
-
-    // 各日付の人数表示を更新
-    Object.keys(capacityMap).forEach(dateKey => {
-        const capacityElement = document.getElementById(`capacity-${dateKey}`);
-        if (capacityElement) {
-            const capacity = capacityMap[dateKey];
-            // 0人の場合は表示しない
-            if (capacity > 0) {
-                capacityElement.innerHTML = `<span class="capacity-number">${capacity}</span><span class="capacity-unit">人</span>`;
-            } else {
-                capacityElement.innerHTML = '';
-            }
-        }
-    });
-}
-
-/**
  * カレンダーに容量とシフト申請数を表示
  */
 function displayCapacityWithCountsOnCalendar(capacityData, shiftCounts = {}) {
@@ -520,43 +493,6 @@ async function saveCapacityToSpreadsheet(capacityData) {
     } catch (error) {
         console.error('人数設定の保存に失敗しました:', error);
         throw error;
-    }
-}
-
-/**
- * すべての容量設定を保存
- */
-async function saveAllCapacitySettings() {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-        alert('ログインが必要です。');
-        return;
-    }
-
-    const saveBtn = document.getElementById('saveCapacityBtn');
-    const originalText = saveBtn.textContent;
-
-    try {
-        saveBtn.disabled = true;
-        saveBtn.textContent = '保存中...';
-
-        // 全ての入力フィールドからデータを収集
-        const capacityData = collectCapacityData();
-
-        if (capacityData.length === 0) {
-            alert('保存するデータがありません。');
-            return;
-        }
-
-        // Google Spreadsheetに保存
-        await saveCapacityToSpreadsheet(capacityData);
-
-    } catch (error) {
-        console.error('人数設定の保存に失敗しました:', error);
-        alert('保存に失敗しました。再度お試しください。');
-    } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = originalText;
     }
 }
 

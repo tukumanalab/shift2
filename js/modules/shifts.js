@@ -419,44 +419,6 @@ function timeToMinutes(time) {
     return hours * 60 + minutes;
 }
 
-// シフト削除機能（管理者専用）
-async function deleteShift(shift) {
-    const currentUser = getCurrentUser();
-    const isAdminUser = isAdmin();
-
-    // 管理者または本人のシフトのみ削除可能
-    if (!isAdminUser && shift.userId !== currentUser.sub) {
-        alert('自分のシフトまたは管理者権限が必要です。');
-        return;
-    }
-
-    const userName = getShiftDisplayName(shift);
-    const dateKey = shift.shiftDate || shift.date;
-    const timeSlot = shift.timeSlot || shift.time;
-
-    if (!confirm(`${userName}さんの${dateKey} ${timeSlot}のシフトを削除しますか？`)) {
-        return;
-    }
-
-    try {
-        // シフト削除リクエストを送信
-        const result = await API.deleteShift(shift.uuid);
-
-        if (!result.success) {
-            throw new Error(result.error || 'シフトの削除に失敗しました');
-        }
-
-        alert(`${userName}さんの${dateKey} ${timeSlot}のシフトを削除しました。`);
-
-        // シフト一覧を再読み込み
-        await loadShiftList();
-
-    } catch (error) {
-        console.error('シフト削除でエラー:', error);
-        alert('シフトの削除に失敗しました。再度お試しください。');
-    }
-}
-
 // モーダルからシフト削除（管理者用）
 async function deleteShiftFromModal(buttonElement, uuids) {
     if (!uuids || !Array.isArray(uuids) || uuids.length === 0) {
