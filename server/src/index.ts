@@ -9,6 +9,7 @@ import capacitySettingsRouter from './routes/capacitySettings';
 import configRouter from './routes/config';
 import calendarRouter from './routes/calendar';
 import icalRouter from './routes/ical';
+import deployRouter from './routes/deploy';
 
 // 環境変数を読み込む
 dotenv.config();
@@ -28,6 +29,7 @@ app.use('/api/shifts', shiftsRouter);
 app.use('/api/capacity-settings', capacitySettingsRouter);
 app.use('/api/calendar', calendarRouter);
 app.use('/api/ical', icalRouter);
+app.use('/api/deploy', deployRouter);
 
 // ヘルスチェックエンドポイント
 app.get('/health', (req, res) => {
