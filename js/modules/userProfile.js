@@ -123,3 +123,99 @@ function hideProfileNotification() {
     }
 }
 
+/**
+ * 設定タブを開く関数
+ */
+function openSettingsTab() {
+    const settingsTab = document.querySelector('[data-tab="settings"]');
+    if (settingsTab) {
+        settingsTab.click();
+    }
+}
+
+/**
+ * プロフィール編集モードを切り替える関数
+ */
+function toggleProfileEditMode() {
+    const displayElement = document.getElementById('profile-display');
+    const editElement = document.getElementById('profile-edit');
+    const realNameValue = document.getElementById('display-real-name');
+    const nicknameValue = document.getElementById('display-nickname');
+    const realNameInput = document.getElementById('realName');
+    const nicknameInput = document.getElementById('nickname');
+
+    if (displayElement && editElement) {
+        realNameInput.value = realNameValue.textContent !== '未設定' ? realNameValue.textContent : '';
+        nicknameInput.value = nicknameValue.textContent !== '未設定' ? nicknameValue.textContent : '';
+
+        displayElement.style.display = 'none';
+        editElement.style.display = 'block';
+
+        realNameInput.focus();
+    }
+}
+
+/**
+ * インライン編集でプロフィールを保存する関数
+ */
+async function saveProfileInline() {
+    const realName = document.getElementById('realName').value;
+    const nickname = document.getElementById('nickname').value;
+    const currentUser = getCurrentUser();
+
+    if (!currentUser) {
+        alert('ログインしてください');
+        return;
+    }
+
+    const saveBtn = document.querySelector('.save-profile-btn');
+    const cancelBtn = document.querySelector('.cancel-profile-btn');
+    saveBtn.disabled = true;
+    cancelBtn.disabled = true;
+
+    try {
+        const response = await fetch(`${config.API_BASE_URL}/users/${currentUser.sub}/profile`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nickname, realName })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            document.getElementById('display-real-name').textContent = realName || '未設定';
+            document.getElementById('display-nickname').textContent = nickname || '未設定';
+
+            setCurrentUserProfile({ real_name: realName, nickname });
+            localStorage.setItem('userRealName', realName);
+            localStorage.setItem('userNickname', nickname);
+
+            updateHeaderDisplayName();
+            checkProfileCompleteness();
+
+            document.getElementById('profile-display').style.display = 'block';
+            document.getElementById('profile-edit').style.display = 'none';
+        } else {
+            alert('プロフィールの保存に失敗しました: ' + (result.error || '不明なエラー'));
+        }
+    } catch (error) {
+        console.error('プロフィールの保存に失敗:', error);
+        alert('プロフィールの保存に失敗しました');
+    } finally {
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+    }
+}
+
+/**
+ * プロフィール編集をキャンセルする関数
+ */
+function cancelProfileEdit() {
+    const displayElement = document.getElementById('profile-display');
+    const editElement = document.getElementById('profile-edit');
+
+    if (displayElement && editElement) {
+        displayElement.style.display = 'block';
+        editElement.style.display = 'none';
+    }
+}
