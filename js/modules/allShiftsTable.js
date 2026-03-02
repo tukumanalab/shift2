@@ -1,18 +1,17 @@
 // allShiftsTable.js - 全シフト一覧テーブル表示モジュール
 
-// グローバル変数
-let cachedAllShiftsData = []; // ページネーション用キャッシュ
-let cachedUserList = []; // ユーザー一覧キャッシュ
+// フィルター状態
 let currentFilters = {
     userName: '',
     startDate: '',
     endDate: ''
-}; // フィルター状態
+};
 
 /**
  * 全シフト一覧を読み込んで表示
+ * @param {number} page - 表示するページ番号（1から開始）
  */
-async function loadAllShiftsTable() {
+async function loadAllShiftsTable(page = 1) {
     const allShiftsTableContent = document.getElementById('allShiftsTableContent');
 
     if (!allShiftsTableContent) {
@@ -29,32 +28,17 @@ async function loadAllShiftsTable() {
     `;
 
     try {
-        // バックエンドAPIから全シフトとユーザー一覧を並行取得
-        const [shiftsResult, usersResult] = await Promise.all([
-            API.getAllShifts(),
-            API.getAllUsers()
-        ]);
+        // バックエンドAPIから全シフトを取得
+        const shiftsResult = await API.getAllShifts();
 
         if (!shiftsResult.success) {
             throw new Error(shiftsResult.error || '全シフトの取得に失敗しました');
         }
 
         const shifts = shiftsResult.data || [];
-        const users = usersResult.success ? (usersResult.data || []) : [];
-
-        // キャッシュに保存
-        cachedAllShiftsData = shifts;
-        cachedUserList = users;
-
-        // フィルターをリセット
-        currentFilters = {
-            userName: '',
-            startDate: '',
-            endDate: ''
-        };
 
         // シフト一覧を表示
-        displayAllShiftsTable(shifts, 1, 50);
+        displayAllShiftsTable(shifts, page, 50);
 
     } catch (error) {
         console.error('全シフトの読み込みエラー:', error);
@@ -104,13 +88,14 @@ function applyFilters(shifts) {
 
 /**
  * フィルターUIを生成
+ * @param {Array} shifts - 全シフトデータ配列（ユーザー名リスト生成用）
  * @returns {string} フィルターUIのHTML
  */
-function generateFilterUI() {
+function generateFilterUI(shifts) {
     const isFilterActive = currentFilters.userName || currentFilters.startDate || currentFilters.endDate;
 
     // シフトデータからユニークなユーザー名リストを生成
-    const uniqueUserNames = [...new Set(cachedAllShiftsData.map(shift => shift.user_name))].sort();
+    const uniqueUserNames = [...new Set(shifts.map(shift => shift.user_name))].sort();
 
     // ユーザー名のプルダウンオプションを生成
     const userNameOptions = uniqueUserNames.map(userName =>
@@ -157,7 +142,7 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
         allShiftsTableContent.innerHTML = `
             <div class="all-shifts-table-container">
                 <h2 style="margin-bottom: 20px;">全シフト一覧（0件）</h2>
-                ${generateFilterUI()}
+                ${generateFilterUI(shifts)}
                 <p style="text-align: center; color: #666; padding: 40px;">
                     ${currentFilters.userName || currentFilters.startDate || currentFilters.endDate
                         ? '条件に一致するシフトが見つかりませんでした'
@@ -188,7 +173,7 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
     const tableHTML = `
         <div class="all-shifts-table-container">
             <h2 style="margin-bottom: 20px;">全シフト一覧（${totalItems}件）</h2>
-            ${generateFilterUI()}
+            ${generateFilterUI(shifts)}
             <table class="all-shifts-table">
                 <thead>
                     <tr>
@@ -219,7 +204,7 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
                     `).join('')}
                 </tbody>
             </table>
-            ${totalPages > 1 ? generateAllShiftsPagination(currentPage, totalPages, itemsPerPage, totalItems) : ''}
+            ${totalPages > 1 ? generateAllShiftsPagination(currentPage, totalPages, totalItems) : ''}
         </div>
     `;
 
@@ -239,7 +224,7 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
     paginationButtons.forEach(button => {
         button.addEventListener('click', (e) => {
             const page = parseInt(e.target.getAttribute('data-page'));
-            displayAllShiftsTable(cachedAllShiftsData, page, itemsPerPage);
+            loadAllShiftsTable(page);
         });
     });
 }
@@ -252,7 +237,7 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
  * @param {number} totalItems - 総アイテム数
  * @returns {string} ページネーションHTML
  */
-function generateAllShiftsPagination(currentPage, totalPages, itemsPerPage, totalItems) {
+function generateAllShiftsPagination(currentPage, totalPages, totalItems) {
     let paginationHTML = '<div class="pagination">';
 
     // 前へボタン
@@ -285,8 +270,6 @@ function generateAllShiftsPagination(currentPage, totalPages, itemsPerPage, tota
     }
 
     // ページ情報
-    const startItem = (currentPage - 1) * itemsPerPage + 1;
-    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
     paginationHTML += `<div class="pagination-info">ページ ${currentPage} / ${totalPages} （全 ${totalItems} 件）</div>`;
 
     paginationHTML += '</div>';
@@ -340,7 +323,7 @@ async function handleDeleteShiftFromTable(event) {
             button.textContent = originalText;
         }
     } catch (error) {
-        console.error('シフト削除エラー:', error);
+        console.error('シフット削除エラー:', error);
         alert('シフトの削除に失敗しました');
         button.disabled = false;
         button.textContent = originalText;
@@ -386,8 +369,8 @@ function handleApplyFilter() {
         endDate: endDate
     };
 
-    // テーブルを再表示（最初のページに戻る）
-    displayAllShiftsTable(cachedAllShiftsData, 1, 50);
+    // APIから再取得して最初のページを表示
+    loadAllShiftsTable(1);
 }
 
 /**
@@ -401,6 +384,6 @@ function handleResetFilter() {
         endDate: ''
     };
 
-    // テーブルを再表示
-    displayAllShiftsTable(cachedAllShiftsData, 1, 50);
+    // APIから再取得して表示
+    loadAllShiftsTable(1);
 }
