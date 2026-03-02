@@ -11,6 +11,8 @@ export interface Shift {
   calendar_event_id: string | null;
   created_at: string;
   updated_at: string;
+  nickname?: string | null;
+  real_name?: string | null;
 }
 
 export interface ShiftCreateData {
@@ -32,7 +34,12 @@ export class ShiftModel {
    */
   static getAll(): Shift[] {
     try {
-      const stmt = db.prepare('SELECT * FROM shifts ORDER BY date ASC, time_slot ASC');
+      const stmt = db.prepare(`
+        SELECT s.*, u.nickname, u.real_name
+        FROM shifts s
+        LEFT JOIN users u ON s.user_id = u.user_id
+        ORDER BY s.date ASC, s.time_slot ASC
+      `);
       return stmt.all() as Shift[];
     } catch (error) {
       console.error('Error getting all shifts:', error);

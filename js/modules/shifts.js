@@ -42,6 +42,8 @@ async function displayShiftList() {
                 timeSlot: shift.time_slot,
                 userId: shift.user_id,
                 userName: shift.user_name,
+                nickname: shift.nickname,
+                realName: shift.real_name,
                 uuid: shift.uuid,
                 registrationDate: shift.created_at
             }));

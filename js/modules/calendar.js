@@ -416,7 +416,6 @@ function openShiftDetailModal(dateKey) {
                     <div class="shift-detail-person">
                         <div class="shift-person-info">
                             <div class="shift-person-name">${getShiftDisplayName(shift)}</div>
-                            <div class="shift-person-email">${shift.userEmail || shift.email || ''}</div>
                         </div>
                         ${(isAdmin() || shift.userId === currentUser.sub) ? `
                             <button class="shift-delete-btn" onclick="deleteShiftFromModal(this, [${(shift.uuids || []).map(uuid => `'${uuid}'`).join(',')}])">
@@ -606,8 +605,9 @@ function displayShiftsForDate(container, dateKey) {
         timeSlotGroups[timeSlot].forEach(shift => {
             const personDiv = document.createElement('div');
             personDiv.className = 'shift-person';
-            personDiv.textContent = getShiftDisplayName(shift);
-            personDiv.title = `${getShiftDisplayName(shift)} (${shift.userEmail || shift.email || ''})`;
+            const displayName = getShiftDisplayName(shift);
+            personDiv.textContent = displayName;
+            personDiv.title = displayName;
             peopleDiv.appendChild(personDiv);
         });
 
