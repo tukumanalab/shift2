@@ -23,7 +23,6 @@ describe('シフト削除機能テスト', () => {
     global.loadMyShiftsToCache = jest.fn();
     global.loadMyShifts = jest.fn();
     global.getShiftDisplayName = jest.fn();
-    global.expandTimeRange = jest.fn();
     global.loadAllShiftsToCache = jest.fn();
     global.displayShiftList = jest.fn();
     global.generateCalendar = jest.fn();
