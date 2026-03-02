@@ -5,27 +5,14 @@
 
 describe('シフト削除機能テスト', () => {
   beforeEach(() => {
-    // テスト環境の初期化
     global.isAdminUser = false;
     global.currentUser = {
       sub: 'test-user-123',
       name: 'テストユーザー',
       email: 'test@example.com'
     };
-    global.myShiftsCache = null;
-    global.allShiftsCache = null;
-
-    // モック関数の初期化
     global.fetch = jest.fn();
-    global.alert = jest.fn();
     global.confirm = jest.fn();
-    global.loadShiftList = jest.fn();
-    global.loadMyShiftsToCache = jest.fn();
-    global.loadMyShifts = jest.fn();
-    global.getShiftDisplayName = jest.fn();
-    global.loadAllShiftsToCache = jest.fn();
-    global.displayShiftList = jest.fn();
-    global.generateCalendar = jest.fn();
   });
 
   describe('deleteShift関数の動作パターン', () => {
