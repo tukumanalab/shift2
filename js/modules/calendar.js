@@ -437,7 +437,7 @@ function openShiftDetailModal(dateKey) {
     }
 
     // モーダルを表示
-    document.getElementById('shiftDetailModal').style.display = 'block';
+    document.getElementById('shiftDetailModal').style.display = 'flex';
 }
 
 /**
