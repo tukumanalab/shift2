@@ -517,17 +517,21 @@ async function loadSpecialShiftList() {
     `;
 
     try {
-        // バックエンドAPIから特別シフト一覧を取得
-        const result = await API.getAllSpecialShifts();
+        // バックエンドAPIから特別シフト一覧とユーザー一覧を並行取得
+        const [result, usersResult] = await Promise.all([
+            API.getAllSpecialShifts(),
+            API.getAllUsers()
+        ]);
 
         if (!result.success) {
             throw new Error(result.error || '特別シフト一覧の取得に失敗しました');
         }
 
         const specialShifts = result.data || [];
+        const users = usersResult.success ? (usersResult.data || []) : [];
 
         // 特別シフト一覧を表示
-        displaySpecialShiftList(specialShifts);
+        displaySpecialShiftList(specialShifts, users);
 
     } catch (error) {
         console.error('特別シフト一覧の読み込みエラー:', error);
@@ -542,10 +546,25 @@ async function loadSpecialShiftList() {
 }
 
 /**
+ * 特別シフトの表示名を取得（あだな（本名）形式）
+ * @param {Object} shift - 特別シフトデータ
+ * @param {Object} userMap - userId -> user のルックアップマップ
+ * @returns {string} 表示名
+ */
+function getSpecialShiftDisplayName(shift, userMap) {
+    const user = userMap[shift.user_id];
+    if (user && user.nickname) {
+        return user.real_name ? `${user.nickname}（${user.real_name}）` : user.nickname;
+    }
+    return shift.user_name;
+}
+
+/**
  * 特別シフト一覧を表示
  * @param {Array} specialShifts - 特別シフトの配列
+ * @param {Array} users - ユーザー一覧の配列
  */
-function displaySpecialShiftList(specialShifts) {
+function displaySpecialShiftList(specialShifts, users = []) {
     const specialShiftListContent = document.getElementById('specialShiftListContent');
 
     if (!specialShiftListContent) {
@@ -562,6 +581,10 @@ function displaySpecialShiftList(specialShifts) {
         `;
         return;
     }
+
+    // ユーザールックアップマップを構築
+    const userMap = {};
+    users.forEach(user => { userMap[user.user_id] = user; });
 
     // テーブルを生成
     const tableHTML = `
@@ -582,7 +605,7 @@ function displaySpecialShiftList(specialShifts) {
                         <tr data-shift-uuid="${escapeHtml(shift.uuid)}">
                             <td>${escapeHtml(shift.date)}</td>
                             <td>${escapeHtml(shift.start_time)} - ${escapeHtml(shift.end_time)}</td>
-                            <td>${escapeHtml(shift.user_name)}</td>
+                            <td>${escapeHtml(getSpecialShiftDisplayName(shift, userMap))}</td>
                             <td>${formatDateTime(shift.created_at)}</td>
                             <td>
                                 <button class="delete-special-shift-btn"

@@ -3,11 +3,25 @@
 // グローバル変数
 let cachedAllShiftsData = []; // ページネーション用キャッシュ
 let cachedUserList = []; // ユーザー一覧キャッシュ
+let cachedUserMap = {}; // userId -> user ルックアップマップ
 let currentFilters = {
-    userName: '',
+    userId: '',
     startDate: '',
     endDate: ''
 }; // フィルター状態
+
+/**
+ * シフトの表示名を取得（あだな（本名）形式）
+ * @param {Object} shift - シフトデータ
+ * @returns {string} 表示名
+ */
+function getShiftDisplayName(shift) {
+    const user = cachedUserMap[shift.user_id];
+    if (user && user.nickname) {
+        return user.real_name ? `${user.nickname}（${user.real_name}）` : user.nickname;
+    }
+    return shift.user_name;
+}
 
 /**
  * 全シフト一覧を読み込んで表示
@@ -45,10 +59,12 @@ async function loadAllShiftsTable() {
         // キャッシュに保存
         cachedAllShiftsData = shifts;
         cachedUserList = users;
+        cachedUserMap = {};
+        users.forEach(user => { cachedUserMap[user.user_id] = user; });
 
         // フィルターをリセット
         currentFilters = {
-            userName: '',
+            userId: '',
             startDate: '',
             endDate: ''
         };
@@ -76,10 +92,10 @@ async function loadAllShiftsTable() {
 function applyFilters(shifts) {
     let filtered = [...shifts];
 
-    // ユーザー名でフィルタ（完全一致）
-    if (currentFilters.userName) {
+    // ユーザーIDでフィルタ（完全一致）
+    if (currentFilters.userId) {
         filtered = filtered.filter(shift =>
-            shift.user_name === currentFilters.userName
+            shift.user_id === currentFilters.userId
         );
     }
 
@@ -107,14 +123,21 @@ function applyFilters(shifts) {
  * @returns {string} フィルターUIのHTML
  */
 function generateFilterUI() {
-    const isFilterActive = currentFilters.userName || currentFilters.startDate || currentFilters.endDate;
+    const isFilterActive = currentFilters.userId || currentFilters.startDate || currentFilters.endDate;
 
-    // シフトデータからユニークなユーザー名リストを生成
-    const uniqueUserNames = [...new Set(cachedAllShiftsData.map(shift => shift.user_name))].sort();
+    // シフトデータからユニークなユーザーリストを生成（userId -> displayName）
+    const uniqueUsersMap = new Map();
+    cachedAllShiftsData.forEach(shift => {
+        if (!uniqueUsersMap.has(shift.user_id)) {
+            uniqueUsersMap.set(shift.user_id, getShiftDisplayName(shift));
+        }
+    });
+    const uniqueUsers = [...uniqueUsersMap.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], 'ja'));
 
-    // ユーザー名のプルダウンオプションを生成
-    const userNameOptions = uniqueUserNames.map(userName =>
-        `<option value="${escapeHtml(userName)}" ${currentFilters.userName === userName ? 'selected' : ''}>${escapeHtml(userName)}</option>`
+    // ユーザーのプルダウンオプションを生成
+    const userNameOptions = uniqueUsers.map(([userId, displayName]) =>
+        `<option value="${escapeHtml(userId)}" ${currentFilters.userId === userId ? 'selected' : ''}>${escapeHtml(displayName)}</option>`
     ).join('');
 
     return `
@@ -159,7 +182,7 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
                 <h2 style="margin-bottom: 20px;">全シフト一覧（0件）</h2>
                 ${generateFilterUI()}
                 <p style="text-align: center; color: #666; padding: 40px;">
-                    ${currentFilters.userName || currentFilters.startDate || currentFilters.endDate
+                    ${currentFilters.userId || currentFilters.startDate || currentFilters.endDate
                         ? '条件に一致するシフトが見つかりませんでした'
                         : '登録されているシフトはありません'}
                 </p>
@@ -203,7 +226,7 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
                 <tbody>
                     ${pageShifts.map(shift => `
                         <tr data-shift-uuid="${escapeHtml(shift.uuid)}">
-                            <td>${escapeHtml(shift.user_name)}</td>
+                            <td>${escapeHtml(getShiftDisplayName(shift))}</td>
                             <td>${formatDateWithWeekday(shift.date)}</td>
                             <td>${escapeHtml(shift.time_slot)}</td>
                             <td>${formatDateTime(shift.created_at)}</td>
@@ -211,7 +234,7 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
                                 ${shift.calendar_event_id ? '<span style="color: #4CAF50;">✓</span>' : '<span style="color: #999;">-</span>'}
                             </td>
                             <td>
-                                <button class="delete-shift-table-btn" data-shift-uuid="${escapeHtml(shift.uuid)}" data-shift-info="${escapeHtml(shift.user_name)} / ${escapeHtml(shift.date)} ${escapeHtml(shift.time_slot)}">
+                                <button class="delete-shift-table-btn" data-shift-uuid="${escapeHtml(shift.uuid)}" data-shift-info="${escapeHtml(getShiftDisplayName(shift))} / ${escapeHtml(shift.date)} ${escapeHtml(shift.time_slot)}">
                                     削除
                                 </button>
                             </td>
@@ -369,7 +392,7 @@ function setupFilterEventListeners() {
  */
 function handleApplyFilter() {
     // フィルター値を取得
-    const userName = document.getElementById('filterUserName')?.value || '';
+    const userId = document.getElementById('filterUserName')?.value || '';
     const startDate = document.getElementById('filterStartDate')?.value || '';
     const endDate = document.getElementById('filterEndDate')?.value || '';
 
@@ -381,7 +404,7 @@ function handleApplyFilter() {
 
     // フィルター状態を更新
     currentFilters = {
-        userName: userName.trim(),
+        userId: userId.trim(),
         startDate: startDate,
         endDate: endDate
     };
@@ -396,7 +419,7 @@ function handleApplyFilter() {
 function handleResetFilter() {
     // フィルター状態をクリア
     currentFilters = {
-        userName: '',
+        userId: '',
         startDate: '',
         endDate: ''
     };
