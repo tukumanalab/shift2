@@ -318,7 +318,7 @@ function createMonthCalendar(year, month, isCapacityMode = false, isRequestMode 
 
                     // クリックイベント
                     cell.setAttribute('data-date', dateKey);
-                    cell.addEventListener('click', handleCalendarCellClick);
+                    // cell.addEventListener('click', handleCalendarCellClick);
                 }
 
                 date++;
@@ -341,6 +341,8 @@ function createMonthCalendar(year, month, isCapacityMode = false, isRequestMode 
  * @param {Event} event - クリックイベント
  */
 function handleCalendarCellClick(event) {
+    if (event.target.closest('.shift-person')) return;
+
     const cell = event.currentTarget;
     const date = cell.getAttribute('data-date');
     if (!date) return;
@@ -623,6 +625,18 @@ function displayShiftsForDate(container, dateKey) {
 
             const nameSpan = document.createElement('span');
             nameSpan.textContent = displayName;
+            if (isAdmin()) {
+                nameSpan.style.cursor = 'pointer';
+                nameSpan.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const cb = personDiv.querySelector('.calendar-shift-checkbox');
+                    if (cb) {
+                        cb.checked = !cb.checked;
+                        personDiv.classList.toggle('is-selected', cb.checked);
+                        updateCalendarActionBar();
+                    }
+                });
+            }
             personDiv.appendChild(nameSpan);
 
             peopleDiv.appendChild(personDiv);
@@ -668,6 +682,7 @@ function setupCalendarBulkDelete() {
             const result = await API.deleteMultipleShifts(allUuids);
             if (result.success) {
                 alert(`${checkedBoxes.length}件のシフトを削除しました。`);
+                bulkDeleteBtn.textContent = '選択したシフトを削除';
                 await displayShiftList();
             } else {
                 alert('シフトの削除に失敗しました: ' + (result.error || '不明なエラー'));
