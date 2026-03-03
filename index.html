@@ -2177,6 +2177,45 @@
             background-color: #f8f9fa;
         }
 
+        /* 一括削除アクションバー */
+        .bulk-delete-action-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background-color: #1a73e8;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .selected-count-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .bulk-delete-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            margin-left: auto;
+        }
+
+        .bulk-delete-btn:hover {
+            background-color: #c82333;
+        }
+
+        .bulk-delete-btn:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+
         .delete-shift-table-btn {
             background-color: #dc3545;
             color: white;
