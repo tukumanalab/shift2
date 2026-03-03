@@ -2197,6 +2197,45 @@
             cursor: not-allowed;
         }
 
+        /* 一括削除アクションバー */
+        .bulk-action-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background-color: #e8f0fe;
+            border: 1px solid #4285f4;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+        }
+
+        .bulk-selected-count {
+            font-size: 14px;
+            color: #1a56db;
+            font-weight: 500;
+        }
+
+        .bulk-delete-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .bulk-delete-btn:hover {
+            background-color: #c82333;
+        }
+
+        .bulk-delete-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
         /* ページネーションのスタイル */
         .pagination {
             display: flex;
