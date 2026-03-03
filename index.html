@@ -2145,6 +2145,39 @@
             }
         }
 
+        /* 一括削除アクションバー */
+        .bulk-delete-action-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            background-color: #1a73e8;
+            color: white;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .bulk-delete-btn {
+            background-color: #d93025;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .bulk-delete-btn:hover {
+            background-color: #b31412;
+        }
+
+        .bulk-delete-btn:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+        }
+
         /* 全シフト一覧テーブルのスタイル */
         .all-shifts-table-container {
             padding: 20px;

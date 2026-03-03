@@ -174,9 +174,14 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
         <div class="all-shifts-table-container">
             <h2 style="margin-bottom: 20px;">全シフト一覧（${totalItems}件）</h2>
             ${generateFilterUI(shifts)}
+            <div id="bulkDeleteActionBar" class="bulk-delete-action-bar" style="display: none;">
+                <span id="selectedCountText">0件選択中</span>
+                <button id="bulkDeleteBtn" class="bulk-delete-btn">選択したシフトを削除</button>
+            </div>
             <table class="all-shifts-table">
                 <thead>
                     <tr>
+                        <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllCheckbox" title="全選択/解除"></th>
                         <th>ユーザー名</th>
                         <th>日付</th>
                         <th>時間帯</th>
@@ -188,6 +193,7 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
                 <tbody>
                     ${pageShifts.map(shift => `
                         <tr data-shift-uuid="${escapeHtml(shift.uuid)}">
+                            <td style="text-align: center;"><input type="checkbox" class="shift-row-checkbox" data-shift-uuid="${escapeHtml(shift.uuid)}" data-shift-info="${escapeHtml(shift.user_name)} / ${escapeHtml(shift.date)} ${escapeHtml(shift.time_slot)}"></td>
                             <td>${escapeHtml(shift.user_name)}</td>
                             <td>${formatDateWithWeekday(shift.date)}</td>
                             <td>${escapeHtml(shift.time_slot)}</td>
@@ -213,6 +219,9 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
     // フィルターのイベントリスナーを設定
     setupFilterEventListeners();
 
+    // チェックボックスのイベントリスナーを設定
+    setupAllShiftsCheckboxListeners();
+
     // 削除ボタンのイベントリスナーを設定
     const deleteButtons = allShiftsTableContent.querySelectorAll('.delete-shift-table-btn');
     deleteButtons.forEach(button => {
@@ -226,6 +235,74 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
             const page = parseInt(e.target.getAttribute('data-page'));
             loadAllShiftsTable(page);
         });
+    });
+}
+
+/**
+ * 全シフト一覧テーブルのチェックボックスイベントリスナーをセットアップ
+ */
+function setupAllShiftsCheckboxListeners() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const actionBar = document.getElementById('bulkDeleteActionBar');
+    const selectedCountText = document.getElementById('selectedCountText');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+
+    if (!selectAllCheckbox) return;
+
+    const updateActionBar = () => {
+        const checked = document.querySelectorAll('.shift-row-checkbox:checked');
+        const all = document.querySelectorAll('.shift-row-checkbox');
+
+        if (checked.length > 0) {
+            actionBar.style.display = 'flex';
+            selectedCountText.textContent = `${checked.length}件選択中`;
+        } else {
+            actionBar.style.display = 'none';
+        }
+
+        selectAllCheckbox.indeterminate = checked.length > 0 && checked.length < all.length;
+        selectAllCheckbox.checked = all.length > 0 && checked.length === all.length;
+    };
+
+    selectAllCheckbox.addEventListener('change', () => {
+        document.querySelectorAll('.shift-row-checkbox').forEach(cb => {
+            cb.checked = selectAllCheckbox.checked;
+        });
+        updateActionBar();
+    });
+
+    document.querySelectorAll('.shift-row-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateActionBar);
+    });
+
+    bulkDeleteBtn.addEventListener('click', async () => {
+        const checkedBoxes = document.querySelectorAll('.shift-row-checkbox:checked');
+        if (checkedBoxes.length === 0) return;
+
+        const uuids = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-shift-uuid'));
+
+        const confirmMessage = `選択した ${uuids.length} 件のシフトを削除しますか？\n\nこの操作は取り消せません。`;
+        if (!confirm(confirmMessage)) return;
+
+        bulkDeleteBtn.disabled = true;
+        bulkDeleteBtn.textContent = '削除中...';
+
+        try {
+            const result = await API.deleteMultipleShifts(uuids);
+            if (result.success) {
+                alert(`${uuids.length}件のシフトを削除しました。`);
+                loadAllShiftsTable();
+            } else {
+                alert('シフトの削除に失敗しました: ' + (result.error || '不明なエラー'));
+                bulkDeleteBtn.disabled = false;
+                bulkDeleteBtn.textContent = '選択したシフトを削除';
+            }
+        } catch (error) {
+            console.error('一括削除エラー:', error);
+            alert('シフトの削除に失敗しました');
+            bulkDeleteBtn.disabled = false;
+            bulkDeleteBtn.textContent = '選択したシフトを削除';
+        }
     });
 }
 
