@@ -272,6 +272,23 @@ function mergeShiftsByPerson(shiftsForDate) {
     return mergedShifts;
 }
 
+// 一括削除アクションバーのHTML文字列を生成する関数
+function createBulkActionBarHTML(barId, countId, btnId) {
+    return `<div id="${barId}" class="bulk-delete-action-bar">
+        <span id="${countId}">0件選択中</span>
+        <button id="${btnId}" class="bulk-delete-btn" disabled>選択したシフトを削除</button>
+    </div>`;
+}
+
+// 一括削除アクションバーの件数テキストとボタン状態を更新する関数
+function updateBulkActionBarCount(countId, count) {
+    const countText = document.getElementById(countId);
+    if (!countText) return;
+    countText.textContent = count > 0 ? `${count}件選択中` : '0件選択中';
+    const btn = countText.parentElement.querySelector('.bulk-delete-btn');
+    if (btn) btn.disabled = count === 0;
+}
+
 // 現在のユーザーデータを取得する関数
 function getCurrentUserData() {
     // グローバル変数から取得（ログイン時に設定される）

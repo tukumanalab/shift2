@@ -442,7 +442,6 @@
         }
         .tab-content {
             display: none;
-            padding: 20px;
         }
         .tab-content.active {
             display: block;
@@ -2145,6 +2144,52 @@
             }
         }
 
+        /* 一括削除アクションバー */
+        .bulk-delete-action-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            background-color: #1a73e8;
+            color: white;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .bulk-delete-btn {
+            background-color: #d93025;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .bulk-delete-btn:hover {
+            background-color: #b31412;
+        }
+
+        .bulk-delete-btn:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+        }
+
+        .calendar-shift-checkbox {
+            width: 12px;
+            height: 12px;
+            cursor: pointer;
+            flex-shrink: 0;
+            accent-color: #1a73e8;
+        }
+
+        .shift-person.is-selected {
+            background-color: #c8e6c9;
+            color: #1b5e20;
+        }
+
         /* 全シフト一覧テーブルのスタイル */
         .all-shifts-table-container {
             padding: 20px;
@@ -2475,6 +2520,10 @@
                         Googleカレンダーをクリア
                     </button>
                 </div>
+                <div id="calendarBulkActionBar" class="bulk-delete-action-bar" style="position: sticky; top: 0; z-index: 100;">
+                    <span id="calendarSelectedCount">0件選択中</span>
+                    <button id="calendarBulkDeleteBtn" class="bulk-delete-btn" disabled>選択したシフトを削除</button>
+                </div>
                 <div id="shiftCalendarContainer" class="calendar-container">
                     <!-- カレンダーが動的に生成されます -->
                 </div>
@@ -2523,7 +2572,6 @@
 
             <div id="settings" class="tab-content">
                 <div class="settings-container">
-                    <h2>設定</h2>
                     <div class="settings-section">
                         <h3 style="text-align: left;">プロフィール設定</h3>
 

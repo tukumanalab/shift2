@@ -68,7 +68,6 @@ function displayUserList(users) {
     // テーブルを生成
     const tableHTML = `
         <div class="user-list-container">
-            <h2 style="margin-bottom: 20px;">ユーザー一覧（${users.length}人）</h2>
             <table class="user-list-table">
                 <thead>
                     <tr>

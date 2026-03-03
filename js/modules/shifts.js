@@ -31,6 +31,8 @@ async function displayShiftList() {
     const container = document.getElementById('shiftCalendarContainer');
     if (!container) return;
 
+    updateBulkActionBarCount('calendarSelectedCount', 0);
+
     try {
         // シフトデータを取得
         const shiftsResult = await API.getAllShifts();
@@ -136,6 +138,7 @@ async function loadShiftList() {
     `;
 
     await displayShiftList();
+    setupCalendarBulkDelete();
 }
 
 // 自分のシフト一覧を読み込む
@@ -267,13 +270,12 @@ function displayMyShifts(container, shiftsData) {
 
     // シフトテーブルを作成
     let tableHTML = `
-        <div class="my-shifts-summary">
-            <h4>登録済みシフト: ${mergedShifts.length}件</h4>
-        </div>
+        ${createBulkActionBarHTML('myShiftsBulkActionBar', 'myShiftsSelectedCount', 'myShiftsBulkDeleteBtn')}
         <div class="my-shifts-table-container">
             <table class="my-shifts-table">
                 <thead>
                     <tr>
+                        <th style="width: 40px; text-align: center;"><input type="checkbox" id="myShiftsSelectAll" title="全選択/解除"></th>
                         <th>シフト日</th>
                         <th>時間帯</th>
                         <th>操作</th>
@@ -317,6 +319,12 @@ function displayMyShifts(container, shiftsData) {
             </td>` :
             '<td class="shift-actions">-</td>';
 
+        // チェックボックス（翌日以降のシフトのみ有効）
+        const uuidsStr = (shift.uuids || []).join(',');
+        const checkboxHTML = canDelete
+            ? `<td style="text-align: center;"><input type="checkbox" class="my-shift-row-checkbox" data-uuids="${uuidsStr}" data-date="${shift.shiftDate}" data-time="${shift.timeSlot}"></td>`
+            : `<td style="text-align: center;"><input type="checkbox" disabled style="opacity: 0.3;"></td>`;
+
         // メモ情報を取得（capacityDataから）
         let memo = '';
         if (window.capacityData) {
@@ -329,6 +337,7 @@ function displayMyShifts(container, shiftsData) {
 
         tableHTML += `
             <tr class="${rowClass}" data-date="${shift.shiftDate}" data-time-range="${shift.timeSlot}">
+                ${checkboxHTML}
                 <td class="shift-date">${formattedDate}${memoHTML}</td>
                 <td class="shift-time">${shift.timeSlot}</td>
                 ${deleteButtonHTML}
@@ -344,6 +353,9 @@ function displayMyShifts(container, shiftsData) {
 
     container.innerHTML = tableHTML;
 
+    // チェックボックスのイベントリスナーを設定
+    setupMyShiftsCheckboxListeners();
+
     // スクロール処理: 申請直後の場合、該当シフトまでスクロール
     const scrollToShiftAfterLoad = getScrollToShiftAfterLoad();
     if (scrollToShiftAfterLoad) {
@@ -356,6 +368,73 @@ function displayMyShifts(container, shiftsData) {
 
         setScrollToShiftAfterLoad(null);
     }
+}
+
+// 自分のシフト一覧のチェックボックスイベントリスナーをセットアップ
+function setupMyShiftsCheckboxListeners() {
+    const selectAll = document.getElementById('myShiftsSelectAll');
+    const bulkDeleteBtn = document.getElementById('myShiftsBulkDeleteBtn');
+
+    if (!selectAll) return;
+
+    const updateActionBar = () => {
+        const checked = document.querySelectorAll('.my-shift-row-checkbox:checked');
+        const all = document.querySelectorAll('.my-shift-row-checkbox:not(:disabled)');
+
+        updateBulkActionBarCount('myShiftsSelectedCount', checked.length);
+
+        selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+        selectAll.checked = all.length > 0 && checked.length === all.length;
+    };
+
+    selectAll.addEventListener('change', () => {
+        document.querySelectorAll('.my-shift-row-checkbox:not(:disabled)').forEach(cb => {
+            cb.checked = selectAll.checked;
+        });
+        updateActionBar();
+    });
+
+    document.querySelectorAll('.my-shift-row-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateActionBar);
+    });
+
+    bulkDeleteBtn.addEventListener('click', async () => {
+        const checkedBoxes = document.querySelectorAll('.my-shift-row-checkbox:checked');
+        if (checkedBoxes.length === 0) return;
+
+        const allUuids = [];
+        checkedBoxes.forEach(cb => {
+            const uuidsStr = cb.getAttribute('data-uuids');
+            if (uuidsStr) {
+                uuidsStr.split(',').forEach(uuid => { if (uuid) allUuids.push(uuid); });
+            }
+        });
+
+        if (allUuids.length === 0) return;
+
+        const confirmMessage = `選択した ${checkedBoxes.length} 件のシフトを削除しますか？\n\nこの操作は取り消せません。`;
+        if (!confirm(confirmMessage)) return;
+
+        bulkDeleteBtn.disabled = true;
+        bulkDeleteBtn.textContent = '削除中...';
+
+        try {
+            const result = await API.deleteMultipleShifts(allUuids);
+            if (result.success) {
+                alert(`${checkedBoxes.length}件のシフトを削除しました。`);
+                await loadMyShifts();
+            } else {
+                alert('シフトの削除に失敗しました: ' + (result.error || '不明なエラー'));
+                bulkDeleteBtn.disabled = false;
+                bulkDeleteBtn.textContent = '選択したシフトを削除';
+            }
+        } catch (error) {
+            console.error('一括削除エラー:', error);
+            alert('シフトの削除に失敗しました');
+            bulkDeleteBtn.disabled = false;
+            bulkDeleteBtn.textContent = '選択したシフトを削除';
+        }
+    });
 }
 
 // 該当するシフト行を探す関数
