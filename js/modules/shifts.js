@@ -31,6 +31,8 @@ async function displayShiftList() {
     const container = document.getElementById('shiftCalendarContainer');
     if (!container) return;
 
+    updateBulkActionBarCount('calendarSelectedCount', 0);
+
     try {
         // シフトデータを取得
         const shiftsResult = await API.getAllShifts();
@@ -136,6 +138,7 @@ async function loadShiftList() {
     `;
 
     await displayShiftList();
+    setupCalendarBulkDelete();
 }
 
 // 自分のシフト一覧を読み込む
@@ -267,13 +270,7 @@ function displayMyShifts(container, shiftsData) {
 
     // シフトテーブルを作成
     let tableHTML = `
-        <div class="my-shifts-summary">
-            <h4>登録済みシフト: ${mergedShifts.length}件</h4>
-        </div>
-        <div id="myShiftsBulkActionBar" class="bulk-delete-action-bar" style="display: none;">
-            <span id="myShiftsSelectedCount">0件選択中</span>
-            <button id="myShiftsBulkDeleteBtn" class="bulk-delete-btn">選択したシフトを削除</button>
-        </div>
+        ${createBulkActionBarHTML('myShiftsBulkActionBar', 'myShiftsSelectedCount', 'myShiftsBulkDeleteBtn')}
         <div class="my-shifts-table-container">
             <table class="my-shifts-table">
                 <thead>
@@ -376,8 +373,6 @@ function displayMyShifts(container, shiftsData) {
 // 自分のシフト一覧のチェックボックスイベントリスナーをセットアップ
 function setupMyShiftsCheckboxListeners() {
     const selectAll = document.getElementById('myShiftsSelectAll');
-    const actionBar = document.getElementById('myShiftsBulkActionBar');
-    const countText = document.getElementById('myShiftsSelectedCount');
     const bulkDeleteBtn = document.getElementById('myShiftsBulkDeleteBtn');
 
     if (!selectAll) return;
@@ -386,12 +381,7 @@ function setupMyShiftsCheckboxListeners() {
         const checked = document.querySelectorAll('.my-shift-row-checkbox:checked');
         const all = document.querySelectorAll('.my-shift-row-checkbox:not(:disabled)');
 
-        if (checked.length > 0) {
-            actionBar.style.display = 'flex';
-            countText.textContent = `${checked.length}件選択中`;
-        } else {
-            actionBar.style.display = 'none';
-        }
+        updateBulkActionBarCount('myShiftsSelectedCount', checked.length);
 
         selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
         selectAll.checked = all.length > 0 && checked.length === all.length;

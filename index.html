@@ -442,7 +442,6 @@
         }
         .tab-content {
             display: none;
-            padding: 20px;
         }
         .tab-content.active {
             display: block;
@@ -2178,6 +2177,19 @@
             cursor: not-allowed;
         }
 
+        .calendar-shift-checkbox {
+            width: 12px;
+            height: 12px;
+            cursor: pointer;
+            flex-shrink: 0;
+            accent-color: #1a73e8;
+        }
+
+        .shift-person.is-selected {
+            background-color: #c8e6c9;
+            color: #1b5e20;
+        }
+
         /* 全シフト一覧テーブルのスタイル */
         .all-shifts-table-container {
             padding: 20px;
@@ -2508,6 +2520,10 @@
                         Googleカレンダーをクリア
                     </button>
                 </div>
+                <div id="calendarBulkActionBar" class="bulk-delete-action-bar" style="position: sticky; top: 0; z-index: 100;">
+                    <span id="calendarSelectedCount">0件選択中</span>
+                    <button id="calendarBulkDeleteBtn" class="bulk-delete-btn" disabled>選択したシフトを削除</button>
+                </div>
                 <div id="shiftCalendarContainer" class="calendar-container">
                     <!-- カレンダーが動的に生成されます -->
                 </div>
@@ -2556,7 +2572,6 @@
 
             <div id="settings" class="tab-content">
                 <div class="settings-container">
-                    <h2>設定</h2>
                     <div class="settings-section">
                         <h3 style="text-align: left;">プロフィール設定</h3>
 

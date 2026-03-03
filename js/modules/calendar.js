@@ -606,12 +606,79 @@ function displayShiftsForDate(container, dateKey) {
             const personDiv = document.createElement('div');
             personDiv.className = 'shift-person';
             const displayName = getShiftDisplayName(shift);
-            personDiv.textContent = displayName;
             personDiv.title = displayName;
+
+            if (isAdmin()) {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'calendar-shift-checkbox';
+                checkbox.setAttribute('data-uuids', (shift.uuids || []).join(','));
+                checkbox.addEventListener('click', (e) => e.stopPropagation());
+                checkbox.addEventListener('change', () => {
+                    personDiv.classList.toggle('is-selected', checkbox.checked);
+                    updateCalendarActionBar();
+                });
+                personDiv.appendChild(checkbox);
+            }
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = displayName;
+            personDiv.appendChild(nameSpan);
+
             peopleDiv.appendChild(personDiv);
         });
 
         timeSlotDiv.appendChild(peopleDiv);
         container.appendChild(timeSlotDiv);
+    });
+}
+
+/**
+ * カレンダー一括削除アクションバーの表示を更新する
+ */
+function updateCalendarActionBar() {
+    const checked = document.querySelectorAll('.calendar-shift-checkbox:checked');
+    updateBulkActionBarCount('calendarSelectedCount', checked.length);
+}
+
+/**
+ * カレンダー一括削除ボタンのセットアップ（一度だけ呼ぶ）
+ */
+function setupCalendarBulkDelete() {
+    const bulkDeleteBtn = document.getElementById('calendarBulkDeleteBtn');
+    if (!bulkDeleteBtn || bulkDeleteBtn.dataset.setupDone) return;
+    bulkDeleteBtn.dataset.setupDone = 'true';
+
+    bulkDeleteBtn.addEventListener('click', async () => {
+        const checkedBoxes = document.querySelectorAll('.calendar-shift-checkbox:checked');
+        if (checkedBoxes.length === 0) return;
+
+        const allUuids = [];
+        checkedBoxes.forEach(cb => {
+            const uuidsStr = cb.getAttribute('data-uuids');
+            if (uuidsStr) uuidsStr.split(',').forEach(uuid => { if (uuid) allUuids.push(uuid); });
+        });
+
+        if (!confirm(`選択した ${checkedBoxes.length} 件のシフトを削除しますか？\n\nこの操作は取り消せません。`)) return;
+
+        bulkDeleteBtn.disabled = true;
+        bulkDeleteBtn.textContent = '削除中...';
+
+        try {
+            const result = await API.deleteMultipleShifts(allUuids);
+            if (result.success) {
+                alert(`${checkedBoxes.length}件のシフトを削除しました。`);
+                await displayShiftList();
+            } else {
+                alert('シフトの削除に失敗しました: ' + (result.error || '不明なエラー'));
+                bulkDeleteBtn.disabled = false;
+                bulkDeleteBtn.textContent = '選択したシフトを削除';
+            }
+        } catch (error) {
+            console.error('一括削除エラー:', error);
+            alert('シフトの削除に失敗しました');
+            bulkDeleteBtn.disabled = false;
+            bulkDeleteBtn.textContent = '選択したシフトを削除';
+        }
     });
 }

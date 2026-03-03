@@ -141,7 +141,6 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
     if (!filteredShifts || filteredShifts.length === 0) {
         allShiftsTableContent.innerHTML = `
             <div class="all-shifts-table-container">
-                <h2 style="margin-bottom: 20px;">全シフト一覧（0件）</h2>
                 ${generateFilterUI(shifts)}
                 <p style="text-align: center; color: #666; padding: 40px;">
                     ${currentFilters.userName || currentFilters.startDate || currentFilters.endDate
@@ -172,12 +171,8 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
     // テーブルを生成
     const tableHTML = `
         <div class="all-shifts-table-container">
-            <h2 style="margin-bottom: 20px;">全シフト一覧（${totalItems}件）</h2>
             ${generateFilterUI(shifts)}
-            <div id="bulkDeleteActionBar" class="bulk-delete-action-bar" style="display: none;">
-                <span id="selectedCountText">0件選択中</span>
-                <button id="bulkDeleteBtn" class="bulk-delete-btn">選択したシフトを削除</button>
-            </div>
+            ${createBulkActionBarHTML('bulkDeleteActionBar', 'selectedCountText', 'bulkDeleteBtn')}
             <table class="all-shifts-table">
                 <thead>
                     <tr>
@@ -243,8 +238,6 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
  */
 function setupAllShiftsCheckboxListeners() {
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-    const actionBar = document.getElementById('bulkDeleteActionBar');
-    const selectedCountText = document.getElementById('selectedCountText');
     const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
 
     if (!selectAllCheckbox) return;
@@ -253,12 +246,7 @@ function setupAllShiftsCheckboxListeners() {
         const checked = document.querySelectorAll('.shift-row-checkbox:checked');
         const all = document.querySelectorAll('.shift-row-checkbox');
 
-        if (checked.length > 0) {
-            actionBar.style.display = 'flex';
-            selectedCountText.textContent = `${checked.length}件選択中`;
-        } else {
-            actionBar.style.display = 'none';
-        }
+        updateBulkActionBarCount('selectedCountText', checked.length);
 
         selectAllCheckbox.indeterminate = checked.length > 0 && checked.length < all.length;
         selectAllCheckbox.checked = all.length > 0 && checked.length === all.length;

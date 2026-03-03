@@ -505,7 +505,6 @@ function displaySpecialShiftList(specialShifts) {
     // テーブルを生成
     const tableHTML = `
         <div class="special-shift-list-container">
-            <h2 style="margin-bottom: 20px;">特別シフト一覧（${specialShifts.length}件）</h2>
             <table class="special-shift-list-table">
                 <thead>
                     <tr>
