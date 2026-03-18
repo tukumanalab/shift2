@@ -138,6 +138,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // モバイルメニューのセットアップ
     setupMobileMenu();
 
+    // 開発環境用ログインUIをセットアップ
+    setupDevLogin();
+
     // Google Sign-Inを初期化
     initializeGoogleSignIn();
 
