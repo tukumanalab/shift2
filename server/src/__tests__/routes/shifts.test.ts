@@ -2,6 +2,7 @@ import request from 'supertest';
 import express, { Express } from 'express';
 import shiftsRouter from '../../routes/shifts';
 import { ShiftModel } from '../../models/Shift';
+import { CapacitySettingModel } from '../../models/CapacitySetting';
 import { CalendarService } from '../../services/CalendarService';
 
 // Mock uuid
@@ -9,8 +10,9 @@ jest.mock('uuid', () => ({
   v4: jest.fn(() => 'mock-uuid')
 }));
 
-// Mock ShiftModel and CalendarService
+// Mock ShiftModel, CapacitySettingModel, and CalendarService
 jest.mock('../../models/Shift');
+jest.mock('../../models/CapacitySetting');
 jest.mock('../../services/CalendarService');
 jest.mock('../../database/db', () => ({
   default: {
@@ -428,6 +430,8 @@ describe('Shifts API Routes', () => {
       };
 
       (ShiftModel.checkDuplicate as jest.Mock).mockReturnValue(false);
+      (CapacitySettingModel.getByDate as jest.Mock).mockReturnValue({ capacity: 3 });
+      (ShiftModel.getShiftCountsByDate as jest.Mock).mockReturnValue({});
       (ShiftModel.create as jest.Mock).mockReturnValue(mockShift);
       (CalendarService.addShiftToCalendar as jest.Mock).mockResolvedValue({
         success: true,
@@ -483,6 +487,8 @@ describe('Shifts API Routes', () => {
 
     test('シフト作成失敗時は500エラー', async () => {
       (ShiftModel.checkDuplicate as jest.Mock).mockReturnValue(false);
+      (CapacitySettingModel.getByDate as jest.Mock).mockReturnValue({ capacity: 3 });
+      (ShiftModel.getShiftCountsByDate as jest.Mock).mockReturnValue({});
       (ShiftModel.create as jest.Mock).mockReturnValue(null);
 
       const response = await request(app)
@@ -497,6 +503,125 @@ describe('Shifts API Routes', () => {
       expect(response.status).toBe(500);
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBe('シフトの作成に失敗しました');
+    });
+
+    test('人数制限を超える場合は409エラー（capacity_settings設定あり）', async () => {
+      // 2026-02-15（日曜日）に capacity=2 が設定されている
+      (ShiftModel.checkDuplicate as jest.Mock).mockReturnValue(false);
+      (CapacitySettingModel.getByDate as jest.Mock).mockReturnValue({
+        id: 1,
+        date: '2026-02-15',
+        capacity: 2,
+        memo: null,
+        user_id: null,
+        user_name: null,
+        created_at: '',
+        updated_at: ''
+      });
+      // 既に2人がこの時間枠に申請済み
+      (ShiftModel.getShiftCountsByDate as jest.Mock).mockReturnValue({
+        '13:00-13:30': 2
+      });
+
+      const response = await request(app)
+        .post('/api/shifts')
+        .send({
+          user_id: 'user-3',
+          user_name: 'ユーザー3',
+          date: '2026-02-15',
+          time_slot: '13:00-13:30'
+        });
+
+      expect(response.status).toBe(409);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('capacity_exceeded');
+    });
+
+    test('人数制限を超える場合は409エラー（デフォルト容量を使用）', async () => {
+      // 2026-02-18（水曜日）→ デフォルト容量=2
+      (ShiftModel.checkDuplicate as jest.Mock).mockReturnValue(false);
+      (CapacitySettingModel.getByDate as jest.Mock).mockReturnValue(null);
+      // 既に2人がこの時間枠に申請済み
+      (ShiftModel.getShiftCountsByDate as jest.Mock).mockReturnValue({
+        '13:00-13:30': 2
+      });
+
+      const response = await request(app)
+        .post('/api/shifts')
+        .send({
+          user_id: 'user-3',
+          user_name: 'ユーザー3',
+          date: '2026-02-18',
+          time_slot: '13:00-13:30'
+        });
+
+      expect(response.status).toBe(409);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('capacity_exceeded');
+    });
+
+    test('人数制限内であればシフトを作成できる', async () => {
+      const mockShift = {
+        uuid: 'shift-1',
+        user_id: 'user-2',
+        user_name: 'ユーザー2',
+        date: '2026-02-18',
+        time_slot: '13:00-13:30'
+      };
+
+      (ShiftModel.checkDuplicate as jest.Mock).mockReturnValue(false);
+      (CapacitySettingModel.getByDate as jest.Mock).mockReturnValue({
+        id: 1,
+        date: '2026-02-18',
+        capacity: 2,
+        memo: null,
+        user_id: null,
+        user_name: null,
+        created_at: '',
+        updated_at: ''
+      });
+      // 1人だけ申請済み → 残り1枠
+      (ShiftModel.getShiftCountsByDate as jest.Mock).mockReturnValue({
+        '13:00-13:30': 1
+      });
+      (ShiftModel.create as jest.Mock).mockReturnValue(mockShift);
+      (CalendarService.addShiftToCalendar as jest.Mock).mockResolvedValue({
+        success: true,
+        eventId: 'calendar-event-1'
+      });
+
+      const response = await request(app)
+        .post('/api/shifts')
+        .send({
+          user_id: 'user-2',
+          user_name: 'ユーザー2',
+          date: '2026-02-18',
+          time_slot: '13:00-13:30'
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(ShiftModel.create).toHaveBeenCalled();
+    });
+
+    test('容量0の日にはシフトを作成できない', async () => {
+      // 2026-02-15（日曜日）→ デフォルト容量=0
+      (ShiftModel.checkDuplicate as jest.Mock).mockReturnValue(false);
+      (CapacitySettingModel.getByDate as jest.Mock).mockReturnValue(null);
+      (ShiftModel.getShiftCountsByDate as jest.Mock).mockReturnValue({});
+
+      const response = await request(app)
+        .post('/api/shifts')
+        .send({
+          user_id: 'user-1',
+          user_name: 'ユーザー1',
+          date: '2026-02-15',
+          time_slot: '13:00-13:30'
+        });
+
+      expect(response.status).toBe(409);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('capacity_exceeded');
     });
   });
 
@@ -563,6 +688,103 @@ describe('Shifts API Routes', () => {
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBe('必須フィールドが不足しています');
+    });
+
+    test('人数制限を超えるスロットは除外される（一括作成）', async () => {
+      // capacity=2、13:00-13:30は既に2人、14:00-14:30は1人
+      (CapacitySettingModel.getByDate as jest.Mock).mockReturnValue({
+        id: 1,
+        date: '2026-02-15',
+        capacity: 2,
+        memo: null,
+        user_id: null,
+        user_name: null,
+        created_at: '',
+        updated_at: ''
+      });
+      (ShiftModel.getShiftCountsByDate as jest.Mock).mockReturnValue({
+        '13:00-13:30': 2,
+        '14:00-14:30': 1
+      });
+      (ShiftModel.checkMultipleDuplicates as jest.Mock).mockReturnValue({
+        '13:00-13:30': false,
+        '14:00-14:30': false
+      });
+      (ShiftModel.bulkCreate as jest.Mock).mockReturnValue({
+        success: 1,
+        failed: 0,
+        duplicates: 0,
+        created: [
+          {
+            uuid: 'shift-1',
+            user_id: 'user-1',
+            user_name: 'ユーザー1',
+            date: '2026-02-15',
+            time_slot: '14:00-14:30'
+          }
+        ]
+      });
+      (CalendarService.syncShiftsForUserAndDate as jest.Mock).mockResolvedValue({
+        success: true
+      });
+
+      const response = await request(app)
+        .post('/api/shifts/multiple')
+        .send({
+          user_id: 'user-1',
+          user_name: 'ユーザー1',
+          date: '2026-02-15',
+          time_slots: ['13:00-13:30', '14:00-14:30']
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      // 13:00-13:30は人数制限超過で除外される
+      expect(response.body.capacityExceeded).toContain('13:00-13:30');
+      // 14:00-14:30のみ作成される
+      expect(response.body.processed).toContain('14:00-14:30');
+      expect(response.body.processed).not.toContain('13:00-13:30');
+    });
+
+    test('すべてのスロットが人数制限超過の場合', async () => {
+      (CapacitySettingModel.getByDate as jest.Mock).mockReturnValue({
+        id: 1,
+        date: '2026-02-15',
+        capacity: 1,
+        memo: null,
+        user_id: null,
+        user_name: null,
+        created_at: '',
+        updated_at: ''
+      });
+      (ShiftModel.getShiftCountsByDate as jest.Mock).mockReturnValue({
+        '13:00-13:30': 1,
+        '14:00-14:30': 1
+      });
+      (ShiftModel.checkMultipleDuplicates as jest.Mock).mockReturnValue({
+        '13:00-13:30': false,
+        '14:00-14:30': false
+      });
+      (ShiftModel.bulkCreate as jest.Mock).mockReturnValue({
+        success: 0,
+        failed: 0,
+        duplicates: 0,
+        created: []
+      });
+
+      const response = await request(app)
+        .post('/api/shifts/multiple')
+        .send({
+          user_id: 'user-2',
+          user_name: 'ユーザー2',
+          date: '2026-02-15',
+          time_slots: ['13:00-13:30', '14:00-14:30']
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.capacityExceeded).toEqual(['13:00-13:30', '14:00-14:30']);
+      expect(response.body.processed).toEqual([]);
     });
   });
 

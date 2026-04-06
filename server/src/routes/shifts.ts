@@ -1,9 +1,37 @@
 import express from 'express';
 import { ShiftModel } from '../models/Shift';
+import { CapacitySettingModel } from '../models/CapacitySetting';
 import { CalendarService } from '../services/CalendarService';
 import db from '../database/db';
 
 const router = express.Router();
+
+/**
+ * 曜日に基づくデフォルトの人数制限を取得
+ */
+function getDefaultCapacity(dayOfWeek: number): number {
+  switch (dayOfWeek) {
+    case 0: // 日曜日
+    case 6: // 土曜日
+      return 0;
+    case 3: // 水曜日
+      return 2;
+    default: // 月火木金
+      return 3;
+  }
+}
+
+/**
+ * 指定日付の人数制限を取得（capacity_settings優先、なければデフォルト）
+ */
+function getCapacityForDate(date: string): number {
+  const setting = CapacitySettingModel.getByDate(date);
+  if (setting) {
+    return setting.capacity;
+  }
+  const dayOfWeek = new Date(date).getDay();
+  return getDefaultCapacity(dayOfWeek);
+}
 
 /**
  * GET /api/shifts
@@ -190,6 +218,18 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // 人数制限チェック
+    const capacity = getCapacityForDate(date);
+    const currentCounts = ShiftModel.getShiftCountsByDate(date);
+    const currentCount = currentCounts[time_slot] || 0;
+    if (currentCount >= capacity) {
+      return res.status(409).json({
+        success: false,
+        error: 'capacity_exceeded',
+        message: `${date}の${time_slot}は人数制限（${capacity}人）に達しています。`
+      });
+    }
+
     const shift = ShiftModel.create({
       user_id,
       user_name,
@@ -256,8 +296,17 @@ router.post('/multiple', async (req, res) => {
     const nonDuplicateSlots = time_slots.filter(slot => !duplicates[slot]);
     const duplicateSlots = time_slots.filter(slot => duplicates[slot]);
 
-    // 重複していない時間枠のみを作成
-    const shifts = nonDuplicateSlots.map(time_slot => ({
+    // 人数制限チェック
+    const capacity = getCapacityForDate(date);
+    const currentCounts = ShiftModel.getShiftCountsByDate(date);
+    const capacityExceededSlots = nonDuplicateSlots.filter(slot => {
+      const currentCount = currentCounts[slot] || 0;
+      return currentCount >= capacity;
+    });
+    const availableSlots = nonDuplicateSlots.filter(slot => !capacityExceededSlots.includes(slot));
+
+    // 人数制限内の時間枠のみを作成
+    const shifts = availableSlots.map(time_slot => ({
       user_id,
       user_name,
       date,
@@ -297,8 +346,9 @@ router.post('/multiple', async (req, res) => {
 
     res.json({
       success: true,
-      processed: nonDuplicateSlots,
+      processed: availableSlots,
       duplicates: duplicateSlots,
+      capacityExceeded: capacityExceededSlots,
       result: {
         success: result.success,
         failed: result.failed,
