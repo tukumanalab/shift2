@@ -39,7 +39,7 @@ function setupDevLogin() {
                 cursor: pointer;
                 font-size: 13px;
             ">管理者でログイン</button>
-            <button onclick="devLoginAsUser()" style="
+            <button onclick="devLoginAsUser(1)" style="
                 padding: 8px 16px;
                 background: #2e7d32;
                 color: white;
@@ -47,7 +47,25 @@ function setupDevLogin() {
                 border-radius: 4px;
                 cursor: pointer;
                 font-size: 13px;
-            ">一般ユーザーでログイン</button>
+            ">ユーザーAでログイン</button>
+            <button onclick="devLoginAsUser(2)" style="
+                padding: 8px 16px;
+                background: #f57c00;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 13px;
+            ">ユーザーBでログイン</button>
+            <button onclick="devLoginAsUser(3)" style="
+                padding: 8px 16px;
+                background: #7b1fa2;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 13px;
+            ">ユーザーCでログイン</button>
         </div>
     `;
 
@@ -75,15 +93,23 @@ async function devLoginAsAdmin() {
 
 /**
  * 開発用: 一般ユーザーとしてログインする
+ * @param {number} userNumber - ユーザー番号（1〜3）
  */
-async function devLoginAsUser() {
+async function devLoginAsUser(userNumber = 1) {
     if (!DEV_MODE) return;
 
+    const users = [
+        { sub: 'dev-user-001', name: 'ユーザーA（開発用）', email: 'dev-user-a@example.com', color: '2e7d32', initial: 'A' },
+        { sub: 'dev-user-002', name: 'ユーザーB（開発用）', email: 'dev-user-b@example.com', color: 'f57c00', initial: 'B' },
+        { sub: 'dev-user-003', name: 'ユーザーC（開発用）', email: 'dev-user-c@example.com', color: '7b1fa2', initial: 'C' },
+    ];
+
+    const user = users[userNumber - 1];
     const mockProfile = {
-        sub: 'dev-user-001',
-        name: '一般ユーザー（開発用）',
-        email: 'dev-user@example.com',
-        picture: 'https://ui-avatars.com/api/?name=User&background=2e7d32&color=fff&size=64',
+        sub: user.sub,
+        name: user.name,
+        email: user.email,
+        picture: `https://ui-avatars.com/api/?name=${user.initial}&background=${user.color}&color=fff&size=64`,
     };
 
     setIsAdmin(false);
