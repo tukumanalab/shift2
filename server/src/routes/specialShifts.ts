@@ -1,5 +1,6 @@
 import express from 'express';
 import { SpecialShiftModel } from '../models/SpecialShift';
+import { SpecialShiftApplicationModel } from '../models/SpecialShiftApplication';
 
 const router = express.Router();
 
@@ -176,6 +177,139 @@ router.post('/delete-multiple', (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting multiple special shifts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'サーバーエラーが発生しました'
+    });
+  }
+});
+
+/**
+ * POST /api/special-shifts/:uuid/apply
+ * 特別シフトに申請する
+ */
+router.post('/:uuid/apply', (req, res) => {
+  try {
+    const specialShiftUuid = req.params.uuid as string;
+    const { user_id, user_name, time_slot } = req.body;
+
+    // バリデーション
+    if (!user_id || !user_name || !time_slot) {
+      return res.status(400).json({
+        success: false,
+        error: '必須フィールドが不足しています'
+      });
+    }
+
+    // 特別シフトの存在確認
+    const shift = SpecialShiftModel.getByUuid(specialShiftUuid);
+    if (!shift) {
+      return res.status(404).json({
+        success: false,
+        error: '特別シフトが見つかりません'
+      });
+    }
+
+    // 重複申請チェック（同一スロットへの重複申請を防ぐ）
+    const isDuplicate = SpecialShiftApplicationModel.checkDuplicate(user_id, specialShiftUuid, time_slot);
+    if (isDuplicate) {
+      return res.status(409).json({
+        success: false,
+        error: 'duplicate'
+      });
+    }
+
+    // 申請を作成
+    const application = SpecialShiftApplicationModel.create({
+      special_shift_uuid: specialShiftUuid,
+      user_id,
+      user_name,
+      time_slot
+    });
+
+    if (!application) {
+      return res.status(500).json({
+        success: false,
+        error: '申請の作成に失敗しました'
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      data: application
+    });
+  } catch (error) {
+    console.error('Error applying for special shift:', error);
+    res.status(500).json({
+      success: false,
+      error: 'サーバーエラーが発生しました'
+    });
+  }
+});
+
+/**
+ * GET /api/special-shifts/:uuid/applications
+ * 特別シフトへの申請一覧を取得
+ */
+router.get('/:uuid/applications', (req, res) => {
+  try {
+    const specialShiftUuid = req.params.uuid as string;
+
+    // 特別シフトの存在確認
+    const shift = SpecialShiftModel.getByUuid(specialShiftUuid);
+    if (!shift) {
+      return res.status(404).json({
+        success: false,
+        error: '特別シフトが見つかりません'
+      });
+    }
+
+    const applications = SpecialShiftApplicationModel.getBySpecialShiftUuid(specialShiftUuid);
+
+    res.json({
+      success: true,
+      data: applications
+    });
+  } catch (error) {
+    console.error('Error getting special shift applications:', error);
+    res.status(500).json({
+      success: false,
+      error: 'サーバーエラーが発生しました'
+    });
+  }
+});
+
+/**
+ * DELETE /api/special-shifts/applications/:appUuid
+ * 特別シフト申請をキャンセル
+ */
+router.delete('/applications/:appUuid', (req, res) => {
+  try {
+    const appUuid = req.params.appUuid as string;
+
+    // 申請の存在確認
+    const application = SpecialShiftApplicationModel.getByUuid(appUuid);
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        error: '申請が見つかりません'
+      });
+    }
+
+    const success = SpecialShiftApplicationModel.delete(appUuid);
+    if (!success) {
+      return res.status(500).json({
+        success: false,
+        error: '申請の削除に失敗しました'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '申請をキャンセルしました'
+    });
+  } catch (error) {
+    console.error('Error cancelling special shift application:', error);
     res.status(500).json({
       success: false,
       error: 'サーバーエラーが発生しました'
