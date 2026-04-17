@@ -593,7 +593,8 @@ function toggleTimeSlotSelection(slotDiv, slot) {
  * すべての時間枠を選択/解除する関数
  */
 function toggleAllTimeSlots() {
-    const selectableSlots = document.querySelectorAll('.date-detail-slot.selectable');
+    // 通常シフトスロットのみを対象にする（特別シフトスロットは除外）
+    const selectableSlots = document.querySelectorAll('.date-detail-slot.selectable:not([data-slot-type="special"])');
     const toggleBtn = document.querySelector('.toggle-all-btn');
 
     if (!selectableSlots.length) return;
@@ -643,11 +644,12 @@ function updateSubmitButton() {
         submitBtn.textContent = '時間枠を選択してください';
     }
 
-    // 全選択/解除ボタンのテキストも更新
+    // 全選択/解除ボタンのテキストも更新（通常シフトスロットの状態で判定）
     const toggleBtn = document.querySelector('.toggle-all-btn');
     if (toggleBtn) {
-        const selectableSlots = document.querySelectorAll('.date-detail-slot.selectable');
-        const allSelected = Array.from(selectableSlots).every(slot => slot.classList.contains('selected'));
+        const regularSelectableSlots = document.querySelectorAll('.date-detail-slot.selectable:not([data-slot-type="special"])');
+        const allSelected = regularSelectableSlots.length > 0 &&
+            Array.from(regularSelectableSlots).every(slot => slot.classList.contains('selected'));
         toggleBtn.textContent = allSelected ? 'すべて解除' : 'すべて選択';
     }
 }
