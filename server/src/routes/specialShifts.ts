@@ -1,6 +1,7 @@
 import express from 'express';
 import { SpecialShiftModel } from '../models/SpecialShift';
 import { SpecialShiftApplicationModel } from '../models/SpecialShiftApplication';
+import { CalendarService } from '../services/CalendarService';
 
 const router = express.Router();
 
@@ -89,10 +90,10 @@ router.get('/:uuid', (req, res) => {
  */
 router.post('/', (req, res) => {
   try {
-    const { date, start_time, end_time, user_id, user_name } = req.body;
+    const { date, name, start_time, end_time, user_id, user_name } = req.body;
 
     // バリデーション
-    if (!date || !start_time || !end_time || !user_id || !user_name) {
+    if (!date || !name || !start_time || !end_time || !user_id || !user_name) {
       return res.status(400).json({
         success: false,
         error: '必須フィールドが不足しています'
@@ -100,6 +101,7 @@ router.post('/', (req, res) => {
     }
 
     const shift = SpecialShiftModel.create({
+      name,
       date,
       start_time,
       end_time,
@@ -255,6 +257,10 @@ router.post('/:uuid/apply', (req, res) => {
       success: true,
       data: application
     });
+
+    // カレンダー同期（非致命的エラー）
+    CalendarService.syncSpecialShiftApplicationsForUserAndDate(user_id, shift.date)
+      .catch((err) => console.error('特別シフト申請カレンダー同期エラー:', err));
   } catch (error) {
     console.error('Error applying for special shift:', error);
     res.status(500).json({
@@ -313,6 +319,9 @@ router.delete('/applications/:appUuid', (req, res) => {
       });
     }
 
+    // 削除前に日付情報を取得
+    const specialShift = SpecialShiftModel.getByUuid(application.special_shift_uuid);
+
     const success = SpecialShiftApplicationModel.delete(appUuid);
     if (!success) {
       return res.status(500).json({
@@ -325,6 +334,12 @@ router.delete('/applications/:appUuid', (req, res) => {
       success: true,
       message: '申請をキャンセルしました'
     });
+
+    // カレンダー再同期（非致命的エラー）
+    if (specialShift) {
+      CalendarService.syncSpecialShiftApplicationsForUserAndDate(application.user_id, specialShift.date)
+        .catch((err) => console.error('特別シフト申請キャンセル後カレンダー同期エラー:', err));
+    }
   } catch (error) {
     console.error('Error cancelling special shift application:', error);
     res.status(500).json({

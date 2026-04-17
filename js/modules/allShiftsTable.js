@@ -40,7 +40,7 @@ async function loadAllShiftsTable(page = 1) {
 
         const regularShifts = shiftsResult.data || [];
         const specialShifts = (specialResult.success && specialResult.data || []).map(app => ({
-            ...app, is_special: true, calendar_event_id: null
+            ...app, is_special: true
         }));
 
         const shifts = [...regularShifts, ...specialShifts];
@@ -199,12 +199,10 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
                             <td style="text-align: center;"><input type="checkbox" class="shift-row-checkbox" data-shift-uuid="${escapeHtml(shift.uuid)}" data-shift-info="${escapeHtml(shift.user_name)} / ${escapeHtml(shift.date)} ${escapeHtml(shift.time_slot)}"></td>
                             <td>${escapeHtml(shift.user_name)}</td>
                             <td>${formatDateWithWeekday(shift.date)}</td>
-                            <td>${escapeHtml(shift.time_slot)}${shift.is_special ? ' <span class="special-badge">特別</span>' : ''}</td>
+                            <td><span class="shift-time-inner">${shift.is_special ? '<span class="special-badge">特別</span>' : '<span class="special-badge-placeholder"></span>'}${escapeHtml(shift.time_slot)}</span>${shift.is_special && shift.shift_name ? `<div class="shift-name-label">${escapeHtml(shift.shift_name)}</div>` : ''}</td>
                             <td>${formatDateTime(shift.created_at)}</td>
                             <td style="text-align: center;">
-                                ${shift.is_special
-                                    ? '<span class="special-shift-label" style="font-size:11px;color:#7b5ea7;">特別</span>'
-                                    : (shift.calendar_event_id ? '<span style="color: #4CAF50;">✓</span>' : '<span style="color: #999;">-</span>')}
+                                ${shift.calendar_event_id ? '<span style="color: #4CAF50;">✓</span>' : '<span style="color: #999;">-</span>'}
                             </td>
                             <td>
                                 <button class="delete-shift-table-btn" data-shift-uuid="${escapeHtml(shift.uuid)}" data-shift-info="${escapeHtml(shift.user_name)} / ${escapeHtml(shift.date)} ${escapeHtml(shift.time_slot)}">
@@ -398,7 +396,7 @@ async function handleDeleteShiftFromTable(event) {
             button.textContent = originalText;
         }
     } catch (error) {
-        console.error('シフット削除エラー:', error);
+        console.error('シフト削除エラー:', error);
         alert('シフトの削除に失敗しました');
         button.disabled = false;
         button.textContent = originalText;

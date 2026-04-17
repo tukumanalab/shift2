@@ -1,6 +1,6 @@
 import ical from 'ical-generator';
 import { ShiftModel, Shift } from '../models/Shift';
-import { SpecialShiftModel } from '../models/SpecialShift';
+import { SpecialShiftApplicationModel, SpecialShiftApplicationWithDate } from '../models/SpecialShiftApplication';
 import { groupAndMergeShifts } from '../utils/timeSlotMerger';
 import { MergedTimeSlot } from '../types/calendar';
 
@@ -26,6 +26,34 @@ function addMergedShiftEvents(cal: ReturnType<typeof ical>, shifts: Shift[]): vo
   }
 }
 
+function addMergedSpecialShiftApplicationEvents(
+  cal: ReturnType<typeof ical>,
+  apps: SpecialShiftApplicationWithDate[]
+): void {
+  const shiftNameByUuid = new Map(apps.map(a => [a.uuid, a.shift_name]));
+
+  const shiftInfos = apps.map(a => ({
+    uuid: a.uuid,
+    user_id: a.user_id,
+    user_name: a.user_name,
+    date: a.date,
+    time_slot: a.time_slot,
+    type: 'shift' as const,
+  }));
+  const merged: MergedTimeSlot[] = groupAndMergeShifts(shiftInfos);
+
+  for (const slot of merged) {
+    const shiftName = slot.shift_uuids.map(uuid => shiftNameByUuid.get(uuid)).find(n => n) || null;
+    const start = toJSTDate(slot.date, slot.start_time);
+    const end = toJSTDate(slot.date, slot.end_time);
+    const uid = `special-app-${slot.user_id}-${slot.date}-${slot.start_time}@${APP_DOMAIN}`;
+    const summary = shiftName ? `${shiftName}: ${slot.user_name}` : `特別シフト: ${slot.user_name}`;
+    const evt = cal.createEvent({ start, end, summary, timezone: TIMEZONE });
+    evt.uid(uid);
+    evt.description(`担当: ${slot.user_name}\n時間: ${slot.start_time}-${slot.end_time}`);
+  }
+}
+
 export class ICalService {
   /**
    * 全ユーザーの全シフト（通常 + 特別）を iCal 形式で生成
@@ -35,14 +63,7 @@ export class ICalService {
     const cal = ical({ name: 'シフト管理', timezone: TIMEZONE });
 
     addMergedShiftEvents(cal, ShiftModel.getAll());
-
-    for (const shift of SpecialShiftModel.getAll()) {
-      const start = toJSTDate(shift.date, shift.start_time);
-      const end = toJSTDate(shift.date, shift.end_time);
-      const evt = cal.createEvent({ start, end, summary: `特別シフト: ${shift.user_name}`, timezone: TIMEZONE });
-      evt.uid(`special-${shift.uuid}@${APP_DOMAIN}`);
-      evt.description(`担当: ${shift.user_name}\n時間: ${shift.start_time}-${shift.end_time}`);
-    }
+    addMergedSpecialShiftApplicationEvents(cal, SpecialShiftApplicationModel.getAllWithShiftInfo(undefined));
 
     return cal.toString();
   }
@@ -55,14 +76,7 @@ export class ICalService {
     const cal = ical({ name: 'シフト管理', timezone: TIMEZONE });
 
     addMergedShiftEvents(cal, ShiftModel.getByUserId(userId));
-
-    for (const shift of SpecialShiftModel.getAll().filter(s => s.user_id === userId)) {
-      const start = toJSTDate(shift.date, shift.start_time);
-      const end = toJSTDate(shift.date, shift.end_time);
-      const evt = cal.createEvent({ start, end, summary: `特別シフト: ${shift.user_name}`, timezone: TIMEZONE });
-      evt.uid(`special-${shift.uuid}@${APP_DOMAIN}`);
-      evt.description(`担当: ${shift.user_name}\n時間: ${shift.start_time}-${shift.end_time}`);
-    }
+    addMergedSpecialShiftApplicationEvents(cal, SpecialShiftApplicationModel.getAllWithShiftInfo(userId));
 
     return cal.toString();
   }

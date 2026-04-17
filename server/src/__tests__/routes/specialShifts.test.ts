@@ -3,6 +3,7 @@ import express, { Express } from 'express';
 import specialShiftsRouter from '../../routes/specialShifts';
 import { SpecialShiftModel } from '../../models/SpecialShift';
 import { SpecialShiftApplicationModel } from '../../models/SpecialShiftApplication';
+import { CalendarService } from '../../services/CalendarService';
 
 // Mock uuid
 jest.mock('uuid', () => ({
@@ -12,6 +13,7 @@ jest.mock('uuid', () => ({
 // Mock models
 jest.mock('../../models/SpecialShift');
 jest.mock('../../models/SpecialShiftApplication');
+jest.mock('../../services/CalendarService');
 jest.mock('../../database/db', () => ({
   default: {
     prepare: jest.fn().mockReturnValue({
@@ -31,6 +33,10 @@ describe('Special Shifts API Routes', () => {
     jest.clearAllMocks();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    // CalendarService のデフォルトモック
+    (CalendarService.syncSpecialShiftApplicationsForUserAndDate as jest.Mock)
+      .mockResolvedValue({ success: true });
 
     app = express();
     app.use(express.json());
@@ -91,6 +97,7 @@ describe('Special Shifts API Routes', () => {
       const mockShift = {
         uuid: 'shift-1',
         date: '2026-04-20',
+        name: '夏期特別シフト',
         start_time: '10:00',
         end_time: '12:00',
         user_id: 'admin-1',
@@ -100,11 +107,33 @@ describe('Special Shifts API Routes', () => {
 
       const response = await request(app)
         .post('/api/special-shifts')
-        .send({ date: '2026-04-20', start_time: '10:00', end_time: '12:00', user_id: 'admin-1', user_name: '管理者' });
+        .send({ date: '2026-04-20', name: '夏期特別シフト', start_time: '10:00', end_time: '12:00', user_id: 'admin-1', user_name: '管理者' });
 
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toEqual(mockShift);
+    });
+
+    test('name フィールドが SpecialShiftModel.create に渡される', async () => {
+      const mockShift = { uuid: 'shift-1', date: '2026-04-20', name: '特別A', start_time: '10:00', end_time: '12:00', user_id: 'admin-1', user_name: '管理者' };
+      (SpecialShiftModel.create as jest.Mock).mockReturnValue(mockShift);
+
+      await request(app)
+        .post('/api/special-shifts')
+        .send({ date: '2026-04-20', name: '特別A', start_time: '10:00', end_time: '12:00', user_id: 'admin-1', user_name: '管理者' });
+
+      expect(SpecialShiftModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: '特別A' })
+      );
+    });
+
+    test('name がない場合は400エラー', async () => {
+      const response = await request(app)
+        .post('/api/special-shifts')
+        .send({ date: '2026-04-20', start_time: '10:00', end_time: '12:00', user_id: 'admin-1', user_name: '管理者' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
     });
 
     test('必須フィールドが不足している場合は400エラー', async () => {
@@ -148,13 +177,19 @@ describe('Special Shifts API Routes', () => {
       {
         uuid: 'app-1', special_shift_uuid: 'shift-1',
         user_id: 'user-1', user_name: 'ユーザー1',
+        nickname: 'いしはらa', real_name: '石原浮也',
         time_slot: '10:00-10:30', date: '2026-04-20',
+        shift_name: '夏期特別シフト',
+        calendar_event_id: 'cal-event-123',
         created_at: '2026-04-17T00:00:00.000Z'
       },
       {
         uuid: 'app-2', special_shift_uuid: 'shift-1',
         user_id: 'user-2', user_name: 'ユーザー2',
+        nickname: null, real_name: null,
         time_slot: '10:30-11:00', date: '2026-04-20',
+        shift_name: '夏期特別シフト',
+        calendar_event_id: null,
         created_at: '2026-04-17T00:00:00.000Z'
       },
     ];
@@ -179,6 +214,38 @@ describe('Special Shifts API Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.data).toEqual(userApps);
       expect(SpecialShiftApplicationModel.getAllWithShiftInfo).toHaveBeenCalledWith('user-1');
+    });
+
+    test('レスポンスに calendar_event_id が含まれる', async () => {
+      (SpecialShiftApplicationModel.getAllWithShiftInfo as jest.Mock).mockReturnValue(mockAppsWithDate);
+
+      const response = await request(app).get('/api/special-shifts/applications');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data[0].calendar_event_id).toBe('cal-event-123');
+      expect(response.body.data[1].calendar_event_id).toBeNull();
+    });
+
+    test('レスポンスに nickname と real_name が含まれる', async () => {
+      (SpecialShiftApplicationModel.getAllWithShiftInfo as jest.Mock).mockReturnValue(mockAppsWithDate);
+
+      const response = await request(app).get('/api/special-shifts/applications');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data[0].nickname).toBe('いしはらa');
+      expect(response.body.data[0].real_name).toBe('石原浮也');
+      expect(response.body.data[1].nickname).toBeNull();
+      expect(response.body.data[1].real_name).toBeNull();
+    });
+
+    test('レスポンスに shift_name が含まれる', async () => {
+      (SpecialShiftApplicationModel.getAllWithShiftInfo as jest.Mock).mockReturnValue(mockAppsWithDate);
+
+      const response = await request(app).get('/api/special-shifts/applications');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data[0].shift_name).toBe('夏期特別シフト');
+      expect(response.body.data[1].shift_name).toBe('夏期特別シフト');
     });
 
     test('内部エラー時は500エラー', async () => {
@@ -329,6 +396,39 @@ describe('Special Shifts API Routes', () => {
       expect(response.body.success).toBe(false);
     });
 
+    test('申請成功後にカレンダー同期が呼ばれる', async () => {
+      const mockShift = { uuid: 'shift-1', date: '2026-04-20', start_time: '10:00', end_time: '12:00' };
+      const mockApp = { uuid: 'mock-uuid', special_shift_uuid: 'shift-1',
+        user_id: 'user-1', user_name: 'ユーザー1', time_slot: '10:00-10:30' };
+      (SpecialShiftModel.getByUuid as jest.Mock).mockReturnValue(mockShift);
+      (SpecialShiftApplicationModel.checkDuplicate as jest.Mock).mockReturnValue(false);
+      (SpecialShiftApplicationModel.create as jest.Mock).mockReturnValue(mockApp);
+
+      await request(app)
+        .post('/api/special-shifts/shift-1/apply')
+        .send({ user_id: 'user-1', user_name: 'ユーザー1', time_slot: '10:00-10:30' });
+
+      expect(CalendarService.syncSpecialShiftApplicationsForUserAndDate)
+        .toHaveBeenCalledWith('user-1', '2026-04-20');
+    });
+
+    test('カレンダー同期失敗でも201を返す（非致命的エラー）', async () => {
+      const mockShift = { uuid: 'shift-1', date: '2026-04-20' };
+      const mockApp = { uuid: 'mock-uuid', user_id: 'user-1', user_name: 'ユーザー1', time_slot: '10:00-10:30' };
+      (SpecialShiftModel.getByUuid as jest.Mock).mockReturnValue(mockShift);
+      (SpecialShiftApplicationModel.checkDuplicate as jest.Mock).mockReturnValue(false);
+      (SpecialShiftApplicationModel.create as jest.Mock).mockReturnValue(mockApp);
+      (CalendarService.syncSpecialShiftApplicationsForUserAndDate as jest.Mock)
+        .mockResolvedValue({ success: false, error: 'Calendar API error' });
+
+      const response = await request(app)
+        .post('/api/special-shifts/shift-1/apply')
+        .send({ user_id: 'user-1', user_name: 'ユーザー1', time_slot: '10:00-10:30' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+    });
+
     test('内部エラー時は500エラー', async () => {
       (SpecialShiftModel.getByUuid as jest.Mock).mockImplementation(() => {
         throw new Error('Database error');
@@ -394,6 +494,7 @@ describe('Special Shifts API Routes', () => {
       };
       (SpecialShiftApplicationModel.getByUuid as jest.Mock).mockReturnValue(mockApp);
       (SpecialShiftApplicationModel.delete as jest.Mock).mockReturnValue(true);
+      (SpecialShiftModel.getByUuid as jest.Mock).mockReturnValue({ uuid: 'shift-1', date: '2026-04-20' });
 
       const response = await request(app).delete('/api/special-shifts/applications/app-1');
 
@@ -401,6 +502,21 @@ describe('Special Shifts API Routes', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.message).toBe('申請をキャンセルしました');
       expect(SpecialShiftApplicationModel.delete).toHaveBeenCalledWith('app-1');
+    });
+
+    test('キャンセル後にカレンダー再同期が呼ばれる', async () => {
+      const mockApp = {
+        uuid: 'app-1', special_shift_uuid: 'shift-1',
+        user_id: 'user-1', user_name: 'ユーザー1'
+      };
+      (SpecialShiftApplicationModel.getByUuid as jest.Mock).mockReturnValue(mockApp);
+      (SpecialShiftApplicationModel.delete as jest.Mock).mockReturnValue(true);
+      (SpecialShiftModel.getByUuid as jest.Mock).mockReturnValue({ uuid: 'shift-1', date: '2026-04-20' });
+
+      await request(app).delete('/api/special-shifts/applications/app-1');
+
+      expect(CalendarService.syncSpecialShiftApplicationsForUserAndDate)
+        .toHaveBeenCalledWith('user-1', '2026-04-20');
     });
 
     test('申請が存在しない場合は404エラー', async () => {

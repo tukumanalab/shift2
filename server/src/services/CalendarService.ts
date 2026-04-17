@@ -3,7 +3,7 @@ import db from '../database/db';
 import { getCalendarClient } from '../utils/googleAuth';
 import { groupAndMergeShifts } from '../utils/timeSlotMerger';
 import { UserModel } from '../models/User';
-import { ShiftInfo, SyncResult, UserDisplayInfo, CalendarSyncResult } from '../types/calendar';
+import { ShiftInfo, SyncResult, UserDisplayInfo, CalendarSyncResult, MergedTimeSlot } from '../types/calendar';
 
 const TIMEZONE = process.env.TIMEZONE || 'Asia/Tokyo';
 
@@ -38,6 +38,63 @@ export class CalendarService {
     end.setHours(endHour, endMinute, 0, 0);
 
     return { start, end };
+  }
+
+  /**
+   * カレンダーイベントデータを構築
+   */
+  private static buildEventData(
+    displayName: string,
+    email: string,
+    slot: MergedTimeSlot,
+    summary?: string
+  ): calendar_v3.Schema$Event {
+    const timeRange = `${slot.start_time}-${slot.end_time}`;
+    const { start, end } = this.parseTimeSlot(slot.date, timeRange);
+
+    return {
+      summary: summary || displayName,
+      description: `担当者: ${displayName}\nメール: ${email}\n時間: ${timeRange}`,
+      location: 'つくまなラボ',
+      start: { dateTime: start.toISOString(), timeZone: TIMEZONE },
+      end: { dateTime: end.toISOString(), timeZone: TIMEZONE },
+      extendedProperties: {
+        private: {
+          user_id: slot.user_id,
+          user_email: email,
+          shift_time: timeRange,
+        },
+      },
+    };
+  }
+
+  /**
+   * マージされたスロットからカレンダーイベントを作成し、DBのcalendar_event_idを更新
+   */
+  private static async createAndLinkEvent(
+    calendar: calendar_v3.Calendar,
+    calendarId: string,
+    slot: MergedTimeSlot,
+    eventData: calendar_v3.Schema$Event,
+    updateTable: 'shifts' | 'special_shift_applications'
+  ): Promise<boolean> {
+    const response = await this.withRetry(() =>
+      calendar.events.insert({ calendarId, requestBody: eventData })
+    );
+
+    if (!response.data.id) {
+      console.error(`[Calendar] ✗ イベントIDが取得できませんでした`);
+      return false;
+    }
+
+    console.log(`[Calendar] ✓ イベント作成成功: ${response.data.id}`);
+    const updateStmt = db.prepare(
+      `UPDATE ${updateTable} SET calendar_event_id = ? WHERE uuid = ?`
+    );
+    for (const uuid of slot.shift_uuids) {
+      updateStmt.run(response.data.id, uuid);
+    }
+    return true;
   }
 
   /**
@@ -224,45 +281,12 @@ export class CalendarService {
             email: user.email,
           });
 
-          const timeRange = `${slot.start_time}-${slot.end_time}`;
-          const { start, end } = this.parseTimeSlot(slot.date, timeRange);
-
-          const eventData: calendar_v3.Schema$Event = {
-            summary: displayName,
-            description: `担当者: ${displayName}\nメール: ${user.email}\n時間: ${timeRange}`,
-            location: 'つくまなラボ',
-            start: {
-              dateTime: start.toISOString(),
-              timeZone: TIMEZONE,
-            },
-            end: {
-              dateTime: end.toISOString(),
-              timeZone: TIMEZONE,
-            },
-            extendedProperties: {
-              private: {
-                user_id: slot.user_id,
-                user_email: user.email,
-                shift_time: timeRange,
-              },
-            },
-          };
-
-          const response = await this.withRetry(() =>
-            calendar.events.insert({
-              calendarId,
-              requestBody: eventData,
-            })
+          const eventData = this.buildEventData(displayName, user.email, slot);
+          const success = await this.createAndLinkEvent(
+            calendar, calendarId, slot, eventData, 'shifts'
           );
 
-          if (response.data.id) {
-            // calendar_event_id を各シフトレコードに記録
-            const updateStmt = db.prepare('UPDATE shifts SET calendar_event_id = ? WHERE uuid = ?');
-
-            for (const shiftUuid of slot.shift_uuids) {
-              updateStmt.run(response.data.id, shiftUuid);
-            }
-
+          if (success) {
             created++;
           } else {
             failed++;
@@ -407,55 +431,9 @@ export class CalendarService {
       });
 
       // マージされたスロットごとにカレンダーイベントを作成
-      for (let i = 0; i < mergedSlots.length; i++) {
-        const slot = mergedSlots[i];
-        const timeRange = `${slot.start_time}-${slot.end_time}`;
-
-        console.log(`[Calendar] [${i + 1}/${mergedSlots.length}] イベント作成: ${timeRange}`);
-        console.log(`[Calendar]   含まれるシフトUUID: ${slot.shift_uuids.length}個`);
-
-        const { start, end } = this.parseTimeSlot(slot.date, timeRange);
-
-        const eventData: calendar_v3.Schema$Event = {
-          summary: displayName,
-          description: `担当者: ${displayName}\nメール: ${user.email}\n時間: ${timeRange}`,
-          location: 'つくまなラボ',
-          start: {
-            dateTime: start.toISOString(),
-            timeZone: TIMEZONE,
-          },
-          end: {
-            dateTime: end.toISOString(),
-            timeZone: TIMEZONE,
-          },
-          extendedProperties: {
-            private: {
-              user_id: slot.user_id,
-              user_email: user.email,
-              shift_time: timeRange,
-            },
-          },
-        };
-
-        const response = await this.withRetry(() =>
-          calendar.events.insert({
-            calendarId,
-            requestBody: eventData,
-          })
-        );
-
-        if (response.data.id) {
-          console.log(`[Calendar]   ✓ イベント作成成功: ${response.data.id}`);
-
-          // このマージされたスロットに含まれるすべてのシフトにcalendar_event_idを設定
-          const updateStmt = db.prepare('UPDATE shifts SET calendar_event_id = ? WHERE uuid = ?');
-          for (const shiftUuid of slot.shift_uuids) {
-            updateStmt.run(response.data.id, shiftUuid);
-          }
-          console.log(`[Calendar]   ✓ ${slot.shift_uuids.length}個のシフトにイベントIDを設定`);
-        } else {
-          console.error(`[Calendar]   ✗ イベントIDが取得できませんでした`);
-        }
+      for (const slot of mergedSlots) {
+        const eventData = this.buildEventData(displayName, user.email, slot);
+        await this.createAndLinkEvent(calendar, calendarId, slot, eventData, 'shifts');
       }
 
       console.log(`[Calendar] ==== シフト同期完了 ====`);
@@ -509,19 +487,121 @@ export class CalendarService {
   }
 
   /**
+   * 特定ユーザーの特定日付の特別シフト申請をカレンダーに同期
+   * 申請作成・キャンセル時に呼ばれ、連続する時間枠を自動的にマージします
+   */
+  static async syncSpecialShiftApplicationsForUserAndDate(
+    userId: string,
+    date: string
+  ): Promise<CalendarSyncResult> {
+    try {
+      console.log(`[Calendar] ==== 特別シフト申請同期開始 ====`);
+      console.log(`[Calendar] ユーザーID: ${userId}, 日付: ${date}`);
+
+      const { calendar, calendarId } = getCalendarClient();
+
+      // 該当ユーザー・日付の申請を取得（JOIN で日付を絞り込む）
+      const applications = db
+        .prepare(
+          `SELECT a.uuid, a.user_id, a.user_name, a.time_slot, a.calendar_event_id, s.date, s.name AS shift_name
+           FROM special_shift_applications a
+           JOIN special_shifts s ON a.special_shift_uuid = s.uuid
+           WHERE a.user_id = ? AND s.date = ?
+           ORDER BY a.time_slot`
+        )
+        .all(userId, date) as Array<{
+        uuid: string;
+        user_id: string;
+        user_name: string;
+        time_slot: string;
+        calendar_event_id: string | null;
+        date: string;
+        shift_name: string | null;
+      }>;
+
+      // 既存のカレンダーイベントIDを収集
+      const existingEventIds = [
+        ...new Set(
+          applications
+            .map((a) => a.calendar_event_id)
+            .filter((id): id is string => id !== null)
+        ),
+      ];
+
+      console.log(`[Calendar] 既存イベント数: ${existingEventIds.length}`);
+
+      // 既存のカレンダーイベントを削除
+      for (const eventId of existingEventIds) {
+        await this.deleteCalendarEvent(eventId);
+      }
+
+      // calendar_event_id をクリア
+      db.prepare(
+        `UPDATE special_shift_applications SET calendar_event_id = NULL
+         WHERE user_id = ? AND special_shift_uuid IN (
+           SELECT uuid FROM special_shifts WHERE date = ?
+         )`
+      ).run(userId, date);
+
+      if (applications.length === 0) {
+        console.log(`[Calendar] 申請が0件のため、削除のみで終了`);
+        console.log(`[Calendar] ==== 特別シフト申請同期完了 ====`);
+        return { success: true };
+      }
+
+      // ShiftInfo 形式に変換してマージ
+      const shiftNameByUuid = new Map(applications.map(a => [a.uuid, a.shift_name]));
+
+      const shiftInfos: ShiftInfo[] = applications.map((app) => ({
+        uuid: app.uuid,
+        user_id: app.user_id,
+        user_name: app.user_name,
+        date: app.date,
+        time_slot: app.time_slot,
+        type: 'shift' as const,
+      }));
+
+      const mergedSlots = groupAndMergeShifts(shiftInfos);
+      console.log(`[Calendar] マージ後のスロット数: ${mergedSlots.length}`);
+
+      const user = UserModel.getByUserId(userId);
+      if (!user) {
+        return { success: false, error: `ユーザーが見つかりません: ${userId}` };
+      }
+
+      const displayName = this.getDisplayName({
+        nickname: user.nickname,
+        real_name: user.real_name,
+        email: user.email,
+      });
+
+      for (const slot of mergedSlots) {
+        const shiftName = slot.shift_uuids.map(uuid => shiftNameByUuid.get(uuid)).find(n => n) || null;
+        const summary = shiftName ? `[${shiftName}] ${displayName}` : `[特別] ${displayName}`;
+        const eventData = this.buildEventData(displayName, user.email, slot, summary);
+        await this.createAndLinkEvent(calendar, calendarId, slot, eventData, 'special_shift_applications');
+      }
+
+      console.log(`[Calendar] ==== 特別シフト申請同期完了 ====`);
+      return { success: true };
+    } catch (error: any) {
+      console.error('[Calendar] ✗ 特別シフト申請同期エラー:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * 全シフト（通常シフトのみ）を取得
    * 注意: 特別シフトはカレンダーに同期されない
    */
   private static getAllShifts(): ShiftInfo[] {
-    const shifts: ShiftInfo[] = [];
-
-    // 通常シフトを取得（全期間）
-    const stmt = db.prepare(`
-      SELECT uuid, user_id, user_name, date, time_slot
-      FROM shifts
-      ORDER BY date, time_slot
-    `);
-    const regularShifts = stmt.all() as Array<{
+    const rows = db
+      .prepare(
+        `SELECT uuid, user_id, user_name, date, time_slot
+         FROM shifts
+         ORDER BY date, time_slot`
+      )
+      .all() as Array<{
       uuid: string;
       user_id: string;
       user_name: string;
@@ -529,18 +609,14 @@ export class CalendarService {
       time_slot: string;
     }>;
 
-    for (const shift of regularShifts) {
-      shifts.push({
-        uuid: shift.uuid,
-        user_id: shift.user_id,
-        user_name: shift.user_name,
-        date: shift.date,
-        time_slot: shift.time_slot,
-        type: 'shift',
-      });
-    }
-
-    return shifts;
+    return rows.map((shift) => ({
+      uuid: shift.uuid,
+      user_id: shift.user_id,
+      user_name: shift.user_name,
+      date: shift.date,
+      time_slot: shift.time_slot,
+      type: 'shift' as const,
+    }));
   }
 
   /**
@@ -597,10 +673,7 @@ export class CalendarService {
       console.log(`[Calendar] マージ後のスロット数: ${mergedSlots.length}`);
 
       // 各マージされたスロットでカレンダーイベントを作成
-      for (let i = 0; i < mergedSlots.length; i++) {
-        const slot = mergedSlots[i];
-
-        // ユーザー情報を取得
+      for (const slot of mergedSlots) {
         const user = UserModel.getByUserId(slot.user_id);
         if (!user) {
           console.error(`[Calendar] ユーザーが見つかりません: ${slot.user_id}`);
@@ -613,51 +686,8 @@ export class CalendarService {
           email: user.email,
         });
 
-        const timeRange = `${slot.start_time}-${slot.end_time}`;
-        console.log(`[Calendar] [${i + 1}/${mergedSlots.length}] イベント作成: ${timeRange}`);
-
-        const { start, end } = this.parseTimeSlot(slot.date, timeRange);
-
-        const eventData: calendar_v3.Schema$Event = {
-          summary: displayName,
-          description: `担当者: ${displayName}\nメール: ${user.email}\n時間: ${timeRange}`,
-          location: 'つくまなラボ',
-          start: {
-            dateTime: start.toISOString(),
-            timeZone: TIMEZONE,
-          },
-          end: {
-            dateTime: end.toISOString(),
-            timeZone: TIMEZONE,
-          },
-          extendedProperties: {
-            private: {
-              user_id: slot.user_id,
-              user_email: user.email,
-              shift_time: timeRange,
-            },
-          },
-        };
-
-        const response = await this.withRetry(() =>
-          calendar.events.insert({
-            calendarId,
-            requestBody: eventData,
-          })
-        );
-
-        if (response.data.id) {
-          console.log(`[Calendar] ✓ イベント作成成功: ${response.data.id}`);
-
-          // このマージされたスロットに含まれるすべてのシフトにcalendar_event_idを設定
-          const updateStmt = db.prepare('UPDATE shifts SET calendar_event_id = ? WHERE uuid = ?');
-          for (const shiftUuid of slot.shift_uuids) {
-            updateStmt.run(response.data.id, shiftUuid);
-          }
-          console.log(`[Calendar] ✓ ${slot.shift_uuids.length}個のシフトにイベントIDを設定`);
-        } else {
-          console.error(`[Calendar] ✗ イベントIDが取得できませんでした`);
-        }
+        const eventData = this.buildEventData(displayName, user.email, slot);
+        await this.createAndLinkEvent(calendar, calendarId, slot, eventData, 'shifts');
       }
 
       console.log(`[Calendar] ==== シフトグループのイベント作成完了 ====`);
@@ -671,29 +701,20 @@ export class CalendarService {
   /**
    * 同期ステータスを取得（通常シフトのみ）
    */
-  static getSyncStatus(): {
-    total_events: number;
-    last_synced: string | null;
-  } {
-    // calendar_event_id が設定されているシフトの数をカウント
-    const shiftsCount = db
+  static getSyncStatus(): { total_events: number; last_synced: string | null } {
+    const { count } = db
       .prepare('SELECT COUNT(*) as count FROM shifts WHERE calendar_event_id IS NOT NULL')
       .get() as { count: number };
 
-    const totalEvents = shiftsCount.count;
-
-    // 最新の updated_at を取得（last_synced の代わり）
-    const lastShiftUpdate = db
+    const lastUpdate = db
       .prepare(
         'SELECT updated_at FROM shifts WHERE calendar_event_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1'
       )
       .get() as { updated_at: string } | undefined;
 
-    const lastSynced = lastShiftUpdate ? lastShiftUpdate.updated_at : null;
-
     return {
-      total_events: totalEvents,
-      last_synced: lastSynced,
+      total_events: count,
+      last_synced: lastUpdate?.updated_at ?? null,
     };
   }
 }

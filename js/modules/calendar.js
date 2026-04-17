@@ -413,7 +413,6 @@ function openShiftDetailModal(dateKey) {
             `;
 
             timeSlotGroups[timeSlot].forEach(shift => {
-                console.log("shift", shift);
                 html += `
                     <div class="shift-detail-person">
                         <div class="shift-person-info">
@@ -514,7 +513,7 @@ function mergeShiftsByPerson(shiftsForDate) {
     // 個人ごとにグループ化（時間帯とUUIDのマッピングを保持）
     const shiftsByPerson = {};
     shiftsForDate.forEach(shift => {
-        const personKey = `${getShiftDisplayName(shift)}_${shift.userEmail || shift.email}`;
+        const personKey = `${getShiftDisplayName(shift)}_${shift.userEmail || shift.email}_${shift.isSpecial ? 'special' : 'regular'}`;
         if (!shiftsByPerson[personKey]) {
             shiftsByPerson[personKey] = {
                 person: shift,
@@ -604,9 +603,22 @@ function displayShiftsForDate(container, dateKey) {
         const peopleDiv = document.createElement('div');
         peopleDiv.className = 'shift-people';
 
+        // 特別シフト名をグループヘッダーとして一度だけ表示
+        const specialNames = [...new Set(
+            timeSlotGroups[timeSlot]
+                .filter(s => s.isSpecial && s.shiftName)
+                .map(s => s.shiftName)
+        )];
+        specialNames.forEach(name => {
+            const nameLabel = document.createElement('div');
+            nameLabel.className = 'shift-name-label';
+            nameLabel.textContent = name;
+            peopleDiv.appendChild(nameLabel);
+        });
+
         timeSlotGroups[timeSlot].forEach(shift => {
             const personDiv = document.createElement('div');
-            personDiv.className = 'shift-person';
+            personDiv.className = 'shift-person' + (shift.isSpecial ? ' shift-person--special' : '');
             const displayName = getShiftDisplayName(shift);
             personDiv.title = displayName;
 
@@ -621,6 +633,13 @@ function displayShiftsForDate(container, dateKey) {
                     updateCalendarActionBar();
                 });
                 personDiv.appendChild(checkbox);
+            }
+
+            if (shift.isSpecial) {
+                const badge = document.createElement('span');
+                badge.className = 'special-badge';
+                badge.textContent = '特別';
+                personDiv.appendChild(badge);
             }
 
             const nameSpan = document.createElement('span');

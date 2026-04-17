@@ -14,6 +14,10 @@ export interface SpecialShiftApplication {
 
 export interface SpecialShiftApplicationWithDate extends SpecialShiftApplication {
   date: string;
+  shift_name: string | null;
+  calendar_event_id: string | null;
+  nickname: string | null;
+  real_name: string | null;
 }
 
 export interface SpecialShiftApplicationCreateData {
@@ -98,9 +102,12 @@ export class SpecialShiftApplicationModel {
     try {
       const sql = `
         SELECT a.uuid, a.special_shift_uuid, a.user_id, a.user_name,
-               a.time_slot, a.created_at, a.updated_at, s.date
+               a.time_slot, a.calendar_event_id, a.created_at, a.updated_at,
+               s.date, s.name AS shift_name,
+               u.nickname, u.real_name
         FROM special_shift_applications a
         JOIN special_shifts s ON a.special_shift_uuid = s.uuid
+        LEFT JOIN users u ON a.user_id = u.user_id
         ${userId ? 'WHERE a.user_id = ?' : ''}
         ORDER BY s.date ASC, a.time_slot ASC
       `;
@@ -155,6 +162,22 @@ export class SpecialShiftApplicationModel {
     } catch (error) {
       console.error('Error creating special shift application:', error);
       return null;
+    }
+  }
+
+  /**
+   * calendar_event_idを更新
+   */
+  static updateCalendarEventId(uuid: string, calendarEventId: string | null): boolean {
+    try {
+      const stmt = db.prepare(`
+        UPDATE special_shift_applications SET calendar_event_id = ? WHERE uuid = ?
+      `);
+      const result = stmt.run(calendarEventId, uuid);
+      return result.changes > 0;
+    } catch (error) {
+      console.error('Error updating calendar_event_id:', error);
+      return false;
     }
   }
 

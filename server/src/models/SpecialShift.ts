@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface SpecialShift {
   id: number;
   uuid: string;
+  name: string | null;
   date: string;
   start_time: string;
   end_time: string;
@@ -14,6 +15,7 @@ export interface SpecialShift {
 }
 
 export interface SpecialShiftCreateData {
+  name: string;
   date: string;
   start_time: string;
   end_time: string;
@@ -95,12 +97,13 @@ export class SpecialShiftModel {
     try {
       const uuid = uuidv4();
       const stmt = db.prepare(`
-        INSERT INTO special_shifts (uuid, date, start_time, end_time, user_id, user_name)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO special_shifts (uuid, name, date, start_time, end_time, user_id, user_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
 
       const result = stmt.run(
         uuid,
+        data.name,
         data.date,
         data.start_time,
         data.end_time,

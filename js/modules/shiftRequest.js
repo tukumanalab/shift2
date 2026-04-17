@@ -5,7 +5,6 @@
  * 人数設定データとシフト申請数を並行して読み込み、カレンダーを生成する
  */
 async function loadShiftRequestForm() {
-    console.log('シフト申請フォームを読み込み中...');
     const container = document.getElementById('shiftRequestContent');
     if (!container) return;
 
@@ -56,13 +55,10 @@ async function fetchCapacityFromSpreadsheet() {
     }
 
     try {
-        console.log('人数設定を読み込み中...');
-
         const response = await fetch(`${config.API_BASE_URL}/capacity-settings`);
         const result = await response.json();
 
         if (result.success) {
-            console.log('人数設定をSQLiteから読み込みました:', result.data);
             return result.data || [];
         } else {
             console.error('人数設定の読み込みに失敗:', result.error);
@@ -676,8 +672,6 @@ function closeDateDetailModal() {
  * 日付詳細モーダルでシフト申請を送信する関数
  */
 async function submitDateDetailShiftRequest() {
-    console.log('submitDateDetailShiftRequest called');
-
     const currentUser = getCurrentUser();
     if (!currentUser) {
         alert('ログインが必要です。');
@@ -930,6 +924,14 @@ async function openSpecialShiftApplicationModal(dateKey, currentUser, container,
     specialShifts.forEach((shift, index) => {
         const result = applicationsResults[index];
         const applications = (result && result.success) ? result.data : [];
+
+        // 特別シフト名を表示
+        if (shift.name) {
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'special-shift-name';
+            nameDiv.textContent = shift.name;
+            container.appendChild(nameDiv);
+        }
 
         const slots = buildSpecialShiftSlots(shift.start_time, shift.end_time);
         slots.forEach(slot => {
