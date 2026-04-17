@@ -28,14 +28,22 @@ async function loadAllShiftsTable(page = 1) {
     `;
 
     try {
-        // バックエンドAPIから全シフトを取得
-        const shiftsResult = await API.getAllShifts();
+        // 通常シフトと特別シフト申請を並行取得
+        const [shiftsResult, specialResult] = await Promise.all([
+            API.getAllShifts(),
+            API.getAllSpecialShiftApplications()
+        ]);
 
         if (!shiftsResult.success) {
             throw new Error(shiftsResult.error || '全シフトの取得に失敗しました');
         }
 
-        const shifts = shiftsResult.data || [];
+        const regularShifts = shiftsResult.data || [];
+        const specialShifts = (specialResult.success && specialResult.data || []).map(app => ({
+            ...app, is_special: true, calendar_event_id: null
+        }));
+
+        const shifts = [...regularShifts, ...specialShifts];
 
         // シフト一覧を表示
         displayAllShiftsTable(shifts, page, 50);
@@ -191,10 +199,12 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
                             <td style="text-align: center;"><input type="checkbox" class="shift-row-checkbox" data-shift-uuid="${escapeHtml(shift.uuid)}" data-shift-info="${escapeHtml(shift.user_name)} / ${escapeHtml(shift.date)} ${escapeHtml(shift.time_slot)}"></td>
                             <td>${escapeHtml(shift.user_name)}</td>
                             <td>${formatDateWithWeekday(shift.date)}</td>
-                            <td>${escapeHtml(shift.time_slot)}</td>
+                            <td>${escapeHtml(shift.time_slot)}${shift.is_special ? ' <span class="special-badge">特別</span>' : ''}</td>
                             <td>${formatDateTime(shift.created_at)}</td>
                             <td style="text-align: center;">
-                                ${shift.calendar_event_id ? '<span style="color: #4CAF50;">✓</span>' : '<span style="color: #999;">-</span>'}
+                                ${shift.is_special
+                                    ? '<span class="special-shift-label" style="font-size:11px;color:#7b5ea7;">特別</span>'
+                                    : (shift.calendar_event_id ? '<span style="color: #4CAF50;">✓</span>' : '<span style="color: #999;">-</span>')}
                             </td>
                             <td>
                                 <button class="delete-shift-table-btn" data-shift-uuid="${escapeHtml(shift.uuid)}" data-shift-info="${escapeHtml(shift.user_name)} / ${escapeHtml(shift.date)} ${escapeHtml(shift.time_slot)}">

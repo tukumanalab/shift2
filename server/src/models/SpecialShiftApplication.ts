@@ -12,6 +12,10 @@ export interface SpecialShiftApplication {
   updated_at: string;
 }
 
+export interface SpecialShiftApplicationWithDate extends SpecialShiftApplication {
+  date: string;
+}
+
 export interface SpecialShiftApplicationCreateData {
   special_shift_uuid: string;
   user_id: string;
@@ -82,6 +86,28 @@ export class SpecialShiftApplicationModel {
       return stmt.all(userId) as SpecialShiftApplication[];
     } catch (error) {
       console.error('Error getting special shift applications by user_id:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 全申請を特別シフトの日付情報付きで取得（シフト一覧表示用）
+   * @param userId - 省略時は全ユーザー
+   */
+  static getAllWithShiftInfo(userId?: string): SpecialShiftApplicationWithDate[] {
+    try {
+      const sql = `
+        SELECT a.uuid, a.special_shift_uuid, a.user_id, a.user_name,
+               a.time_slot, a.created_at, a.updated_at, s.date
+        FROM special_shift_applications a
+        JOIN special_shifts s ON a.special_shift_uuid = s.uuid
+        ${userId ? 'WHERE a.user_id = ?' : ''}
+        ORDER BY s.date ASC, a.time_slot ASC
+      `;
+      const stmt = db.prepare(sql);
+      return (userId ? stmt.all(userId) : stmt.all()) as SpecialShiftApplicationWithDate[];
+    } catch (error) {
+      console.error('Error getting special shift applications with shift info:', error);
       return [];
     }
   }

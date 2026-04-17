@@ -140,6 +140,59 @@ describe('Special Shifts API Routes', () => {
   });
 
   // ============================================================
+  // 新機能: 全申請一覧（シフト一覧表示用）
+  // ============================================================
+
+  describe('GET /api/special-shifts/applications', () => {
+    const mockAppsWithDate = [
+      {
+        uuid: 'app-1', special_shift_uuid: 'shift-1',
+        user_id: 'user-1', user_name: 'ユーザー1',
+        time_slot: '10:00-10:30', date: '2026-04-20',
+        created_at: '2026-04-17T00:00:00.000Z'
+      },
+      {
+        uuid: 'app-2', special_shift_uuid: 'shift-1',
+        user_id: 'user-2', user_name: 'ユーザー2',
+        time_slot: '10:30-11:00', date: '2026-04-20',
+        created_at: '2026-04-17T00:00:00.000Z'
+      },
+    ];
+
+    test('すべての申請を日付情報付きで取得できる', async () => {
+      (SpecialShiftApplicationModel.getAllWithShiftInfo as jest.Mock).mockReturnValue(mockAppsWithDate);
+
+      const response = await request(app).get('/api/special-shifts/applications');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toEqual(mockAppsWithDate);
+      expect(SpecialShiftApplicationModel.getAllWithShiftInfo).toHaveBeenCalledWith(undefined);
+    });
+
+    test('userId クエリパラメータで絞り込める', async () => {
+      const userApps = mockAppsWithDate.filter(a => a.user_id === 'user-1');
+      (SpecialShiftApplicationModel.getAllWithShiftInfo as jest.Mock).mockReturnValue(userApps);
+
+      const response = await request(app).get('/api/special-shifts/applications?userId=user-1');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual(userApps);
+      expect(SpecialShiftApplicationModel.getAllWithShiftInfo).toHaveBeenCalledWith('user-1');
+    });
+
+    test('内部エラー時は500エラー', async () => {
+      (SpecialShiftApplicationModel.getAllWithShiftInfo as jest.Mock).mockImplementation(() => {
+        throw new Error('DB error');
+      });
+
+      const response = await request(app).get('/api/special-shifts/applications');
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  // ============================================================
   // 新機能: 特別シフト申請
   // ============================================================
 

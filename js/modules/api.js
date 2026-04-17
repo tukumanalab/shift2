@@ -153,6 +153,13 @@ const API = {
         return await response.json();
     },
 
+    // 全特別シフト申請を日付情報付きで取得（シフト一覧表示用）
+    async getAllSpecialShiftApplications(userId) {
+        const query = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+        const response = await fetch(`${config.API_BASE_URL}/special-shifts/applications${query}`);
+        return await response.json();
+    },
+
     // 特別シフト申請をキャンセル
     async cancelSpecialShiftApplication(appUuid) {
         const response = await fetch(`${config.API_BASE_URL}/special-shifts/applications/${appUuid}`, {

@@ -38,6 +38,23 @@ router.get('/', (req, res) => {
 });
 
 /**
+ * GET /api/special-shifts/applications
+ * 全申請を日付情報付きで取得（シフト一覧表示用）
+ * クエリパラメータ:
+ *   - userId: 特定ユーザーの申請のみ取得
+ */
+router.get('/applications', (req, res) => {
+  try {
+    const userId = req.query.userId as string | undefined;
+    const applications = SpecialShiftApplicationModel.getAllWithShiftInfo(userId);
+    res.json({ success: true, data: applications });
+  } catch (error) {
+    console.error('Error getting all special shift applications:', error);
+    res.status(500).json({ success: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+/**
  * GET /api/special-shifts/:uuid
  * UUIDで特別シフトを取得
  */
