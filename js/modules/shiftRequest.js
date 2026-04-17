@@ -561,22 +561,7 @@ function checkHasSpecialShifts(dateKey) {
     if (!Array.isArray(specialShifts) || specialShifts.length === 0) {
         return false;
     }
-
-    return specialShifts.some(shift => {
-        // 日付文字列を YYYY-MM-DD 形式に変換して比較
-        let shiftDate = shift.date;
-        if (typeof shiftDate === 'string' && shiftDate.includes('T')) {
-            // ISO形式の場合は日付部分のみを抽出
-            shiftDate = shiftDate.split('T')[0];
-        } else if (shiftDate instanceof Date) {
-            // Dateオブジェクトの場合はYYYY-MM-DD形式に変換
-            const year = shiftDate.getFullYear();
-            const month = String(shiftDate.getMonth() + 1).padStart(2, '0');
-            const day = String(shiftDate.getDate()).padStart(2, '0');
-            shiftDate = `${year}-${month}-${day}`;
-        }
-        return shiftDate === dateKey;
-    });
+    return specialShifts.some(shift => normalizeShiftDate(shift.date) === dateKey);
 }
 
 /**
@@ -705,10 +690,6 @@ async function submitDateDetailShiftRequest() {
         return;
     }
 
-    // 特別シフトかどうかをチェック
-    const hasSpecialShifts = checkHasSpecialShifts(currentDetailDateKey);
-    const remarks = hasSpecialShifts ? '(特別シフト)' : (document.getElementById('dateDetailRemarks')?.value.trim() || 'シフト'); // 備考欄の内容
-
     // ボタンを無効化してローディング表示
     const modal = document.getElementById('dateDetailModal');
     const submitBtn = modal.querySelector('.submit-btn');
@@ -727,22 +708,17 @@ async function submitDateDetailShiftRequest() {
     try {
         // 特別シフトスロットのマップを構築（timeSlot → specialShiftUuid）
         const specialSlotMap = new Map();
-        const allSpecialShifts = getSpecialShifts().filter(shift => {
-            const d = typeof shift.date === 'string' && shift.date.includes('T')
-                ? shift.date.split('T')[0] : shift.date;
-            return d === currentDetailDateKey;
-        });
-        allSpecialShifts.forEach(shift => {
-            buildSpecialShiftSlots(shift.start_time, shift.end_time).forEach(slot => {
+        for (const shift of getSpecialShiftsForDate(currentDetailDateKey)) {
+            for (const slot of buildSpecialShiftSlots(shift.start_time, shift.end_time)) {
                 specialSlotMap.set(slot, shift.uuid);
-            });
-        });
+            }
+        }
 
         const regularSlots = selectedTimeSlots.filter(s => !specialSlotMap.has(s));
         const specialSlots  = selectedTimeSlots.filter(s =>  specialSlotMap.has(s));
 
         // 通常スロット申請
-        let successSlots = [];
+        const successSlots = [];
         if (regularSlots.length > 0) {
             const results = await API.createMultipleShifts({
                 user_id: currentUser.sub,
@@ -753,7 +729,7 @@ async function submitDateDetailShiftRequest() {
             if (!results.success) {
                 throw new Error(results.error || 'シフト申請に失敗しました');
             }
-            successSlots = successSlots.concat(results.processed || []);
+            successSlots.push(...(results.processed || []));
         }
 
         // 特別スロット申請（スロットごとに個別送信）
@@ -858,6 +834,28 @@ function updateSingleDateCapacity(dateKey, capacityData) {
 // switchToTab 関数は ui.js で定義されているため、ここでは定義しない
 
 /**
+ * 時刻文字列（HH:MM）を分数に変換する
+ * @param {string} time - HH:MM形式の時刻
+ * @returns {number} 分数（不正な入力の場合はNaN）
+ */
+function timeToMinutes(time) {
+    const [h, m] = time.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return NaN;
+    return h * 60 + m;
+}
+
+/**
+ * 分数をHH:MM形式の時刻文字列に変換する
+ * @param {number} mins - 分数
+ * @returns {string} HH:MM形式の時刻
+ */
+function minutesToTime(mins) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/**
  * 特別シフトの時間帯を30分スロットに分割する純粋関数
  * @param {string} startTime - 開始時刻（HH:MM形式）
  * @param {string} endTime - 終了時刻（HH:MM形式）
@@ -866,27 +864,43 @@ function updateSingleDateCapacity(dateKey, capacityData) {
 function buildSpecialShiftSlots(startTime, endTime) {
     if (!startTime || !endTime) return [];
 
-    const toMinutes = (t) => {
-        const [h, m] = t.split(':').map(Number);
-        if (isNaN(h) || isNaN(m)) return NaN;
-        return h * 60 + m;
-    };
-    const toTime = (mins) => {
-        const h = Math.floor(mins / 60);
-        const m = mins % 60;
-        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    };
-
-    const startMins = toMinutes(startTime);
-    const endMins = toMinutes(endTime);
+    const startMins = timeToMinutes(startTime);
+    const endMins = timeToMinutes(endTime);
 
     if (isNaN(startMins) || isNaN(endMins) || startMins >= endMins) return [];
 
     const slots = [];
     for (let cur = startMins; cur < endMins; cur += 30) {
-        slots.push(`${toTime(cur)}-${toTime(cur + 30)}`);
+        slots.push(`${minutesToTime(cur)}-${minutesToTime(cur + 30)}`);
     }
     return slots;
+}
+
+/**
+ * シフトの日付をYYYY-MM-DD形式に正規化する
+ * @param {string|Date} date - 日付（ISO文字列、YYYY-MM-DD、またはDateオブジェクト）
+ * @returns {string} YYYY-MM-DD形式の日付文字列
+ */
+function normalizeShiftDate(date) {
+    if (date instanceof Date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    if (typeof date === 'string' && date.includes('T')) {
+        return date.split('T')[0];
+    }
+    return String(date);
+}
+
+/**
+ * 指定日付の特別シフトを取得する
+ * @param {string} dateKey - 日付キー（YYYY-MM-DD形式）
+ * @returns {Array} 該当日の特別シフト配列
+ */
+function getSpecialShiftsForDate(dateKey) {
+    return getSpecialShifts().filter(shift => normalizeShiftDate(shift.date) === dateKey);
 }
 
 /**
@@ -898,11 +912,7 @@ function buildSpecialShiftSlots(startTime, endTime) {
  * @param {HTMLElement} title - タイトル要素
  */
 async function openSpecialShiftApplicationModal(dateKey, currentUser, container, modal, title) {
-    const specialShifts = getSpecialShifts().filter(shift => {
-        const d = typeof shift.date === 'string' && shift.date.includes('T')
-            ? shift.date.split('T')[0] : shift.date;
-        return d === dateKey;
-    });
+    const specialShifts = getSpecialShiftsForDate(dateKey);
 
     // 各特別シフトへの申請済みスロットを並行取得
     const applicationsResults = await Promise.all(
@@ -910,14 +920,13 @@ async function openSpecialShiftApplicationModal(dateKey, currentUser, container,
     );
 
     specialShifts.forEach((shift, index) => {
-        const applications = (applicationsResults[index] && applicationsResults[index].success)
-            ? applicationsResults[index].data : [];
+        const result = applicationsResults[index];
+        const applications = (result && result.success) ? result.data : [];
 
         const slots = buildSpecialShiftSlots(shift.start_time, shift.end_time);
         slots.forEach(slot => {
-            const isApplied = currentUser
-                ? applications.some(app => app.user_id === currentUser.sub && app.time_slot === slot)
-                : false;
+            const isApplied = currentUser &&
+                applications.some(app => app.user_id === currentUser.sub && app.time_slot === slot);
 
             const slotDiv = document.createElement('div');
             slotDiv.className = 'date-detail-slot';
