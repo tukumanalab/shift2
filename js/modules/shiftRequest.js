@@ -919,6 +919,12 @@ async function openSpecialShiftApplicationModal(dateKey, currentUser, container,
         specialShifts.map(shift => API.getSpecialShiftApplications(shift.uuid))
     );
 
+    const heading = document.createElement('div');
+    heading.className = 'special-shift-heading';
+    heading.textContent = '特別シフト申請';
+    heading.style.cssText = 'font-size: 13px; color: #666; margin: 0 0 8px; font-weight: bold;';
+    container.appendChild(heading);
+
     specialShifts.forEach((shift, index) => {
         const result = applicationsResults[index];
         const applications = (result && result.success) ? result.data : [];
