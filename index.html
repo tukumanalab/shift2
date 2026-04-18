@@ -562,6 +562,7 @@
             color: #333;
             font-size: 10px;
             margin-bottom: 1px;
+            text-align: left;
         }
         .shift-people {
             display: flex;
@@ -578,7 +579,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 120px; /* 60pxから120pxに拡大 */
+            max-width: 160px;
             display: flex;
             align-items: center;
             gap: 2px;
@@ -813,7 +814,18 @@
             align-items: center;
             position: relative;
         }
-        
+
+        .special-shift-item-name {
+            font-size: 10px;
+            font-weight: bold;
+            color: #155724;
+            margin-right: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 80px;
+        }
+
         .special-shift-time {
             color: #155724;
             font-weight: bold;
@@ -886,6 +898,7 @@
             font-weight: 500;
         }
         .admin-memo-display {
+            display: none;
             font-size: 11px;
             color: #555;
             text-align: center;
@@ -894,7 +907,6 @@
             background-color: #fff3cd;
             border-radius: 2px;
             padding: 3px;
-            min-height: 12px;
             border: 1px solid #ffeaa7;
             font-weight: 500;
         }
@@ -1672,6 +1684,31 @@
             border: 1px solid rgba(76, 175, 80, 0.3);
         }
 
+        /* 特別シフト名 */
+        .special-shift-name {
+            font-size: 13px;
+            font-weight: bold;
+            color: #e65100;
+            margin: 8px 0 4px;
+            padding: 2px 0;
+            border-bottom: 1px solid #ffb74d;
+        }
+
+        .shift-name-label {
+            font-size: 10px;
+            font-weight: bold;
+            color: #e65100;
+            margin: 2px 0 1px;
+            padding: 1px 3px;
+            background-color: #fff3e0;
+            border-left: 2px solid #e65100;
+            border-radius: 0 2px 2px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
         /* 日付詳細モーダル用スタイル */
         .date-detail-slot {
             display: flex;
@@ -2057,7 +2094,6 @@
             .admin-memo-display {
                 font-size: 8px;
                 padding: 1px;
-                min-height: 8px;
             }
             
             .tab-button {
@@ -2188,6 +2224,35 @@
         .shift-person.is-selected {
             background-color: #c8e6c9;
             color: #1b5e20;
+        }
+
+        .shift-person--special {
+        }
+
+        .special-badge {
+            display: inline-block;
+            background-color: #ff6f00;
+            color: #fff;
+            font-size: 10px;
+            padding: 0 3px;
+            border-radius: 3px;
+            vertical-align: middle;
+            line-height: 1.4;
+            width: 28px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .special-badge-placeholder {
+            display: inline-block;
+            width: 28px;
+            flex-shrink: 0;
+        }
+
+        .shift-time-inner {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         /* 全シフト一覧テーブルのスタイル */
@@ -2680,6 +2745,10 @@
                     <div class="form-group">
                         <label>日付:</label>
                         <div id="specialShiftDate" class="date-display"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="specialShiftName">シフト名:</label>
+                        <input type="text" id="specialShiftName" name="name" placeholder="例：夏期特別シフト" required style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
                     </div>
                     <div class="form-group">
                         <label for="specialShiftStartTime">開始時刻:</label>

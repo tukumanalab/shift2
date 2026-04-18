@@ -80,9 +80,23 @@ db.exec(`
   )
 `);
 
+// nameカラムの追加（既存DBへのマイグレーション）
+try {
+  db.exec(`ALTER TABLE special_shifts ADD COLUMN name TEXT`);
+} catch {
+  // カラムが既に存在する場合は無視
+}
+
 // time_slotカラムの追加（既存DBへのマイグレーション）
 try {
   db.exec(`ALTER TABLE special_shift_applications ADD COLUMN time_slot TEXT NOT NULL DEFAULT ''`);
+} catch {
+  // カラムが既に存在する場合は無視
+}
+
+// calendar_event_idカラムの追加（既存DBへのマイグレーション）
+try {
+  db.exec(`ALTER TABLE special_shift_applications ADD COLUMN calendar_event_id TEXT`);
 } catch {
   // カラムが既に存在する場合は無視
 }

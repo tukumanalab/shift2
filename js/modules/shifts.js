@@ -58,9 +58,12 @@ async function displayShiftList() {
             timeSlot: app.time_slot,
             userId: app.user_id,
             userName: app.user_name,
+            nickname: app.nickname,
+            realName: app.real_name,
             uuid: app.uuid,
             registrationDate: app.created_at,
-            isSpecial: true
+            isSpecial: true,
+            shiftName: app.shift_name || null
         }));
 
         const allShifts = [...regularShifts, ...specialShifts];
@@ -135,8 +138,6 @@ async function copyIcalUrl() {
 
 // 管理者用シフト一覧を読み込む
 async function loadShiftList() {
-    console.log('管理者モード: 全員のシフト一覧を読み込み中...');
-
     updateIcalUrl();
 
     const container = document.getElementById('shiftCalendarContainer');
@@ -156,23 +157,14 @@ async function loadShiftList() {
 
 // 自分のシフト一覧を読み込む
 async function loadMyShifts() {
-    console.log('自分のシフト一覧を表示中...');
     const container = document.getElementById('myShiftsContent');
-    if (!container) {
-        console.error('[loadMyShifts] myShiftsContent コンテナが見つかりません');
-        return;
-    }
+    if (!container) return;
 
     const currentUser = getCurrentUser();
-    console.log('[loadMyShifts] currentUser:', currentUser);
-
     if (!currentUser) {
-        console.error('[loadMyShifts] ユーザーがログインしていません');
         container.innerHTML = '<p>ログインが必要です。</p>';
         return;
     }
-
-    console.log('[loadMyShifts] userId:', currentUser.sub);
 
     // ローディング表示
     container.innerHTML = `
@@ -183,16 +175,13 @@ async function loadMyShifts() {
     `;
 
     try {
-        console.log('[loadMyShifts] APIリクエスト開始');
         // 通常シフトと特別シフト申請を並行取得
         const [result, specialResult] = await Promise.all([
             API.getUserShifts(currentUser.sub),
             API.getAllSpecialShiftApplications(currentUser.sub)
         ]);
-        console.log('[loadMyShifts] APIレスポンス:', result);
 
         if (result.success) {
-            console.log('[loadMyShifts] データ取得成功。件数:', result.data?.length || 0);
             const myShifts = (result.data || []).map(shift => ({
                 shiftDate: shift.date,
                 timeSlot: shift.time_slot,
@@ -210,17 +199,16 @@ async function loadMyShifts() {
                 userName: app.user_name,
                 uuid: app.uuid,
                 registrationDate: app.created_at,
-                isSpecial: true
+                isSpecial: true,
+                shiftName: app.shift_name || null
             }));
 
             displayMyShifts(container, [...myShifts, ...mySpecialShifts]);
         } else {
-            console.error('[loadMyShifts] result.success が false:', result);
             container.innerHTML = '<p>シフトデータの取得に失敗しました。</p>';
         }
     } catch (error) {
-        console.error('[loadMyShifts] エラー発生:', error);
-        console.error('[loadMyShifts] エラーの詳細:', error.message, error.stack);
+        console.error('シフトデータの読み込みに失敗:', error);
         container.innerHTML = `<p>シフトデータの読み込みに失敗しました。</p><p style="color: red; font-size: 0.8em;">エラー: ${error.message}</p>`;
     }
 }
@@ -294,14 +282,50 @@ function displayMyShifts(container, shiftsData) {
         });
     });
 
-    // 特別シフト: 個別行として追加（マージなし）
+    // 特別シフト: 通常シフトと同様に日付ごとにグループ化してマージ
+    const specialByDate = {};
     specialShiftsData.forEach(shift => {
-        mergedShifts.push({
-            shiftDate: shift.shiftDate,
-            timeSlot: shift.timeSlot,
-            uuids: [shift.uuid],
-            registrationDate: shift.registrationDate,
-            isSpecial: true
+        const date = shift.shiftDate;
+        if (!specialByDate[date]) {
+            specialByDate[date] = {
+                shifts: [],
+                registrationDate: shift.registrationDate,
+                uuidMap: {},
+                shiftNameMap: {}
+            };
+        }
+        specialByDate[date].shifts.push(shift.timeSlot);
+        specialByDate[date].uuidMap[shift.timeSlot] = shift.uuid;
+        specialByDate[date].shiftNameMap[shift.timeSlot] = shift.shiftName || null;
+    });
+
+    Object.keys(specialByDate).forEach(date => {
+        const dateData = specialByDate[date];
+        const mergedTimeSlots = mergeConsecutiveTimeSlots(dateData.shifts);
+
+        mergedTimeSlots.forEach(timeSlot => {
+            const uuids = [];
+            const [rangeStart, rangeEnd] = timeSlot.split('-');
+            const originalSlots = dateData.shifts.filter(slot => {
+                const [slotStart] = slot.split('-');
+                return slotStart >= rangeStart && slotStart < rangeEnd;
+            });
+            originalSlots.forEach(slot => {
+                if (dateData.uuidMap[slot]) uuids.push(dateData.uuidMap[slot]);
+            });
+
+            const shiftName = originalSlots.length > 0
+                ? (dateData.shiftNameMap[originalSlots[0]] || null)
+                : null;
+
+            mergedShifts.push({
+                shiftDate: date,
+                timeSlot: timeSlot,
+                uuids: uuids,
+                registrationDate: dateData.registrationDate,
+                isSpecial: true,
+                shiftName: shiftName
+            });
         });
     });
 
@@ -350,24 +374,24 @@ function displayMyShifts(container, shiftsData) {
         const canDelete = shiftDate >= tomorrow; // 翌日以降のみ削除可能
         const rowClass = isPastOrToday ? 'past-shift' : 'future-shift';
 
-        // 特別シフトバッジ
+        // 特別シフトバッジ（通常シフトはプレースホルダーで時間位置をそろえる）
         const specialBadge = shift.isSpecial
             ? '<span class="special-badge">特別</span>'
-            : '';
+            : '<span class="special-badge-placeholder"></span>';
 
         // 削除ボタンの表示（翌日以降のシフトのみ）
         const deleteButtonHTML = canDelete ?
             `<td class="shift-actions">
-                <button class="my-shift-delete-btn" onclick="deleteMyShift(this, [${(shift.uuids || []).map(uuid => `'${uuid}'`).join(',')}])">
+                <button class="my-shift-delete-btn" onclick="deleteMyShift(this, [${(shift.uuids || []).map(uuid => `'${uuid}'`).join(',')}], ${shift.isSpecial})">
                     削除
                 </button>
             </td>` :
             '<td class="shift-actions">-</td>';
 
-        // チェックボックス（翌日以降の通常シフトのみ有効）
+        // チェックボックス（翌日以降のシフトのみ有効。特別シフトも含む）
         const uuidsStr = (shift.uuids || []).join(',');
-        const checkboxHTML = (canDelete && !shift.isSpecial)
-            ? `<td style="text-align: center;"><input type="checkbox" class="my-shift-row-checkbox" data-uuids="${uuidsStr}" data-date="${shift.shiftDate}" data-time="${shift.timeSlot}"></td>`
+        const checkboxHTML = canDelete
+            ? `<td style="text-align: center;"><input type="checkbox" class="my-shift-row-checkbox" data-uuids="${uuidsStr}" data-type="${shift.isSpecial ? 'special' : 'regular'}" data-date="${shift.shiftDate}" data-time="${shift.timeSlot}"></td>`
             : `<td style="text-align: center;"><input type="checkbox" disabled style="opacity: 0.3;"></td>`;
 
         // メモ情報を取得（capacityDataから）
@@ -384,7 +408,7 @@ function displayMyShifts(container, shiftsData) {
             <tr class="${rowClass}" data-date="${shift.shiftDate}" data-time-range="${shift.timeSlot}">
                 ${checkboxHTML}
                 <td class="shift-date">${formattedDate}${memoHTML}</td>
-                <td class="shift-time">${shift.timeSlot}${specialBadge}</td>
+                <td class="shift-time"><span class="shift-time-inner">${specialBadge}${shift.timeSlot}</span>${shift.isSpecial && shift.shiftName ? `<div class="shift-name-label">${shift.shiftName}</div>` : ''}</td>
                 ${deleteButtonHTML}
             </tr>
         `;
@@ -447,15 +471,21 @@ function setupMyShiftsCheckboxListeners() {
         const checkedBoxes = document.querySelectorAll('.my-shift-row-checkbox:checked');
         if (checkedBoxes.length === 0) return;
 
-        const allUuids = [];
+        const regularUuids = [];
+        const specialUuids = [];
         checkedBoxes.forEach(cb => {
             const uuidsStr = cb.getAttribute('data-uuids');
+            const type = cb.getAttribute('data-type');
             if (uuidsStr) {
-                uuidsStr.split(',').forEach(uuid => { if (uuid) allUuids.push(uuid); });
+                uuidsStr.split(',').forEach(uuid => {
+                    if (!uuid) return;
+                    if (type === 'special') specialUuids.push(uuid);
+                    else regularUuids.push(uuid);
+                });
             }
         });
 
-        if (allUuids.length === 0) return;
+        if (regularUuids.length === 0 && specialUuids.length === 0) return;
 
         const confirmMessage = `選択した ${checkedBoxes.length} 件のシフトを削除しますか？\n\nこの操作は取り消せません。`;
         if (!confirm(confirmMessage)) return;
@@ -464,12 +494,22 @@ function setupMyShiftsCheckboxListeners() {
         bulkDeleteBtn.textContent = '削除中...';
 
         try {
-            const result = await API.deleteMultipleShifts(allUuids);
-            if (result.success) {
+            const promises = [];
+            if (regularUuids.length > 0) {
+                promises.push(API.deleteMultipleShifts(regularUuids));
+            }
+            specialUuids.forEach(uuid => {
+                promises.push(API.cancelSpecialShiftApplication(uuid));
+            });
+
+            const results = await Promise.all(promises);
+            const anyFailed = results.some(r => !r.success);
+
+            if (!anyFailed) {
                 alert(`${checkedBoxes.length}件のシフトを削除しました。`);
                 await loadMyShifts();
             } else {
-                alert('シフトの削除に失敗しました: ' + (result.error || '不明なエラー'));
+                alert('一部のシフトの削除に失敗しました。');
                 bulkDeleteBtn.disabled = false;
                 bulkDeleteBtn.textContent = '選択したシフトを削除';
             }
@@ -629,7 +669,7 @@ async function deleteShiftFromModal(buttonElement, uuids) {
 }
 
 // 自分のシフト削除機能
-async function deleteMyShift(buttonElement, uuids) {
+async function deleteMyShift(buttonElement, uuids, isSpecial) {
     const currentUser = getCurrentUser();
     if (!currentUser) {
         alert('ログインしてください。');
@@ -641,7 +681,37 @@ async function deleteMyShift(buttonElement, uuids) {
         return;
     }
 
-    // APIから自分のシフト情報を取得してUUIDに対応するものをフィルタ
+    // 特別シフトの削除
+    if (isSpecial) {
+        if (!confirm('特別シフトの申請をキャンセルしますか？')) return;
+
+        const originalText = buttonElement.textContent;
+        buttonElement.disabled = true;
+        buttonElement.textContent = '削除中...';
+        buttonElement.style.opacity = '0.6';
+
+        try {
+            const results = await Promise.all(
+                uuids.map(uuid => API.cancelSpecialShiftApplication(uuid))
+            );
+            const anyFailed = results.some(r => !r.success);
+            if (anyFailed) {
+                throw new Error('一部の申請のキャンセルに失敗しました');
+            }
+            alert('特別シフトの申請をキャンセルしました。');
+            await loadMyShifts();
+        } catch (error) {
+            console.error('特別シフト申請キャンセルでエラー:', error);
+            alert('申請のキャンセルに失敗しました。再度お試しください。');
+        } finally {
+            buttonElement.disabled = false;
+            buttonElement.textContent = originalText;
+            buttonElement.style.opacity = '1';
+        }
+        return;
+    }
+
+    // 通常シフトの削除
     try {
         const result = await API.getUserShifts(currentUser.sub);
 
@@ -678,7 +748,6 @@ async function deleteMyShift(buttonElement, uuids) {
 
         const shiftDate = firstShift.shiftDate || firstShift.date;
 
-        // 複数の時間帯をマージして表示用の時間帯を作成
         const timeSlots = targetShifts.map(shift => shift.timeSlot || shift.time);
         const mergedTimeSlots = mergeConsecutiveTimeSlots(timeSlots);
         const displayTimeSlot = mergedTimeSlots.length === 1 ? mergedTimeSlots[0] : mergedTimeSlots.join(', ');
@@ -687,14 +756,12 @@ async function deleteMyShift(buttonElement, uuids) {
             return;
         }
 
-        // ボタンを無効化
         const originalText = buttonElement.textContent;
         buttonElement.disabled = true;
         buttonElement.textContent = '削除中...';
         buttonElement.style.opacity = '0.6';
 
         try {
-            // 複数シフトを一括削除
             const deleteResult = await API.deleteMultipleShifts(uuids);
 
             if (!deleteResult.success) {
@@ -702,15 +769,12 @@ async function deleteMyShift(buttonElement, uuids) {
             }
 
             alert(`${shiftDate} ${displayTimeSlot}のシフトを削除しました。`);
-
-            // 自分のシフト一覧を再読み込み
             await loadMyShifts();
 
         } catch (error) {
             console.error('シフト削除でエラー:', error);
             alert('シフトの削除に失敗しました。再度お試しください。');
         } finally {
-            // ボタンの状態を復元
             buttonElement.disabled = false;
             buttonElement.textContent = originalText;
             buttonElement.style.opacity = '1';

@@ -200,6 +200,39 @@ Two main UI states managed through CSS classes:
 
 ## Development Workflow
 
+### Test-Driven Development (TDD)
+
+**IMPORTANT**: All new features and bug fixes must be implemented using TDD.
+
+Follow the Red-Green-Refactor cycle:
+
+1. **Red** — Write a failing test that describes the desired behavior
+   ```bash
+   npm test  # confirm test fails
+   ```
+
+2. **Green** — Write the minimum code to make the test pass
+   ```bash
+   npm test  # confirm test passes
+   ```
+
+3. **Refactor** — Clean up the code while keeping tests green
+
+#### Test locations
+- **Backend** (TypeScript): `server/src/__tests__/**/*.test.ts`
+- **Frontend** (JavaScript): `test/**/*.test.js`
+
+#### Running tests
+```bash
+npm test                    # all tests
+npm run test:backend        # backend only
+npx jest <path/to/test>     # single file
+```
+
+#### Frontend test conventions
+Frontend JS files (`js/modules/*.js`) cannot be directly imported in Jest.
+Define inline function implementations in test files that match the desired behavior, then implement the same logic in the actual file.
+
 ### Branch Management
 
 **IMPORTANT**: Do NOT commit directly to the `main` branch.
