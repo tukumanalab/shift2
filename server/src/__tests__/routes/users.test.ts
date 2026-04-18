@@ -297,6 +297,53 @@ describe('Users API Routes', () => {
       });
     });
 
+    test('ユーザーが存在しない場合はrealNameで自動作成', async () => {
+      (UserModel.getByUserId as jest.Mock).mockReturnValue(null);
+      (UserModel.createOrGet as jest.Mock).mockReturnValue({ user_id: 'new-user' });
+      (UserModel.updateProfile as jest.Mock).mockReturnValue(true);
+
+      const response = await request(app)
+        .put('/api/users/new-user/profile')
+        .send({ realName: '山田太郎' });
+
+      expect(response.status).toBe(200);
+      expect(UserModel.createOrGet).toHaveBeenCalledWith({
+        sub: 'new-user',
+        name: '山田太郎',
+        email: ''
+      });
+    });
+
+    test('ユーザーが存在せずnickname/realNameもない場合はuserIdで自動作成', async () => {
+      (UserModel.getByUserId as jest.Mock).mockReturnValue(null);
+      (UserModel.createOrGet as jest.Mock).mockReturnValue({ user_id: 'new-user' });
+      (UserModel.updateProfile as jest.Mock).mockReturnValue(true);
+
+      const response = await request(app)
+        .put('/api/users/new-user/profile')
+        .send({});
+
+      expect(response.status).toBe(200);
+      expect(UserModel.createOrGet).toHaveBeenCalledWith({
+        sub: 'new-user',
+        name: 'new-user',
+        email: ''
+      });
+    });
+
+    test('自動作成後にupdateProfileが失敗した場合は404エラー', async () => {
+      (UserModel.getByUserId as jest.Mock).mockReturnValue(null);
+      (UserModel.createOrGet as jest.Mock).mockReturnValue({ user_id: 'new-user' });
+      (UserModel.updateProfile as jest.Mock).mockReturnValue(false);
+
+      const response = await request(app)
+        .put('/api/users/new-user/profile')
+        .send({ nickname: 'test' });
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
     test('内部エラー時は500エラー', async () => {
       (UserModel.updateProfile as jest.Mock).mockImplementation(() => {
         throw new Error('Database error');
