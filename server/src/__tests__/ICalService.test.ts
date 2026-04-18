@@ -69,10 +69,8 @@ describe('ICalService', () => {
 
       const ical = ICalService.generateAll();
 
-      // 13:00-14:00 にマージされるので DTSTART に 13:00 が含まれる
-      expect(ical).toContain('T130000');
-      // 終了時刻 14:00
-      expect(ical).toContain('T140000');
+      // 13:00-14:00 にマージされるので DESCRIPTION に時間帯が含まれる（タイムゾーン非依存）
+      expect(ical).toContain('時間: 13:00-14:00');
     });
 
     test('userId なしで getAllWithShiftInfo を呼ぶ', () => {
