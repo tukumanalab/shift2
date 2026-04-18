@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.log('User Type:', isAdmin() ? '管理者' : '一般ユーザー');
             console.log('===================');
 
-            showProfile(profileData);
+            await showProfile(profileData);
         } catch (error) {
             console.error('保存されたログイン情報の読み込みに失敗しました:', error);
             localStorage.removeItem('userProfile');

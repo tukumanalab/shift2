@@ -1,7 +1,7 @@
 // auth.js - 認証・ログイン/ログアウト処理モジュール
 
 // Google OAuth認証レスポンスハンドラ
-function handleCredentialResponse(response) {
+async function handleCredentialResponse(response) {
     const responsePayload = decodeJwtResponse(response.credential);
 
     // Check if email is authorized admin
@@ -14,7 +14,7 @@ function handleCredentialResponse(response) {
     console.log('User Type:', isAdmin ? '管理者' : '一般ユーザー');
     console.log('================================');
 
-    showProfile(responsePayload);
+    await showProfile(responsePayload);
 }
 
 // JWTトークンをデコードする関数
