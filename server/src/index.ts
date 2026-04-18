@@ -39,7 +39,11 @@ app.get('/health', (req, res) => {
 // 静的ファイルの提供（プロジェクトルート）
 const staticPath = path.join(__dirname, '../..');
 console.log(`📁 Serving static files from: ${staticPath}`);
-app.use(express.static(staticPath));
+app.use(express.static(staticPath, {
+  etag: true,
+  lastModified: true,
+  maxAge: 0  // キャッシュを無効化（常に最新ファイルを配信）
+}));
 
 // サーバー起動
 const server = app.listen(PORT, () => {

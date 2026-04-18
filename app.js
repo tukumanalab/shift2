@@ -22,8 +22,6 @@ async function syncAllShiftsToCalendar() {
     try {
         const result = await API.syncAllShiftsToCalendar();
 
-        console.log('既存のシフトを削除してから全シフトをカレンダーに同期しました:', result);
-
         if (result.success) {
             const message = `カレンダーから既存のシフトを削除し、${result.data?.created || 0}件のシフトを再同期しました！`;
             alert(message);
@@ -70,8 +68,6 @@ async function deleteAllCalendarEvents() {
     try {
         const result = await API.deleteAllCalendarEvents();
 
-        console.log('カレンダーからすべてのイベントを削除しました:', result);
-
         if (result.success) {
             alert(`カレンダーから${result.deleted || 0}件のイベントを削除しました。`);
         } else {
@@ -106,7 +102,6 @@ function initializeGoogleSignIn() {
 
     // Google Sign-In SDKが読み込まれるまで待機
     if (typeof google === 'undefined' || !google.accounts) {
-        console.log('Google Sign-In SDKを待機中...');
         setTimeout(initializeGoogleSignIn, 100);
         return;
     }
@@ -124,7 +119,6 @@ function initializeGoogleSignIn() {
         { theme: 'outline', size: 'medium', text: 'signin_with' }
     );
 
-    console.log('Google Sign-In初期化完了');
 }
 
 // アプリケーション初期化
@@ -153,12 +147,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             const profileData = JSON.parse(savedUserProfile);
             setIsAdmin(savedIsAdminUser === 'true');
 
-            console.log('=== 自動ログイン ===');
-            console.log('User Email:', profileData.email);
-            console.log('User Type:', isAdmin() ? '管理者' : '一般ユーザー');
-            console.log('===================');
-
-            showProfile(profileData);
+            await showProfile(profileData);
         } catch (error) {
             console.error('保存されたログイン情報の読み込みに失敗しました:', error);
             localStorage.removeItem('userProfile');
@@ -167,5 +156,4 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
-    console.log('アプリケーション初期化完了');
 });

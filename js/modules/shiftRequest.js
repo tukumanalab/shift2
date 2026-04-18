@@ -17,10 +17,12 @@ async function loadShiftRequestForm() {
     `;
 
     try {
-        // 人数設定データとシフト申請数を並行して読み込み
-        const [capacityData, shiftCounts] = await Promise.all([
+        // 人数設定データ、シフト申請数、全シフトデータを並行して読み込み
+        const [capacityData, shiftCounts, allShiftsResult, allSpecialAppsResult] = await Promise.all([
             fetchCapacityFromSpreadsheet(),
-            fetchShiftCountsFromSpreadsheet()
+            fetchShiftCountsFromSpreadsheet(),
+            API.getAllShifts(),
+            API.getAllSpecialShiftApplications()
         ]);
 
         // グローバル変数に保存
@@ -37,6 +39,12 @@ async function loadShiftRequestForm() {
         if (capacityData && capacityData.length > 0) {
             displayCapacityWithCountsOnCalendar(capacityData, shiftCounts);
         }
+
+        // 全シフトデータをカレンダーに表示
+        displayShiftsOnRequestCalendar(
+            allShiftsResult.success ? allShiftsResult.data : [],
+            allSpecialAppsResult.success ? allSpecialAppsResult.data : []
+        );
 
     } catch (error) {
         console.error('シフト申請フォームの読み込みに失敗しました:', error);
@@ -831,6 +839,104 @@ function updateSingleDateCapacity(dateKey, capacityData) {
             }
         }
     }
+}
+
+/**
+ * シフト申請カレンダーに全員のシフト情報を表示する関数
+ * @param {Array} allShifts - 通常シフトデータ
+ * @param {Array} allSpecialApps - 特別シフト申請データ
+ */
+function displayShiftsOnRequestCalendar(allShifts, allSpecialApps) {
+    // 通常シフトを整形
+    const regularShifts = (allShifts || []).map(shift => ({
+        shiftDate: shift.date,
+        timeSlot: shift.time_slot,
+        userName: shift.user_name,
+        nickname: shift.nickname,
+        realName: shift.real_name,
+        isSpecial: false
+    }));
+
+    // 特別シフト申請を整形
+    const specialShifts = (allSpecialApps || []).map(app => ({
+        shiftDate: app.date,
+        timeSlot: app.time_slot,
+        userName: app.user_name,
+        nickname: app.nickname,
+        realName: app.real_name,
+        isSpecial: true,
+        shiftName: app.shift_name || null
+    }));
+
+    const shifts = [...regularShifts, ...specialShifts];
+
+    // 日付ごとにグループ化
+    const shiftsByDate = {};
+    shifts.forEach(shift => {
+        if (!shiftsByDate[shift.shiftDate]) {
+            shiftsByDate[shift.shiftDate] = [];
+        }
+        shiftsByDate[shift.shiftDate].push(shift);
+    });
+
+    // 各日付のシフト情報を表示
+    Object.keys(shiftsByDate).forEach(dateKey => {
+        const container = document.getElementById(`request-shifts-${dateKey}`);
+        if (!container) return;
+
+        const shiftsForDate = shiftsByDate[dateKey];
+
+        // 個人ごとに連続する時間帯をマージ
+        const mergedShifts = mergeShiftsByPerson(shiftsForDate);
+
+        // 時間帯ごとにグループ化
+        const timeSlotGroups = {};
+        mergedShifts.forEach(shift => {
+            if (!timeSlotGroups[shift.timeSlot]) {
+                timeSlotGroups[shift.timeSlot] = [];
+            }
+            timeSlotGroups[shift.timeSlot].push(shift);
+        });
+
+        // 時間帯順にソート
+        const sortedTimeSlots = Object.keys(timeSlotGroups).sort();
+
+        sortedTimeSlots.forEach(timeSlot => {
+            const timeSlotDiv = document.createElement('div');
+            timeSlotDiv.className = 'shift-time-slot';
+
+            const timeLabel = document.createElement('div');
+            timeLabel.className = 'shift-time-label';
+            timeLabel.textContent = timeSlot;
+            timeSlotDiv.appendChild(timeLabel);
+
+            const peopleDiv = document.createElement('div');
+            peopleDiv.className = 'shift-people';
+
+            timeSlotGroups[timeSlot].forEach(shift => {
+                const personDiv = document.createElement('div');
+                personDiv.className = 'shift-person' + (shift.isSpecial ? ' shift-person--special' : '');
+                const displayName = getShiftDisplayName(shift);
+                personDiv.title = displayName;
+
+                if (shift.isSpecial) {
+                    const badge = document.createElement('span');
+                    badge.className = 'special-badge';
+                    badge.textContent = '特別';
+                    personDiv.appendChild(badge);
+                }
+
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = displayName;
+                personDiv.appendChild(nameSpan);
+
+                peopleDiv.appendChild(personDiv);
+            });
+
+            timeSlotDiv.appendChild(peopleDiv);
+            container.appendChild(timeSlotDiv);
+        });
+    });
 }
 
 // switchToTab 関数は ui.js で定義されているため、ここでは定義しない

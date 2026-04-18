@@ -1,20 +1,14 @@
 // auth.js - 認証・ログイン/ログアウト処理モジュール
 
 // Google OAuth認証レスポンスハンドラ
-function handleCredentialResponse(response) {
+async function handleCredentialResponse(response) {
     const responsePayload = decodeJwtResponse(response.credential);
 
     // Check if email is authorized admin
     const isAdmin = getAuthorizedEmails().includes(responsePayload.email);
     setIsAdmin(isAdmin);
 
-    // ログインモードをコンソールに表示
-    console.log('=== Google Login Information ===');
-    console.log('User Email:', responsePayload.email);
-    console.log('User Type:', isAdmin ? '管理者' : '一般ユーザー');
-    console.log('================================');
-
-    showProfile(responsePayload);
+    await showProfile(responsePayload);
 }
 
 // JWTトークンをデコードする関数
@@ -31,6 +25,22 @@ function decodeJwtResponse(token) {
 // プロフィール表示とログイン後の初期化
 async function showProfile(profileData) {
     setCurrentUser(profileData);
+
+    // ユーザーをDBに登録（既存の場合は取得のみ）
+    try {
+        await fetch(`${config.API_BASE_URL}/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sub: profileData.sub,
+                name: profileData.name,
+                email: profileData.email,
+                picture: profileData.picture
+            })
+        });
+    } catch (error) {
+        console.error('ユーザー登録エラー:', error);
+    }
 
     // ログイン状態をlocalStorageに保存
     localStorage.setItem('userProfile', JSON.stringify(profileData));
@@ -92,6 +102,9 @@ async function showProfile(profileData) {
         ]);
         // 初期表示
         displayMyShifts(document.getElementById('myShiftsContent'), getCurrentUserShifts());
+
+        // 特別シフト募集お知らせを表示
+        displaySpecialShiftAnnouncement();
     }
 
     // 保存されたタブがあれば復元
@@ -135,5 +148,4 @@ function signOut() {
     if (userName) userName.textContent = '';
     if (userEmail) userEmail.textContent = '';
 
-    console.log('ユーザーがログアウトしました');
 }

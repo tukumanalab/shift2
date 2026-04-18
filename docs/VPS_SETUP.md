@@ -72,6 +72,7 @@ TIMEZONE=Asia/Tokyo
 ```
 
 **重要**:
+
 - `GOOGLE_PRIVATE_KEY` は改行をそのまま複数行で記載してください
 - ダブルクォートで囲むことを忘れずに
 
@@ -193,6 +194,7 @@ curl https://tukumana.si.aoyama.ac.jp/shift2/health
 ```
 
 期待されるレスポンス:
+
 ```json
 {
   "status": "ok",

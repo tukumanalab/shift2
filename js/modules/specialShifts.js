@@ -230,6 +230,53 @@ async function loadSpecialShifts() {
 }
 
 /**
+ * 特別シフト募集お知らせを表示する関数（一般ユーザー向け）
+ */
+function displaySpecialShiftAnnouncement() {
+    const announcement = document.getElementById('specialShiftAnnouncement');
+    const list = document.getElementById('specialShiftAnnouncementList');
+    if (!announcement || !list) return;
+
+    const specialShifts = getSpecialShifts();
+    if (!Array.isArray(specialShifts) || specialShifts.length === 0) {
+        announcement.classList.add('hidden');
+        return;
+    }
+
+    // 今日以降の特別シフトのみ表示
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const futureShifts = specialShifts.filter(shift => {
+        const shiftDate = new Date(shift.date);
+        return shiftDate >= today;
+    });
+
+    if (futureShifts.length === 0) {
+        announcement.classList.add('hidden');
+        return;
+    }
+
+    // 日付順にソート
+    futureShifts.sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time));
+
+    list.innerHTML = futureShifts.map(shift => {
+        const name = shift.name || '名称未設定';
+        const dateKey = normalizeShiftDate(shift.date);
+        return `<li><a href="#" class="announcement-link" data-date="${escapeHtml(dateKey)}">「${escapeHtml(name)}」の特別シフトを募集中（${escapeHtml(shift.date)}　${escapeHtml(shift.start_time)}-${escapeHtml(shift.end_time)}）</a></li>`;
+    }).join('');
+
+    list.querySelectorAll('.announcement-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            openDateDetailModal(e.currentTarget.dataset.date);
+        });
+    });
+
+    announcement.classList.remove('hidden');
+}
+
+/**
  * 特定の日付の特別シフトを表示する関数
  * @param {string} dateKey - 日付キー (YYYY-MM-DD形式)
  * @param {HTMLElement} container - 表示先のコンテナ要素

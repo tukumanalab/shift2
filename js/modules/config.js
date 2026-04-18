@@ -25,7 +25,6 @@ async function loadConfig() {
             config.AUTHORIZED_EMAILS = result.data.authorizedEmails;
             config.ICAL_TOKEN = result.data.icalToken || '';
 
-            console.log('✅ 設定をサーバーから読み込みました');
             return true;
         } else {
             console.error('設定の読み込みに失敗しました:', result);

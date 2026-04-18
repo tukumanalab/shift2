@@ -277,6 +277,18 @@ function createMonthCalendar(year, month, isCapacityMode = false, isRequestMode 
                     // 特別シフトがある日付かチェック
                     const hasSpecialShifts = checkHasSpecialShifts(dateKey);
 
+                    // 特別シフト募集表示エリア
+                    const specialShiftNotice = document.createElement('div');
+                    specialShiftNotice.className = 'special-shift-notice';
+                    specialShiftNotice.id = `special-notice-${dateKey}`;
+                    if (hasSpecialShifts) {
+                        const specialShiftsForDate = getSpecialShiftsForDate(dateKey);
+                        specialShiftNotice.innerHTML = specialShiftsForDate
+                            .map(s => `「${escapeHtml(s.name || '名称未設定')}」の特別シフトを募集中`)
+                            .join('<br>');
+                    }
+                    requestInfo.appendChild(specialShiftNotice);
+
                     if (!isValidRequestDate || cellDate < today) {
                         // 申請不可能な日は無効化
                         cell.classList.add('past-date');
@@ -297,6 +309,12 @@ function createMonthCalendar(year, month, isCapacityMode = false, isRequestMode 
                     // requestInfoを追加
                     cell.appendChild(requestInfo);
                     cell.setAttribute('data-date', dateKey);
+
+                    // シフト情報表示エリア（他の人のシフトを表示）
+                    const shiftInfo = document.createElement('div');
+                    shiftInfo.className = 'request-shift-info';
+                    shiftInfo.id = `request-shifts-${dateKey}`;
+                    cell.appendChild(shiftInfo);
                 } else {
                     // シフト一覧モードの場合は全員のシフト情報を表示
                     const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
@@ -347,7 +365,6 @@ function handleCalendarCellClick(event) {
     const date = cell.getAttribute('data-date');
     if (!date) return;
 
-    console.log('Clicked date:', date);
     openShiftDetailModal(date);
 }
 

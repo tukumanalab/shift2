@@ -15,7 +15,6 @@ async function loadUserProfile() {
 
         if (result.success && result.data) {
             setCurrentUserProfile(result.data);
-            console.log('ユーザープロフィールをキャッシュに保存しました:', result.data);
 
             // ヘッダーの表示名を更新
             updateHeaderDisplayName();

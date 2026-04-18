@@ -79,6 +79,11 @@ router.put('/:userId/profile', (req: Request, res: Response) => {
     const userId = req.params.userId as string;
     const { nickname, realName } = req.body;
 
+    // ユーザーが存在しない場合は自動作成（開発環境ログイン対応）
+    if (!UserModel.getByUserId(userId)) {
+      UserModel.createOrGet({ sub: userId, name: nickname || realName || userId, email: '' });
+    }
+
     const success = UserModel.updateProfile(userId, nickname || '', realName || '');
 
     if (!success) {
