@@ -164,19 +164,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-## 8. データベースのマイグレーション（初回のみ）
-
-Google Spreadsheetから既存データを移行する場合:
-
-```bash
-cd /srv/shift2
-npm run migrate:users
-npm run migrate:capacity-settings
-npm run migrate:shifts
-npm run migrate:special-shifts
-```
-
-## 9. 動作確認
+## 8. 動作確認
 
 ### PM2ステータスの確認
 
@@ -208,7 +196,7 @@ curl https://tukumana.si.aoyama.ac.jp/shift2/health
 https://tukumana.si.aoyama.ac.jp/shift2/
 ```
 
-## 10. アプリケーションの更新
+## 9. アプリケーションの更新
 
 新しいコードをデプロイする場合:
 

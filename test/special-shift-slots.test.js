@@ -248,7 +248,7 @@ describe('submitDateDetailShiftRequest - スロット種別振り分け', () => 
     global.closeDateDetailModal    = jest.fn();
     global.switchToTab             = jest.fn();
     global.setScrollToShiftAfterLoad = jest.fn();
-    global.fetchShiftCountsFromSpreadsheet = jest.fn().mockResolvedValue({});
+    global.refetchShiftCounts = jest.fn().mockResolvedValue({});
     global.setCurrentShiftCounts   = jest.fn();
     global.updateSingleDateCapacity = jest.fn();
     global.checkHasSpecialShifts   = jest.fn(() => true);

@@ -14,7 +14,7 @@ async function loadCapacitySettings() {
     try {
         // データを直接APIから読み込み
         const [capacityData] = await Promise.all([
-            fetchCapacityFromSpreadsheet(),
+            fetchCapacitySettings(),
             loadSpecialShifts()  // 特別シフトも一緒に読み込み
         ]);
 
@@ -46,9 +46,9 @@ async function loadCapacitySettings() {
 }
 
 /**
- * スプレッドシートから容量設定を取得
+ * 人数設定データを取得
  */
-async function fetchCapacityFromSpreadsheet() {
+async function fetchCapacitySettings() {
     const currentUser = getCurrentUser();
     if (!currentUser) {
         return [];
@@ -71,9 +71,9 @@ async function fetchCapacityFromSpreadsheet() {
 }
 
 /**
- * スプレッドシートからシフト申請数を取得
+ * シフト申請数を取得
  */
-async function fetchShiftCountsFromSpreadsheet() {
+async function fetchShiftCounts() {
     const currentUser = getCurrentUser();
     if (!currentUser) {
         return {};
@@ -212,7 +212,7 @@ async function saveSingleCapacity(dateKey) {
             timestamp: new Date().toISOString()
         }];
 
-        await saveCapacityToSpreadsheet(capacityData);
+        await saveCapacitySettings(capacityData);
 
         // 表示を更新
         valueElement.textContent = `${newCapacity}人`;
@@ -322,9 +322,9 @@ function displayCapacityOnAdminCalendar(capacityData) {
 // updateSingleDateCapacity は shiftRequest.js で定義（特別シフト対応版）
 
 /**
- * スプレッドシートに容量設定を保存
+ * 人数設定を保存
  */
-async function saveCapacityToSpreadsheet(capacityData) {
+async function saveCapacitySettings(capacityData) {
     const currentUser = getCurrentUser();
     try {
         // 人数設定データをAPI用の形式に変換
