@@ -162,8 +162,12 @@ function displayCapacityWithCountsOnCalendar(capacityData, shiftCounts = {}) {
                     today.setHours(0, 0, 0, 0);
                     const isValidRequestDate = isDateAvailableForRequest(cellDate, today);
 
-                    if (maxCapacityForDate > 0 && !existingButton && isValidRequestDate && cellDate >= today) {
-                        // ボタンがなくて容量があり、申請可能日の場合は追加
+                    const hasSpecialShifts = checkHasSpecialShifts(dateKey);
+                    const hasAvailableSlots = maxCapacityForDate > 0 || hasSpecialShifts;
+                    const shouldShowButton = hasAvailableSlots && isValidRequestDate && cellDate >= today;
+
+                    if (shouldShowButton && !existingButton) {
+                        // 容量または特別シフトがあり、申請可能日の場合はボタンを追加
                         const applyButton = document.createElement('button');
                         applyButton.className = 'inline-apply-btn';
                         applyButton.textContent = '申請';
@@ -172,8 +176,8 @@ function displayCapacityWithCountsOnCalendar(capacityData, shiftCounts = {}) {
                             openDateDetailModal(dateKey);
                         };
                         requestInfo.appendChild(applyButton);
-                    } else if ((maxCapacityForDate === 0 || !isValidRequestDate || cellDate < today) && existingButton) {
-                        // ボタンがあって、容量がないか申請不可能日の場合は削除
+                    } else if (!shouldShowButton && existingButton) {
+                        // 申請不可の場合はボタンを削除
                         existingButton.remove();
                     }
                 }
