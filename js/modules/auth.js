@@ -32,6 +32,22 @@ function decodeJwtResponse(token) {
 async function showProfile(profileData) {
     setCurrentUser(profileData);
 
+    // ユーザーをDBに登録（既存の場合は取得のみ）
+    try {
+        await fetch(`${config.API_BASE_URL}/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sub: profileData.sub,
+                name: profileData.name,
+                email: profileData.email,
+                picture: profileData.picture
+            })
+        });
+    } catch (error) {
+        console.error('ユーザー登録エラー:', error);
+    }
+
     // ログイン状態をlocalStorageに保存
     localStorage.setItem('userProfile', JSON.stringify(profileData));
     localStorage.setItem('isAdminUser', isAdmin());
@@ -92,6 +108,9 @@ async function showProfile(profileData) {
         ]);
         // 初期表示
         displayMyShifts(document.getElementById('myShiftsContent'), getCurrentUserShifts());
+
+        // 特別シフト募集お知らせを表示
+        displaySpecialShiftAnnouncement();
     }
 
     // 保存されたタブがあれば復元
