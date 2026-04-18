@@ -813,8 +813,10 @@ function updateSingleDateCapacity(dateKey, capacityData) {
         const requestInfo = document.getElementById(`request-${dateKey}`);
         if (requestInfo) {
             const existingButton = requestInfo.querySelector('.inline-apply-btn');
-            if (maxCapacityForDate > 0 && !existingButton) {
-                // ボタンがなくて容量がある場合は追加
+            const hasSpecialShifts = checkHasSpecialShifts(dateKey);
+
+            if ((maxCapacityForDate > 0 || hasSpecialShifts) && !existingButton) {
+                // ボタンがなくて容量または特別シフトがある場合は追加
                 const applyButton = document.createElement('button');
                 applyButton.className = 'inline-apply-btn';
                 applyButton.textContent = '申請';
@@ -823,8 +825,8 @@ function updateSingleDateCapacity(dateKey, capacityData) {
                     openDateDetailModal(dateKey);
                 };
                 requestInfo.appendChild(applyButton);
-            } else if (maxCapacityForDate === 0 && existingButton) {
-                // ボタンがあって容量がない場合は削除
+            } else if (maxCapacityForDate === 0 && !hasSpecialShifts && existingButton) {
+                // ボタンがあって容量も特別シフトもない場合は削除
                 existingButton.remove();
             }
         }

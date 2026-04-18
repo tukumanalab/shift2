@@ -423,6 +423,7 @@ function displaySpecialShiftList(specialShifts) {
                 <thead>
                     <tr>
                         <th>日付</th>
+                        <th>名前</th>
                         <th>時間帯</th>
                         <th>登録者</th>
                         <th>登録日時</th>
@@ -433,6 +434,7 @@ function displaySpecialShiftList(specialShifts) {
                     ${specialShifts.map(shift => `
                         <tr data-shift-uuid="${escapeHtml(shift.uuid)}">
                             <td>${escapeHtml(shift.date)}</td>
+                            <td>${shift.name ? escapeHtml(shift.name) : '-'}</td>
                             <td>${escapeHtml(shift.start_time)} - ${escapeHtml(shift.end_time)}</td>
                             <td>${escapeHtml(shift.user_name)}</td>
                             <td>${formatDateTime(shift.created_at)}</td>
