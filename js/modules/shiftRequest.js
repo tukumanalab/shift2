@@ -393,6 +393,9 @@ async function openDateDetailModal(dateKey) {
     const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
     const weekday = weekdays[dateObj.getDay()];
 
+    // 特別シフトがある日付かチェック（容量チェックより先に行う）
+    const hasSpecialShifts = checkHasSpecialShifts(dateKey);
+
     // その日付の最大容量を取得
     let maxCapacityForDate = 0;
     if (typeof getDefaultCapacity === 'function') {
@@ -408,9 +411,8 @@ async function openDateDetailModal(dateKey) {
         }
     }
 
-
-    // 人数枠が0人の場合はダイアログを表示しない
-    if (maxCapacityForDate === 0) {
+    // 特別シフトがない場合のみ、人数枠0人チェックを行う
+    if (!hasSpecialShifts && maxCapacityForDate === 0) {
         return;
     }
 
@@ -420,186 +422,131 @@ async function openDateDetailModal(dateKey) {
 
     title.textContent = `${year}年${month}月${day}日 (${weekday}) のシフト枠`;
 
-    // 自分の申請済みシフトをAPIから取得
-    let myShiftsForDate = [];
     const currentUser = getCurrentUser();
-    if (currentUser) {
-        try {
-            const result = await API.getShiftsByDate(dateKey);
-
-            if (result.success && result.data) {
-                myShiftsForDate = result.data
-                    .filter(shift => shift.user_id === currentUser.sub)
-                    .map(shift => ({
-                        shiftDate: shift.date,
-                        timeSlot: shift.time_slot,
-                        uuid: shift.uuid
-                    }));
-            }
-        } catch (error) {
-            console.error('シフト情報の取得エラー:', error);
-        }
-    }
-
-    // 時間枠を生成
-    let slots = [];
-
-    // 特別シフトがある日付かチェック
-    const hasSpecialShifts = checkHasSpecialShifts(dateKey);
-
-    if (hasSpecialShifts) {
-        // 特別シフトの時間枠を30分区切りに変換
-        const specialShifts = getSpecialShifts();
-        const shiftsForDate = specialShifts.filter(shift => {
-            let shiftDate = shift.date;
-            if (typeof shiftDate === 'string' && shiftDate.includes('T')) {
-                shiftDate = shiftDate.split('T')[0];
-            } else if (shiftDate instanceof Date) {
-                const year = shiftDate.getFullYear();
-                const month = String(shiftDate.getMonth() + 1).padStart(2, '0');
-                const day = String(shiftDate.getDate()).padStart(2, '0');
-                shiftDate = `${year}-${month}-${day}`;
-            }
-            return shiftDate === dateKey;
-        });
-
-        // 特別シフトを30分区切りに変換
-        shiftsForDate.forEach(shift => {
-            const startTime = convertTimeToJST(shift.startTime);
-            const endTime = convertTimeToJST(shift.endTime);
-
-            // 時間を分に変換
-            const timeToMinutes = (time) => {
-                const [hours, minutes] = time.split(':').map(Number);
-                return hours * 60 + minutes;
-            };
-
-            // 分を時間に変換
-            const minutesToTime = (minutes) => {
-                const hours = Math.floor(minutes / 60);
-                const mins = minutes % 60;
-                return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-            };
-
-            const startMinutes = timeToMinutes(startTime);
-            const endMinutes = timeToMinutes(endTime);
-
-            // 30分区切りでスロットを生成
-            for (let current = startMinutes; current < endMinutes; current += 30) {
-                const slotStart = minutesToTime(current);
-                const slotEnd = minutesToTime(current + 30);
-                slots.push(`${slotStart}-${slotEnd}`);
-            }
-        });
-    } else {
-        // 通常シフトの時間枠（13:00-18:00）
-        const startHour = 13;
-        const endHour = 18;
-
-        for (let hour = startHour; hour < endHour; hour++) {
-            slots.push(`${hour}:00-${hour}:30`);
-            slots.push(`${hour}:30-${hour + 1}:00`);
-        }
-    }
 
     // コンテナをクリア
     container.innerHTML = '';
 
-    // 全選択/解除ボタンを追加
-    const toggleAllDiv = document.createElement('div');
-    toggleAllDiv.style.marginBottom = '15px';
-    toggleAllDiv.style.textAlign = 'center';
+    // --- 特別シフトセクション ---
+    if (hasSpecialShifts) {
+        await openSpecialShiftApplicationModal(dateKey, currentUser, container, modal, title);
+    }
 
-    const toggleAllBtn = document.createElement('button');
-    toggleAllBtn.className = 'toggle-all-btn';
-    toggleAllBtn.textContent = 'すべて選択';
-    toggleAllBtn.onclick = () => toggleAllTimeSlots();
-
-    toggleAllDiv.appendChild(toggleAllBtn);
-    container.appendChild(toggleAllDiv);
-
-    const currentShiftCounts = getCurrentShiftCounts();
-
-    // 各時間枠を表示
-    slots.forEach(slot => {
-        const slotDiv = document.createElement('div');
-        slotDiv.className = 'date-detail-slot';
-        slotDiv.dataset.slot = slot;
-
-        const timeDiv = document.createElement('div');
-        timeDiv.className = 'date-detail-slot-time';
-        timeDiv.textContent = slot;
-
-        const capacityDiv = document.createElement('div');
-        capacityDiv.className = 'date-detail-slot-capacity';
-
-        // その時間枠の現在の申請数を取得
-        let currentCount = 0;
-        if (currentShiftCounts && currentShiftCounts[dateKey] && currentShiftCounts[dateKey][slot]) {
-            currentCount = currentShiftCounts[dateKey][slot];
+    // --- 通常シフトセクション（capacity > 0 の場合） ---
+    if (maxCapacityForDate > 0) {
+        // 両方ある場合はセクション見出しを追加
+        if (hasSpecialShifts) {
+            const sectionHeading = document.createElement('div');
+            sectionHeading.className = 'regular-shift-heading';
+            sectionHeading.textContent = '通常シフト申請';
+            sectionHeading.style.cssText = 'font-size: 13px; color: #666; margin: 16px 0 8px; font-weight: bold; border-top: 1px solid #eee; padding-top: 12px;';
+            container.appendChild(sectionHeading);
         }
 
-        const remainingCount = Math.max(0, maxCapacityForDate - currentCount);
-
-        // 自分が既に申請しているかチェック
-        const isAlreadyApplied = myShiftsForDate.some(shift => shift.timeSlot === slot);
-
-        const capacityNumber = document.createElement('div');
-        capacityNumber.className = 'date-detail-capacity-number';
-        capacityNumber.textContent = remainingCount;
-
-        // 既に申請済みの場合は特別な処理
-        if (isAlreadyApplied) {
-            capacityNumber.classList.add('capacity-applied');
-            slotDiv.classList.add('disabled');
-
-            const capacityLabel = document.createElement('div');
-            capacityLabel.className = 'date-detail-capacity-label';
-            capacityLabel.textContent = '申請済み';
-            capacityLabel.style.color = '#4CAF50';
-            capacityLabel.style.fontWeight = 'bold';
-
-            capacityDiv.appendChild(capacityNumber);
-            capacityDiv.appendChild(capacityLabel);
-        } else {
-            // 残り人数に応じてクラスを設定
-            if (remainingCount === 0) {
-                capacityNumber.classList.add('capacity-zero');
-                slotDiv.classList.add('disabled');
-            } else if (remainingCount === 1) {
-                capacityNumber.classList.add('capacity-low');
-                slotDiv.classList.add('selectable');
-            } else if (remainingCount <= maxCapacityForDate / 2) {
-                capacityNumber.classList.add('capacity-medium');
-                slotDiv.classList.add('selectable');
-            } else {
-                capacityNumber.classList.add('capacity-high');
-                slotDiv.classList.add('selectable');
+        // 自分の申請済みシフトをAPIから取得
+        let myShiftsForDate = [];
+        if (currentUser) {
+            try {
+                const result = await API.getShiftsByDate(dateKey);
+                if (result.success && result.data) {
+                    myShiftsForDate = result.data
+                        .filter(shift => shift.user_id === currentUser.sub)
+                        .map(shift => ({
+                            shiftDate: shift.date,
+                            timeSlot: shift.time_slot,
+                            uuid: shift.uuid
+                        }));
+                }
+            } catch (error) {
+                console.error('シフト情報の取得エラー:', error);
             }
-
-            const capacityLabel = document.createElement('div');
-            capacityLabel.className = 'date-detail-capacity-label';
-            capacityLabel.textContent = '残り枠';
-
-            capacityDiv.appendChild(capacityNumber);
-            capacityDiv.appendChild(capacityLabel);
         }
 
-        slotDiv.appendChild(timeDiv);
-        slotDiv.appendChild(capacityDiv);
+        // 全選択/解除ボタンを追加
+        const toggleAllDiv = document.createElement('div');
+        toggleAllDiv.style.cssText = 'margin-bottom: 15px; text-align: center;';
+        const toggleAllBtn = document.createElement('button');
+        toggleAllBtn.className = 'toggle-all-btn';
+        toggleAllBtn.textContent = 'すべて選択';
+        toggleAllBtn.onclick = () => toggleAllTimeSlots();
+        toggleAllDiv.appendChild(toggleAllBtn);
+        container.appendChild(toggleAllDiv);
 
-        // 選択可能な場合はクリックイベントを追加（申請済みでない、かつ残り枠がある場合）
-        if (!isAlreadyApplied && remainingCount > 0) {
-            slotDiv.onclick = () => toggleTimeSlotSelection(slotDiv, slot);
+        const currentShiftCounts = getCurrentShiftCounts();
+
+        // 通常シフトの時間枠（13:00-18:00）を表示
+        for (let hour = 13; hour < 18; hour++) {
+            [`${hour}:00-${hour}:30`, `${hour}:30-${hour + 1}:00`].forEach(slot => {
+                const slotDiv = document.createElement('div');
+                slotDiv.className = 'date-detail-slot';
+                slotDiv.dataset.slot = slot;
+
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'date-detail-slot-time';
+                timeDiv.textContent = slot;
+
+                const capacityDiv = document.createElement('div');
+                capacityDiv.className = 'date-detail-slot-capacity';
+
+                const currentCount = (currentShiftCounts && currentShiftCounts[dateKey] && currentShiftCounts[dateKey][slot]) || 0;
+                const remainingCount = Math.max(0, maxCapacityForDate - currentCount);
+                const isAlreadyApplied = myShiftsForDate.some(shift => shift.timeSlot === slot);
+
+                const capacityNumber = document.createElement('div');
+                capacityNumber.className = 'date-detail-capacity-number';
+                capacityNumber.textContent = remainingCount;
+
+                if (isAlreadyApplied) {
+                    capacityNumber.classList.add('capacity-applied');
+                    slotDiv.classList.add('disabled');
+                    const capacityLabel = document.createElement('div');
+                    capacityLabel.className = 'date-detail-capacity-label';
+                    capacityLabel.textContent = '申請済み';
+                    capacityLabel.style.color = '#4CAF50';
+                    capacityLabel.style.fontWeight = 'bold';
+                    capacityDiv.appendChild(capacityNumber);
+                    capacityDiv.appendChild(capacityLabel);
+                } else {
+                    if (remainingCount === 0) {
+                        capacityNumber.classList.add('capacity-zero');
+                        slotDiv.classList.add('disabled');
+                    } else if (remainingCount === 1) {
+                        capacityNumber.classList.add('capacity-low');
+                        slotDiv.classList.add('selectable');
+                    } else if (remainingCount <= maxCapacityForDate / 2) {
+                        capacityNumber.classList.add('capacity-medium');
+                        slotDiv.classList.add('selectable');
+                    } else {
+                        capacityNumber.classList.add('capacity-high');
+                        slotDiv.classList.add('selectable');
+                    }
+                    const capacityLabel = document.createElement('div');
+                    capacityLabel.className = 'date-detail-capacity-label';
+                    capacityLabel.textContent = '残り枠';
+                    capacityDiv.appendChild(capacityNumber);
+                    capacityDiv.appendChild(capacityLabel);
+                }
+
+                slotDiv.appendChild(timeDiv);
+                slotDiv.appendChild(capacityDiv);
+
+                if (!isAlreadyApplied && remainingCount > 0) {
+                    slotDiv.onclick = () => toggleTimeSlotSelection(slotDiv, slot);
+                }
+
+                container.appendChild(slotDiv);
+            });
         }
 
-        container.appendChild(slotDiv);
-    });
-
-    // 備考欄は削除済み
-
-    // 申請ボタンを無効化
-    updateSubmitButton();
+        // submit ボタンを表示して状態を更新
+        const submitBtn = modal.querySelector('.submit-btn');
+        if (submitBtn) submitBtn.style.display = '';
+        updateSubmitButton();
+    } else {
+        // 通常シフト枠がない場合は submit ボタンを非表示
+        const submitBtn = modal.querySelector('.submit-btn');
+        if (submitBtn) submitBtn.style.display = 'none';
+    }
 
     modal.style.display = 'flex';
 }
@@ -614,22 +561,7 @@ function checkHasSpecialShifts(dateKey) {
     if (!Array.isArray(specialShifts) || specialShifts.length === 0) {
         return false;
     }
-
-    return specialShifts.some(shift => {
-        // 日付文字列を YYYY-MM-DD 形式に変換して比較
-        let shiftDate = shift.date;
-        if (typeof shiftDate === 'string' && shiftDate.includes('T')) {
-            // ISO形式の場合は日付部分のみを抽出
-            shiftDate = shiftDate.split('T')[0];
-        } else if (shiftDate instanceof Date) {
-            // Dateオブジェクトの場合はYYYY-MM-DD形式に変換
-            const year = shiftDate.getFullYear();
-            const month = String(shiftDate.getMonth() + 1).padStart(2, '0');
-            const day = String(shiftDate.getDate()).padStart(2, '0');
-            shiftDate = `${year}-${month}-${day}`;
-        }
-        return shiftDate === dateKey;
-    });
+    return specialShifts.some(shift => normalizeShiftDate(shift.date) === dateKey);
 }
 
 /**
@@ -661,7 +593,8 @@ function toggleTimeSlotSelection(slotDiv, slot) {
  * すべての時間枠を選択/解除する関数
  */
 function toggleAllTimeSlots() {
-    const selectableSlots = document.querySelectorAll('.date-detail-slot.selectable');
+    // 通常シフトスロットのみを対象にする（特別シフトスロットは除外）
+    const selectableSlots = document.querySelectorAll('.date-detail-slot.selectable:not([data-slot-type="special"])');
     const toggleBtn = document.querySelector('.toggle-all-btn');
 
     if (!selectableSlots.length) return;
@@ -711,11 +644,12 @@ function updateSubmitButton() {
         submitBtn.textContent = '時間枠を選択してください';
     }
 
-    // 全選択/解除ボタンのテキストも更新
+    // 全選択/解除ボタンのテキストも更新（通常シフトスロットの状態で判定）
     const toggleBtn = document.querySelector('.toggle-all-btn');
     if (toggleBtn) {
-        const selectableSlots = document.querySelectorAll('.date-detail-slot.selectable');
-        const allSelected = Array.from(selectableSlots).every(slot => slot.classList.contains('selected'));
+        const regularSelectableSlots = document.querySelectorAll('.date-detail-slot.selectable:not([data-slot-type="special"])');
+        const allSelected = regularSelectableSlots.length > 0 &&
+            Array.from(regularSelectableSlots).every(slot => slot.classList.contains('selected'));
         toggleBtn.textContent = allSelected ? 'すべて解除' : 'すべて選択';
     }
 }
@@ -730,6 +664,12 @@ function closeDateDetailModal() {
     // 選択状態をリセット
     setCurrentDetailDateKey(null);
     setSelectedTimeSlots([]);
+
+    // 通常シフト用のsubmitボタンを元に戻す
+    const submitBtn = modal.querySelector('.submit-btn');
+    if (submitBtn) {
+        submitBtn.style.display = '';
+    }
 }
 
 /**
@@ -752,10 +692,6 @@ async function submitDateDetailShiftRequest() {
         return;
     }
 
-    // 特別シフトかどうかをチェック
-    const hasSpecialShifts = checkHasSpecialShifts(currentDetailDateKey);
-    const remarks = hasSpecialShifts ? '(特別シフト)' : (document.getElementById('dateDetailRemarks')?.value.trim() || 'シフト'); // 備考欄の内容
-
     // ボタンを無効化してローディング表示
     const modal = document.getElementById('dateDetailModal');
     const submitBtn = modal.querySelector('.submit-btn');
@@ -772,19 +708,44 @@ async function submitDateDetailShiftRequest() {
     submitBtn.innerHTML = '<span style="display: inline-block; margin-right: 5px;">⏳</span>申請中...';
 
     try {
-        // 複数時間枠の一括申請を送信
-        const results = await API.createMultipleShifts({
-            user_id: currentUser.sub,
-            user_name: currentUser.name,
-            date: currentDetailDateKey,
-            time_slots: selectedTimeSlots
-        });
-
-        if (!results.success) {
-            throw new Error(results.error || 'シフト申請に失敗しました');
+        // 特別シフトスロットのマップを構築（timeSlot → specialShiftUuid）
+        const specialSlotMap = new Map();
+        for (const shift of getSpecialShiftsForDate(currentDetailDateKey)) {
+            for (const slot of buildSpecialShiftSlots(shift.start_time, shift.end_time)) {
+                specialSlotMap.set(slot, shift.uuid);
+            }
         }
 
-        const successSlots = results.processed || [];
+        const regularSlots = selectedTimeSlots.filter(s => !specialSlotMap.has(s));
+        const specialSlots  = selectedTimeSlots.filter(s =>  specialSlotMap.has(s));
+
+        // 通常スロット申請
+        const successSlots = [];
+        if (regularSlots.length > 0) {
+            const results = await API.createMultipleShifts({
+                user_id: currentUser.sub,
+                user_name: currentUser.name,
+                date: currentDetailDateKey,
+                time_slots: regularSlots
+            });
+            if (!results.success) {
+                throw new Error(results.error || 'シフト申請に失敗しました');
+            }
+            successSlots.push(...(results.processed || []));
+        }
+
+        // 特別スロット申請（スロットごとに個別送信）
+        for (const slot of specialSlots) {
+            const result = await API.applyForSpecialShift(specialSlotMap.get(slot), {
+                user_id: currentUser.sub,
+                user_name: currentUser.name,
+                time_slot: slot
+            });
+            if (!result.success && result.error !== 'duplicate') {
+                throw new Error(result.error || '特別シフト申請に失敗しました');
+            }
+            if (result.success) successSlots.push(slot);
+        }
 
         // 申請した日付を保存（モーダルを閉じる前に）
         const appliedDateKey = currentDetailDateKey;
@@ -796,18 +757,15 @@ async function submitDateDetailShiftRequest() {
         if (successSlots.length > 0) {
             setScrollToShiftAfterLoad({
                 date: appliedDateKey,
-                timeSlots: successSlots  // 成功した時間枠のみ
+                timeSlots: successSlots
             });
 
             // 自分のシフト一覧タブに切り替え
             switchToTab('my-shifts');
         } else {
             // 成功した時間枠がない場合は通常の処理
-            // シフト申請数を再読み込みして申請した日付のデータを更新
             const shiftCounts = await fetchShiftCountsFromSpreadsheet();
             setCurrentShiftCounts(shiftCounts);
-
-            // 申請した日付のデータのみを更新
             updateSingleDateCapacity(appliedDateKey, window.currentCapacityData || []);
         }
 
@@ -876,3 +834,123 @@ function updateSingleDateCapacity(dateKey, capacityData) {
 }
 
 // switchToTab 関数は ui.js で定義されているため、ここでは定義しない
+
+/**
+ * 時刻文字列（HH:MM）を分数に変換する
+ * @param {string} time - HH:MM形式の時刻
+ * @returns {number} 分数（不正な入力の場合はNaN）
+ */
+function timeToMinutes(time) {
+    const [h, m] = time.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return NaN;
+    return h * 60 + m;
+}
+
+/**
+ * 分数をHH:MM形式の時刻文字列に変換する
+ * @param {number} mins - 分数
+ * @returns {string} HH:MM形式の時刻
+ */
+function minutesToTime(mins) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * 特別シフトの時間帯を30分スロットに分割する純粋関数
+ * @param {string} startTime - 開始時刻（HH:MM形式）
+ * @param {string} endTime - 終了時刻（HH:MM形式）
+ * @returns {string[]} 30分スロットの配列（例: ['10:00-10:30', '10:30-11:00']）
+ */
+function buildSpecialShiftSlots(startTime, endTime) {
+    if (!startTime || !endTime) return [];
+
+    const startMins = timeToMinutes(startTime);
+    const endMins = timeToMinutes(endTime);
+
+    if (isNaN(startMins) || isNaN(endMins) || startMins >= endMins) return [];
+
+    const slots = [];
+    for (let cur = startMins; cur < endMins; cur += 30) {
+        slots.push(`${minutesToTime(cur)}-${minutesToTime(cur + 30)}`);
+    }
+    return slots;
+}
+
+/**
+ * シフトの日付をYYYY-MM-DD形式に正規化する
+ * @param {string|Date} date - 日付（ISO文字列、YYYY-MM-DD、またはDateオブジェクト）
+ * @returns {string} YYYY-MM-DD形式の日付文字列
+ */
+function normalizeShiftDate(date) {
+    if (date instanceof Date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    if (typeof date === 'string' && date.includes('T')) {
+        return date.split('T')[0];
+    }
+    return String(date);
+}
+
+/**
+ * 指定日付の特別シフトを取得する
+ * @param {string} dateKey - 日付キー（YYYY-MM-DD形式）
+ * @returns {Array} 該当日の特別シフト配列
+ */
+function getSpecialShiftsForDate(dateKey) {
+    return getSpecialShifts().filter(shift => normalizeShiftDate(shift.date) === dateKey);
+}
+
+/**
+ * 特別シフト申請モーダルを表示する関数（30分スロット単位）
+ * @param {string} dateKey - 日付キー（YYYY-MM-DD形式）
+ * @param {Object} currentUser - 現在のユーザーオブジェクト
+ * @param {HTMLElement} container - コンテナ要素
+ * @param {HTMLElement} modal - モーダル要素
+ * @param {HTMLElement} title - タイトル要素
+ */
+async function openSpecialShiftApplicationModal(dateKey, currentUser, container, modal, title) {
+    const specialShifts = getSpecialShiftsForDate(dateKey);
+
+    // 各特別シフトへの申請済みスロットを並行取得
+    const applicationsResults = await Promise.all(
+        specialShifts.map(shift => API.getSpecialShiftApplications(shift.uuid))
+    );
+
+    const heading = document.createElement('div');
+    heading.className = 'special-shift-heading';
+    heading.textContent = '特別シフト申請';
+    heading.style.cssText = 'font-size: 13px; color: #666; margin: 0 0 8px; font-weight: bold;';
+    container.appendChild(heading);
+
+    specialShifts.forEach((shift, index) => {
+        const result = applicationsResults[index];
+        const applications = (result && result.success) ? result.data : [];
+
+        const slots = buildSpecialShiftSlots(shift.start_time, shift.end_time);
+        slots.forEach(slot => {
+            const isApplied = currentUser &&
+                applications.some(app => app.user_id === currentUser.sub && app.time_slot === slot);
+
+            const slotDiv = document.createElement('div');
+            slotDiv.className = 'date-detail-slot';
+            slotDiv.dataset.slot = slot;
+            slotDiv.dataset.slotType = 'special';
+            slotDiv.dataset.specialShiftUuid = shift.uuid;
+            slotDiv.textContent = slot;
+
+            if (isApplied) {
+                slotDiv.classList.add('disabled');
+            } else {
+                slotDiv.classList.add('selectable');
+                slotDiv.onclick = () => toggleTimeSlotSelection(slotDiv, slot);
+            }
+
+            container.appendChild(slotDiv);
+        });
+    });
+}

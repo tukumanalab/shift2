@@ -131,6 +131,43 @@ const API = {
         return await response.json();
     },
 
+    // 特別シフトに申請
+    async applyForSpecialShift(specialShiftUuid, userData) {
+        const response = await fetch(`${config.API_BASE_URL}/special-shifts/${specialShiftUuid}/apply`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_id: userData.user_id,
+                user_name: userData.user_name,
+                time_slot: userData.time_slot
+            })
+        });
+        return await response.json();
+    },
+
+    // 特別シフトの申請一覧取得
+    async getSpecialShiftApplications(specialShiftUuid) {
+        const response = await fetch(`${config.API_BASE_URL}/special-shifts/${specialShiftUuid}/applications`);
+        return await response.json();
+    },
+
+    // 全特別シフト申請を日付情報付きで取得（シフト一覧表示用）
+    async getAllSpecialShiftApplications(userId) {
+        const query = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+        const response = await fetch(`${config.API_BASE_URL}/special-shifts/applications${query}`);
+        return await response.json();
+    },
+
+    // 特別シフト申請をキャンセル
+    async cancelSpecialShiftApplication(appUuid) {
+        const response = await fetch(`${config.API_BASE_URL}/special-shifts/applications/${appUuid}`, {
+            method: 'DELETE'
+        });
+        return await response.json();
+    },
+
     // ===== Calendar API =====
 
     // カレンダー同期（全シフト）

@@ -66,6 +66,27 @@ db.exec(`
   )
 `);
 
+// 特別シフト申請テーブルの作成
+db.exec(`
+  CREATE TABLE IF NOT EXISTS special_shift_applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT UNIQUE NOT NULL,
+    special_shift_uuid TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (special_shift_uuid) REFERENCES special_shifts(uuid) ON DELETE CASCADE
+  )
+`);
+
+// time_slotカラムの追加（既存DBへのマイグレーション）
+try {
+  db.exec(`ALTER TABLE special_shift_applications ADD COLUMN time_slot TEXT NOT NULL DEFAULT ''`);
+} catch {
+  // カラムが既に存在する場合は無視
+}
+
 // インデックスを作成（検索パフォーマンスのため）
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id);
@@ -73,6 +94,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_special_shifts_uuid ON special_shifts(uuid);
   CREATE INDEX IF NOT EXISTS idx_special_shifts_date ON special_shifts(date);
   CREATE INDEX IF NOT EXISTS idx_special_shifts_user_id ON special_shifts(user_id);
+  CREATE INDEX IF NOT EXISTS idx_special_shift_apps_uuid ON special_shift_applications(uuid);
+  CREATE INDEX IF NOT EXISTS idx_special_shift_apps_special_shift_uuid ON special_shift_applications(special_shift_uuid);
+  CREATE INDEX IF NOT EXISTS idx_special_shift_apps_user_id ON special_shift_applications(user_id);
   CREATE INDEX IF NOT EXISTS idx_shifts_uuid ON shifts(uuid);
   CREATE INDEX IF NOT EXISTS idx_shifts_user_id ON shifts(user_id);
   CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);

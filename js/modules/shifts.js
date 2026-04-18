@@ -34,27 +34,40 @@ async function displayShiftList() {
     updateBulkActionBarCount('calendarSelectedCount', 0);
 
     try {
-        // シフトデータを取得
-        const shiftsResult = await API.getAllShifts();
+        // 通常シフト・特別シフト申請・人数設定を並行取得
+        const [shiftsResult, specialResult, capacityResult] = await Promise.all([
+            API.getAllShifts(),
+            API.getAllSpecialShiftApplications(),
+            API.getCapacitySettings()
+        ]);
 
-        if (shiftsResult.success && shiftsResult.data && shiftsResult.data.length > 0) {
-            // データ形式を統一
-            const allShifts = shiftsResult.data.map(shift => ({
-                shiftDate: shift.date,
-                timeSlot: shift.time_slot,
-                userId: shift.user_id,
-                userName: shift.user_name,
-                nickname: shift.nickname,
-                realName: shift.real_name,
-                uuid: shift.uuid,
-                registrationDate: shift.created_at
-            }));
+        const regularShifts = (shiftsResult.success && shiftsResult.data || []).map(shift => ({
+            shiftDate: shift.date,
+            timeSlot: shift.time_slot,
+            userId: shift.user_id,
+            userName: shift.user_name,
+            nickname: shift.nickname,
+            realName: shift.real_name,
+            uuid: shift.uuid,
+            registrationDate: shift.created_at,
+            isSpecial: false
+        }));
 
+        const specialShifts = (specialResult.success && specialResult.data || []).map(app => ({
+            shiftDate: app.date,
+            timeSlot: app.time_slot,
+            userId: app.user_id,
+            userName: app.user_name,
+            uuid: app.uuid,
+            registrationDate: app.created_at,
+            isSpecial: true
+        }));
+
+        const allShifts = [...regularShifts, ...specialShifts];
+
+        if (allShifts.length > 0) {
             setAllShiftsData(allShifts);
             generateCalendar('shiftCalendarContainer');
-
-            // 人数設定データも取得してメモを表示
-            const capacityResult = await API.getCapacitySettings();
 
             if (capacityResult.success && capacityResult.data && capacityResult.data.length > 0) {
                 displayCapacityOnAdminCalendar(capacityResult.data);
@@ -171,25 +184,36 @@ async function loadMyShifts() {
 
     try {
         console.log('[loadMyShifts] APIリクエスト開始');
-        // APIからシフトデータを取得
-        const result = await API.getUserShifts(currentUser.sub);
+        // 通常シフトと特別シフト申請を並行取得
+        const [result, specialResult] = await Promise.all([
+            API.getUserShifts(currentUser.sub),
+            API.getAllSpecialShiftApplications(currentUser.sub)
+        ]);
         console.log('[loadMyShifts] APIレスポンス:', result);
 
         if (result.success) {
             console.log('[loadMyShifts] データ取得成功。件数:', result.data?.length || 0);
-            // データ形式を統一
             const myShifts = (result.data || []).map(shift => ({
                 shiftDate: shift.date,
                 timeSlot: shift.time_slot,
                 userId: shift.user_id,
                 userName: shift.user_name,
                 uuid: shift.uuid,
-                registrationDate: shift.created_at
+                registrationDate: shift.created_at,
+                isSpecial: false
             }));
 
-            displayMyShifts(container, myShifts);
+            const mySpecialShifts = (specialResult.success && specialResult.data || []).map(app => ({
+                shiftDate: app.date,
+                timeSlot: app.time_slot,
+                userId: app.user_id,
+                userName: app.user_name,
+                uuid: app.uuid,
+                registrationDate: app.created_at,
+                isSpecial: true
+            }));
 
-            // シフト申請後のスクロール&ハイライト処理は displayMyShifts() 内で実行されます
+            displayMyShifts(container, [...myShifts, ...mySpecialShifts]);
         } else {
             console.error('[loadMyShifts] result.success が false:', result);
             container.innerHTML = '<p>シフトデータの取得に失敗しました。</p>';
@@ -213,9 +237,13 @@ function displayMyShifts(container, shiftsData) {
         return;
     }
 
-    // 日付ごとにシフトをグループ化
+    // 通常シフトと特別シフトを分離
+    const regularShiftsData = shiftsData.filter(s => !s.isSpecial);
+    const specialShiftsData  = shiftsData.filter(s =>  s.isSpecial);
+
+    // 通常シフト: 日付ごとにグループ化してマージ
     const shiftsByDate = {};
-    shiftsData.forEach(shift => {
+    regularShiftsData.forEach(shift => {
         const date = shift.shiftDate;
         if (!shiftsByDate[date]) {
             shiftsByDate[date] = {
@@ -260,8 +288,20 @@ function displayMyShifts(container, shiftsData) {
                 shiftDate: date,
                 timeSlot: timeSlot,
                 uuids: uuids,  // UUID配列
-                registrationDate: dateData.registrationDate
+                registrationDate: dateData.registrationDate,
+                isSpecial: false
             });
+        });
+    });
+
+    // 特別シフト: 個別行として追加（マージなし）
+    specialShiftsData.forEach(shift => {
+        mergedShifts.push({
+            shiftDate: shift.shiftDate,
+            timeSlot: shift.timeSlot,
+            uuids: [shift.uuid],
+            registrationDate: shift.registrationDate,
+            isSpecial: true
         });
     });
 
@@ -310,6 +350,11 @@ function displayMyShifts(container, shiftsData) {
         const canDelete = shiftDate >= tomorrow; // 翌日以降のみ削除可能
         const rowClass = isPastOrToday ? 'past-shift' : 'future-shift';
 
+        // 特別シフトバッジ
+        const specialBadge = shift.isSpecial
+            ? '<span class="special-badge">特別</span>'
+            : '';
+
         // 削除ボタンの表示（翌日以降のシフトのみ）
         const deleteButtonHTML = canDelete ?
             `<td class="shift-actions">
@@ -319,9 +364,9 @@ function displayMyShifts(container, shiftsData) {
             </td>` :
             '<td class="shift-actions">-</td>';
 
-        // チェックボックス（翌日以降のシフトのみ有効）
+        // チェックボックス（翌日以降の通常シフトのみ有効）
         const uuidsStr = (shift.uuids || []).join(',');
-        const checkboxHTML = canDelete
+        const checkboxHTML = (canDelete && !shift.isSpecial)
             ? `<td style="text-align: center;"><input type="checkbox" class="my-shift-row-checkbox" data-uuids="${uuidsStr}" data-date="${shift.shiftDate}" data-time="${shift.timeSlot}"></td>`
             : `<td style="text-align: center;"><input type="checkbox" disabled style="opacity: 0.3;"></td>`;
 
@@ -339,7 +384,7 @@ function displayMyShifts(container, shiftsData) {
             <tr class="${rowClass}" data-date="${shift.shiftDate}" data-time-range="${shift.timeSlot}">
                 ${checkboxHTML}
                 <td class="shift-date">${formattedDate}${memoHTML}</td>
-                <td class="shift-time">${shift.timeSlot}</td>
+                <td class="shift-time">${shift.timeSlot}${specialBadge}</td>
                 ${deleteButtonHTML}
             </tr>
         `;
