@@ -166,7 +166,7 @@ sudo systemctl reload nginx
 
 ## 8. データベースのマイグレーション（初回のみ）
 
-Google Spreadsheetから既存データを移行する場合:
+既存データを移行する場合:
 
 ```bash
 cd /srv/shift2

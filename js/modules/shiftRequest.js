@@ -19,8 +19,8 @@ async function loadShiftRequestForm() {
     try {
         // 人数設定データ、シフト申請数、全シフトデータを並行して読み込み
         const [capacityData, shiftCounts, allShiftsResult, allSpecialAppsResult] = await Promise.all([
-            fetchCapacityFromSpreadsheet(),
-            fetchShiftCountsFromSpreadsheet(),
+            fetchCapacitySettings(),
+            fetchShiftCounts(),
             API.getAllShifts(),
             API.getAllSpecialShiftApplications()
         ]);
@@ -52,37 +52,13 @@ async function loadShiftRequestForm() {
     }
 }
 
-/**
- * 人数設定データを読み込む関数
- * @returns {Promise<Array>} 人数設定データの配列
- */
-async function fetchCapacityFromSpreadsheet() {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-        return [];
-    }
-
-    try {
-        const response = await fetch(`${config.API_BASE_URL}/capacity-settings`);
-        const result = await response.json();
-
-        if (result.success) {
-            return result.data || [];
-        } else {
-            console.error('人数設定の読み込みに失敗:', result.error);
-            return [];
-        }
-    } catch (error) {
-        console.error('人数設定の読み込みに失敗しました:', error);
-        return [];
-    }
-}
+// fetchCapacitySettings, fetchShiftCounts は capacity.js で定義
 
 /**
- * シフト申請数を読み込む関数
+ * シフト申請数を再取得する関数（申請後のカレンダー更新用）
  * @returns {Promise<Object>} シフト申請数のマップ
  */
-async function fetchShiftCountsFromSpreadsheet() {
+async function refetchShiftCounts() {
     const currentUser = getCurrentUser();
     if (!currentUser) {
         return {};
@@ -770,7 +746,7 @@ async function submitDateDetailShiftRequest() {
             switchToTab('my-shifts');
         } else {
             // 成功した時間枠がない場合は通常の処理
-            const shiftCounts = await fetchShiftCountsFromSpreadsheet();
+            const shiftCounts = await refetchShiftCounts();
             setCurrentShiftCounts(shiftCounts);
             updateSingleDateCapacity(appliedDateKey, window.currentCapacityData || []);
         }
