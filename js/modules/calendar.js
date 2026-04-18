@@ -365,7 +365,6 @@ function handleCalendarCellClick(event) {
     const date = cell.getAttribute('data-date');
     if (!date) return;
 
-    console.log('Clicked date:', date);
     openShiftDetailModal(date);
 }
 

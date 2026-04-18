@@ -8,12 +8,6 @@ async function handleCredentialResponse(response) {
     const isAdmin = getAuthorizedEmails().includes(responsePayload.email);
     setIsAdmin(isAdmin);
 
-    // ログインモードをコンソールに表示
-    console.log('=== Google Login Information ===');
-    console.log('User Email:', responsePayload.email);
-    console.log('User Type:', isAdmin ? '管理者' : '一般ユーザー');
-    console.log('================================');
-
     await showProfile(responsePayload);
 }
 
@@ -154,5 +148,4 @@ function signOut() {
     if (userName) userName.textContent = '';
     if (userEmail) userEmail.textContent = '';
 
-    console.log('ユーザーがログアウトしました');
 }
