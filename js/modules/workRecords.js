@@ -1,10 +1,5 @@
 // workRecords.js - 勤務記録タブモジュール
 
-/**
- * 時間帯文字列から時間数を計算する
- * @param {string} timeSlot - "HH:MM-HH:MM" 形式
- * @returns {number}
- */
 function calculateRegularShiftHours(timeSlot) {
     if (!timeSlot) return 0;
     const parts = timeSlot.split('-');
@@ -14,12 +9,6 @@ function calculateRegularShiftHours(timeSlot) {
     return (endH * 60 + endM - (startH * 60 + startM)) / 60;
 }
 
-/**
- * 特別シフトの開始・終了時刻から時間数を計算する
- * @param {string} startTime
- * @param {string} endTime
- * @returns {number}
- */
 function calculateSpecialShiftHours(startTime, endTime) {
     if (!startTime || !endTime) return 0;
     const toMinutes = (t) => {
@@ -32,12 +21,6 @@ function calculateSpecialShiftHours(startTime, endTime) {
     return (toMinutes(endTime) - toMinutes(startTime)) / 60;
 }
 
-/**
- * 月の開始日・終了日を返す
- * @param {number} year
- * @param {number} month - 1始まり
- * @returns {{ startDate: string, endDate: string }}
- */
 function getMonthDateRange(year, month) {
     const pad = (n) => String(n).padStart(2, '0');
     const lastDay = new Date(year, month, 0).getDate();
@@ -48,66 +31,104 @@ function getMonthDateRange(year, month) {
 }
 
 /**
- * シフトデータをユーザーごとに集計する
- * @param {Array} regularShifts
- * @param {Array} specialShifts
- * @returns {Array}
+ * 時間数を H:MM 形式にフォーマット
+ * @param {number} hours
+ * @returns {string}
  */
-function aggregateShiftsByUser(regularShifts, specialShifts) {
-    const userMap = {};
-
-    for (const shift of regularShifts) {
-        const key = shift.user_id;
-        if (!userMap[key]) {
-            userMap[key] = {
-                user_id: shift.user_id,
-                user_name: shift.user_name,
-                regularCount: 0,
-                specialCount: 0,
-                totalHours: 0,
-                regularShifts: [],
-                specialShifts: []
-            };
-        }
-        userMap[key].regularCount++;
-        userMap[key].totalHours += calculateRegularShiftHours(shift.time_slot);
-        userMap[key].regularShifts.push(shift);
-    }
-
-    for (const shift of specialShifts) {
-        const key = shift.user_id;
-        if (!userMap[key]) {
-            userMap[key] = {
-                user_id: shift.user_id,
-                user_name: shift.user_name,
-                regularCount: 0,
-                specialCount: 0,
-                totalHours: 0,
-                regularShifts: [],
-                specialShifts: []
-            };
-        }
-        userMap[key].specialCount++;
-        // 申請データは time_slot フィールドを持つ
-        const hours = shift.time_slot
-            ? calculateRegularShiftHours(shift.time_slot)
-            : calculateSpecialShiftHours(shift.start_time, shift.end_time);
-        userMap[key].totalHours += hours;
-        userMap[key].specialShifts.push(shift);
-    }
-
-    return Object.values(userMap).sort((a, b) => a.user_name.localeCompare(b.user_name, 'ja'));
+function formatDuration(hours) {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    return `${h}:${String(m).padStart(2, '0')}`;
 }
 
-// 展開中のユーザーIDセット
-let expandedUsers = new Set();
-// 現在の集計データを保持（展開/折りたたみ時に再利用）
-let currentAggregatedData = [];
+/**
+ * 日付を "M月D日" 形式にフォーマット
+ * @param {string} dateString - "YYYY-MM-DD"
+ * @returns {string}
+ */
+function formatDateShort(dateString) {
+    const date = new Date(dateString + 'T00:00:00');
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
+/**
+ * 曜日を取得
+ * @param {string} dateString - "YYYY-MM-DD"
+ * @returns {string}
+ */
+function getDayOfWeek(dateString) {
+    const date = new Date(dateString + 'T00:00:00');
+    return ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+}
+
+/**
+ * シフトデータをフラットな行配列に変換する
+ * 通常シフト: user_id+date でグループ化し連続スロットをマージ
+ * 特別シフト: user_id+special_shift_uuid でグループ化し連続スロットをマージ
+ * @param {Array} regularShifts
+ * @param {Array} specialShifts
+ * @returns {Array<{user_id,user_name,date,start,end,hours,type}>}
+ */
+function buildShiftRows(regularShifts, specialShifts) {
+    const rows = [];
+
+    const regularGroups = {};
+    for (const shift of regularShifts) {
+        const key = `${shift.user_id}::${shift.date}`;
+        if (!regularGroups[key]) {
+            regularGroups[key] = { user_id: shift.user_id, user_name: shift.user_name, date: shift.date, slots: [] };
+        }
+        regularGroups[key].slots.push(shift.time_slot);
+    }
+    for (const g of Object.values(regularGroups)) {
+        for (const slot of mergeConsecutiveTimeSlots(g.slots)) {
+            const [start, end] = slot.split('-');
+            rows.push({ user_id: g.user_id, user_name: g.user_name, date: g.date, start, end, hours: calculateRegularShiftHours(slot), type: '通常' });
+        }
+    }
+
+    const specialGroups = {};
+    for (const shift of specialShifts) {
+        const key = `${shift.user_id}::${shift.special_shift_uuid || shift.date}`;
+        if (!specialGroups[key]) {
+            specialGroups[key] = { user_id: shift.user_id, user_name: shift.user_name, date: shift.date, slots: [] };
+        }
+        if (shift.time_slot) specialGroups[key].slots.push(shift.time_slot);
+    }
+    for (const g of Object.values(specialGroups)) {
+        if (g.slots.length === 0) continue;
+        for (const slot of mergeConsecutiveTimeSlots(g.slots)) {
+            const [start, end] = slot.split('-');
+            rows.push({ user_id: g.user_id, user_name: g.user_name, date: g.date, start, end, hours: calculateRegularShiftHours(slot), type: '特別' });
+        }
+    }
+
+    rows.sort((a, b) => {
+        const d = a.date.localeCompare(b.date);
+        return d !== 0 ? d : a.user_name.localeCompare(b.user_name, 'ja');
+    });
+
+    return rows;
+}
+
+/**
+ * Excel にコピペできる TSV 形式の文字列を生成する
+ * @param {Array} rows - buildShiftRows の返り値
+ * @returns {string}
+ */
+function buildTsvContent(rows) {
+    const header = ['ユーザー名', '日付', '曜日', '勤務開始', '勤務終了', '時間数'].join('\t');
+    const lines = rows.map(r =>
+        [r.user_name, formatDateShort(r.date), getDayOfWeek(r.date), r.start, r.end, formatDuration(r.hours)].join('\t')
+    );
+    return [header, ...lines].join('\n');
+}
+
+// 現在表示中のシフト行（コピー用に保持）
+let currentRows = [];
 
 /**
  * 勤務記録タブを読み込んで表示する
- * @param {number} year
- * @param {number} month
  */
 async function loadWorkRecords(year, month) {
     const container = document.getElementById('workRecordsContent');
@@ -136,10 +157,9 @@ async function loadWorkRecords(year, month) {
         const allSpecial = specialResult.success ? (specialResult.data || []) : [];
         const specialShifts = allSpecial.filter(s => s.date >= startDate && s.date <= endDate);
 
-        currentAggregatedData = aggregateShiftsByUser(regularShifts, specialShifts);
-        expandedUsers = new Set();
+        currentRows = buildShiftRows(regularShifts, specialShifts);
 
-        renderWorkRecords(container, currentAggregatedData, targetYear, targetMonth);
+        renderWorkRecords(container, currentRows, targetYear, targetMonth);
     } catch (error) {
         console.error('勤務記録の読み込みエラー:', error);
         container.innerHTML = `
@@ -154,47 +174,37 @@ async function loadWorkRecords(year, month) {
 
 /**
  * 勤務記録を描画する
- * @param {HTMLElement} container
- * @param {Array} aggregated
- * @param {number} year
- * @param {number} month
  */
-function renderWorkRecords(container, aggregated, year, month) {
+function renderWorkRecords(container, rows, year, month) {
     const pad = (n) => String(n).padStart(2, '0');
 
-    const totalRegular = aggregated.reduce((s, u) => s + u.regularCount, 0);
-    const totalSpecial = aggregated.reduce((s, u) => s + u.specialCount, 0);
-    const totalHours = aggregated.reduce((s, u) => s + u.totalHours, 0);
+    const uniqueUsers = [...new Map(rows.map(r => [r.user_id, r.user_name])).entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], 'ja'));
 
-    const rowsHTML = aggregated.length === 0
-        ? `<tr><td colspan="5" style="text-align:center; color:#666; padding:24px;">この月の勤務記録はありません</td></tr>`
-        : aggregated.map(u => buildUserRow(u, year, month)).join('');
+    const userOptions = uniqueUsers.map(([id, name]) =>
+        `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`
+    ).join('');
+
+    const totalHours = rows.reduce((s, r) => s + r.hours, 0);
 
     container.innerHTML = `
         <div class="work-records-container">
             <div class="work-records-controls">
                 <label class="month-label">表示月：</label>
                 <input type="month" id="workRecordsMonth" value="${year}-${pad(month)}" class="month-input">
+                <select id="workRecordsUserFilter" class="filter-select">
+                    <option value="">全員</option>
+                    ${userOptions}
+                </select>
                 <button id="workRecordsApplyBtn" class="filter-btn filter-btn-apply">表示</button>
+                <button id="workRecordsCopyBtn" class="wr-copy-btn">コピー</button>
             </div>
-            <div class="work-records-summary-bar">
-                合計：通常 <strong>${totalRegular}</strong> コマ　特別 <strong>${totalSpecial}</strong> 件
-                計 <strong>${formatHours(totalHours)}</strong>
+            <div class="work-records-summary-bar" id="workRecordsSummaryBar">
+                ${buildSummaryText(rows)}
             </div>
-            <table class="work-records-table">
-                <thead>
-                    <tr>
-                        <th style="width:32px;"></th>
-                        <th>ユーザー名</th>
-                        <th>通常シフト</th>
-                        <th>特別シフト</th>
-                        <th>合計時間</th>
-                    </tr>
-                </thead>
-                <tbody id="workRecordsTbody">
-                    ${rowsHTML}
-                </tbody>
-            </table>
+            <div id="workRecordsTableWrapper">
+                ${buildTableHTML(rows)}
+            </div>
         </div>
     `;
 
@@ -205,112 +215,76 @@ function renderWorkRecords(container, aggregated, year, month) {
         loadWorkRecords(y, m);
     });
 
-    setupWorkRecordsToggle(aggregated, year, month);
-}
+    document.getElementById('workRecordsUserFilter').addEventListener('change', () => {
+        applyUserFilter(rows);
+    });
 
-/**
- * ユーザー行 + 詳細行のHTML
- */
-function buildUserRow(u, year, month) {
-    const isExpanded = expandedUsers.has(u.user_id);
-    const detailHTML = isExpanded ? buildDetailRows(u) : '';
-
-    return `
-        <tr class="work-records-user-row" data-user-id="${escapeHtml(u.user_id)}">
-            <td style="text-align:center;">
-                <button class="wr-toggle-btn" data-user-id="${escapeHtml(u.user_id)}" title="詳細を表示">
-                    ${isExpanded ? '▲' : '▼'}
-                </button>
-            </td>
-            <td>${escapeHtml(u.user_name)}</td>
-            <td style="text-align:center;">${u.regularCount} コマ</td>
-            <td style="text-align:center;">${u.specialCount} 件</td>
-            <td style="text-align:center;">${formatHours(u.totalHours)}</td>
-        </tr>
-        ${detailHTML}
-    `;
-}
-
-/**
- * 詳細行のHTML（シフト一覧）
- */
-function buildDetailRows(u) {
-    const allShifts = [
-        ...u.regularShifts.map(s => ({
-            date: s.date, timeRange: s.time_slot, type: '通常'
-        })),
-        ...u.specialShifts.map(s => ({
-            date: s.date,
-            timeRange: s.time_slot || `${convertTimeToJST(s.start_time)}-${convertTimeToJST(s.end_time)}`,
-            type: '特別'
-        }))
-    ].sort((a, b) => a.date.localeCompare(b.date));
-
-    if (allShifts.length === 0) {
-        return `<tr class="wr-detail-row"><td colspan="5" style="padding-left:48px; color:#888;">詳細なし</td></tr>`;
-    }
-
-    return allShifts.map(s => `
-        <tr class="wr-detail-row">
-            <td></td>
-            <td></td>
-            <td colspan="3" style="font-size:13px; padding-left:8px;">
-                <span class="wr-detail-date">${formatDateWithWeekday(s.date)}</span>
-                <span class="wr-detail-time">${escapeHtml(s.timeRange)}</span>
-                <span class="wr-detail-badge ${s.type === '特別' ? 'special-badge' : 'regular-badge'}">${s.type}</span>
-            </td>
-        </tr>
-    `).join('');
-}
-
-/**
- * 展開/折りたたみのイベントリスナーをセットアップ
- */
-function setupWorkRecordsToggle(aggregated, year, month) {
-    const tbody = document.getElementById('workRecordsTbody');
-    if (!tbody) return;
-
-    tbody.addEventListener('click', (e) => {
-        const btn = e.target.closest('.wr-toggle-btn');
-        if (!btn) return;
-
-        const userId = btn.getAttribute('data-user-id');
-        if (expandedUsers.has(userId)) {
-            expandedUsers.delete(userId);
-        } else {
-            expandedUsers.add(userId);
-        }
-
-        const userRow = tbody.querySelector(`.work-records-user-row[data-user-id="${CSS.escape(userId)}"]`);
-        if (!userRow) return;
-
-        // 既存の詳細行を削除
-        let next = userRow.nextElementSibling;
-        while (next && next.classList.contains('wr-detail-row')) {
-            const toRemove = next;
-            next = next.nextElementSibling;
-            toRemove.remove();
-        }
-
-        const u = aggregated.find(x => x.user_id === userId);
-        if (!u) return;
-
-        btn.textContent = expandedUsers.has(userId) ? '▲' : '▼';
-
-        if (expandedUsers.has(userId)) {
-            userRow.insertAdjacentHTML('afterend', buildDetailRows(u));
-        }
+    document.getElementById('workRecordsCopyBtn').addEventListener('click', () => {
+        const userId = document.getElementById('workRecordsUserFilter').value;
+        const targetRows = userId ? rows.filter(r => r.user_id === userId) : rows;
+        const tsv = buildTsvContent(targetRows);
+        navigator.clipboard.writeText(tsv).then(() => {
+            const btn = document.getElementById('workRecordsCopyBtn');
+            const orig = btn.textContent;
+            btn.textContent = 'コピーしました！';
+            setTimeout(() => { btn.textContent = orig; }, 2000);
+        }).catch(() => {
+            alert('クリップボードへのコピーに失敗しました');
+        });
     });
 }
 
-/**
- * 時間数を表示用文字列にフォーマット
- * @param {number} hours
- * @returns {string}
- */
-function formatHours(hours) {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    if (m === 0) return `${h}時間`;
-    return `${h}時間${m}分`;
+function applyUserFilter(allRows) {
+    const userId = document.getElementById('workRecordsUserFilter').value;
+    const filtered = userId ? allRows.filter(r => r.user_id === userId) : allRows;
+
+    document.getElementById('workRecordsSummaryBar').innerHTML = buildSummaryText(filtered);
+    document.getElementById('workRecordsTableWrapper').innerHTML = buildTableHTML(filtered);
+}
+
+function buildSummaryText(rows) {
+    const total = rows.reduce((s, r) => s + r.hours, 0);
+    return `${rows.length} 件　合計 <strong>${formatDuration(total)}</strong>`;
+}
+
+function buildTableHTML(rows) {
+    if (rows.length === 0) {
+        return `<p style="text-align:center; color:#666; padding:32px;">この月の勤務記録はありません</p>`;
+    }
+
+    const weekdayClass = (dateString) => {
+        const d = getDayOfWeek(dateString);
+        if (d === '日') return ' class="sunday"';
+        if (d === '土') return ' class="saturday"';
+        return '';
+    };
+
+    const rowsHTML = rows.map(r => `
+        <tr>
+            <td>${escapeHtml(r.user_name)}</td>
+            <td>${formatDateShort(r.date)}</td>
+            <td${weekdayClass(r.date)}>${getDayOfWeek(r.date)}</td>
+            <td>${escapeHtml(r.start)}</td>
+            <td>${escapeHtml(r.end)}</td>
+            <td>${formatDuration(r.hours)}</td>
+            <td><span class="${r.type === '特別' ? 'special-badge' : 'regular-badge'}">${r.type}</span></td>
+        </tr>
+    `).join('');
+
+    return `
+        <table class="work-records-table">
+            <thead>
+                <tr>
+                    <th>ユーザー名</th>
+                    <th>日付</th>
+                    <th>曜日</th>
+                    <th>勤務開始</th>
+                    <th>勤務終了</th>
+                    <th>時間数</th>
+                    <th>種別</th>
+                </tr>
+            </thead>
+            <tbody>${rowsHTML}</tbody>
+        </table>
+    `;
 }
