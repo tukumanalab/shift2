@@ -117,11 +117,9 @@ function buildShiftRows(regularShifts, specialShifts) {
  * @returns {string}
  */
 function buildTsvContent(rows) {
-    const header = ['ユーザー名', '日付', '曜日', '勤務開始', '勤務終了', '時間数'].join('\t');
-    const lines = rows.map(r =>
+    return rows.map(r =>
         [r.user_name, formatDateShort(r.date), getDayOfWeek(r.date), r.start, r.end, formatDuration(r.hours)].join('\t')
-    );
-    return [header, ...lines].join('\n');
+    ).join('\n');
 }
 
 // 現在表示中のシフト行（コピー用に保持）
@@ -199,9 +197,6 @@ function renderWorkRecords(container, rows, year, month) {
                 <button id="workRecordsApplyBtn" class="filter-btn filter-btn-apply">表示</button>
                 <button id="workRecordsCopyBtn" class="wr-copy-btn">コピー</button>
             </div>
-            <div class="work-records-summary-bar" id="workRecordsSummaryBar">
-                ${buildSummaryText(rows)}
-            </div>
             <div id="workRecordsTableWrapper">
                 ${buildTableHTML(rows)}
             </div>
@@ -237,14 +232,7 @@ function renderWorkRecords(container, rows, year, month) {
 function applyUserFilter(allRows) {
     const userId = document.getElementById('workRecordsUserFilter').value;
     const filtered = userId ? allRows.filter(r => r.user_id === userId) : allRows;
-
-    document.getElementById('workRecordsSummaryBar').innerHTML = buildSummaryText(filtered);
     document.getElementById('workRecordsTableWrapper').innerHTML = buildTableHTML(filtered);
-}
-
-function buildSummaryText(rows) {
-    const total = rows.reduce((s, r) => s + r.hours, 0);
-    return `${rows.length} 件　合計 <strong>${formatDuration(total)}</strong>`;
 }
 
 function buildTableHTML(rows) {

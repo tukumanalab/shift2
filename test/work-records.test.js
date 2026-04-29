@@ -119,11 +119,9 @@ function buildShiftRows(regularShifts, specialShifts) {
 }
 
 function buildTsvContent(rows) {
-    const header = ['ユーザー名', '日付', '曜日', '勤務開始', '勤務終了', '時間数'].join('\t');
-    const lines = rows.map(r =>
+    return rows.map(r =>
         [r.user_name, formatDateShort(r.date), getDayOfWeek(r.date), r.start, r.end, formatDuration(r.hours)].join('\t')
-    );
-    return [header, ...lines].join('\n');
+    ).join('\n');
 }
 
 // ===== テスト =====
@@ -276,26 +274,24 @@ describe('buildTsvContent', () => {
         { user_name: '佐藤花子', date: '2026-04-22', start: '13:00', end: '13:30', hours: 0.5 },
     ];
 
-    test('ヘッダー行が含まれる', () => {
+    test('ヘッダー行は含まれない', () => {
         const tsv = buildTsvContent(rows);
-        const lines = tsv.split('\n');
-        expect(lines[0]).toBe('ユーザー名\t日付\t曜日\t勤務開始\t勤務終了\t時間数');
+        expect(tsv).not.toContain('ユーザー名');
     });
 
-    test('データ行がタブ区切りになっている', () => {
+    test('1行目がデータ行になっている', () => {
         const tsv = buildTsvContent(rows);
         const lines = tsv.split('\n');
-        expect(lines[1]).toBe('山田太郎\t4月21日\t火\t14:00\t18:00\t4:00');
+        expect(lines[0]).toBe('山田太郎\t4月21日\t火\t14:00\t18:00\t4:00');
     });
 
     test('時間数がH:MM形式になっている', () => {
         const tsv = buildTsvContent(rows);
         const lines = tsv.split('\n');
-        expect(lines[2]).toContain('0:30');
+        expect(lines[1]).toContain('0:30');
     });
 
-    test('空データはヘッダーのみ', () => {
-        const tsv = buildTsvContent([]);
-        expect(tsv.split('\n')).toHaveLength(1);
+    test('空データは空文字列', () => {
+        expect(buildTsvContent([])).toBe('');
     });
 });
