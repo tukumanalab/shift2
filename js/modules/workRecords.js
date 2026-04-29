@@ -118,7 +118,7 @@ function buildShiftRows(regularShifts, specialShifts) {
  */
 function buildTsvContent(rows) {
     return rows.map(r =>
-        [r.user_name, formatDateShort(r.date), getDayOfWeek(r.date), r.start, r.end, formatDuration(r.hours)].join('\t')
+        [formatDateShort(r.date), getDayOfWeek(r.date), r.start, r.end, formatDuration(r.hours)].join('\t')
     ).join('\n');
 }
 
@@ -183,7 +183,8 @@ function renderWorkRecords(container, rows, year, month) {
         `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`
     ).join('');
 
-    const totalHours = rows.reduce((s, r) => s + r.hours, 0);
+    const defaultUserId = uniqueUsers.length > 0 ? uniqueUsers[0][0] : '';
+    const initialRows = defaultUserId ? rows.filter(r => r.user_id === defaultUserId) : [];
 
     container.innerHTML = `
         <div class="work-records-container">
@@ -191,14 +192,13 @@ function renderWorkRecords(container, rows, year, month) {
                 <label class="month-label">表示月：</label>
                 <input type="month" id="workRecordsMonth" value="${year}-${pad(month)}" class="month-input">
                 <select id="workRecordsUserFilter" class="filter-select">
-                    <option value="">全員</option>
                     ${userOptions}
                 </select>
                 <button id="workRecordsApplyBtn" class="filter-btn filter-btn-apply">表示</button>
                 <button id="workRecordsCopyBtn" class="wr-copy-btn">コピー</button>
             </div>
             <div id="workRecordsTableWrapper">
-                ${buildTableHTML(rows)}
+                ${buildTableHTML(initialRows)}
             </div>
         </div>
     `;
@@ -216,7 +216,7 @@ function renderWorkRecords(container, rows, year, month) {
 
     document.getElementById('workRecordsCopyBtn').addEventListener('click', () => {
         const userId = document.getElementById('workRecordsUserFilter').value;
-        const targetRows = userId ? rows.filter(r => r.user_id === userId) : rows;
+        const targetRows = rows.filter(r => r.user_id === userId);
         const tsv = buildTsvContent(targetRows);
         navigator.clipboard.writeText(tsv).then(() => {
             const btn = document.getElementById('workRecordsCopyBtn');
@@ -231,7 +231,7 @@ function renderWorkRecords(container, rows, year, month) {
 
 function applyUserFilter(allRows) {
     const userId = document.getElementById('workRecordsUserFilter').value;
-    const filtered = userId ? allRows.filter(r => r.user_id === userId) : allRows;
+    const filtered = allRows.filter(r => r.user_id === userId);
     document.getElementById('workRecordsTableWrapper').innerHTML = buildTableHTML(filtered);
 }
 
