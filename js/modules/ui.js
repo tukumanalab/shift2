@@ -38,6 +38,8 @@ function switchToTab(tabName) {
         loadSpecialShiftList();
     } else if (tabName === 'all-shifts-table') {
         loadAllShiftsTable();
+    } else if (tabName === 'work-records') {
+        loadWorkRecords();
     }
 
     // 現在のタブをlocalStorageに保存
@@ -60,7 +62,7 @@ function setupTabSwitching() {
 function updateTabVisibility() {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
-    const adminTabs = ['shift-list', 'all-shifts-table', 'capacity-settings', 'user-list', 'special-shift-list'];
+    const adminTabs = ['shift-list', 'all-shifts-table', 'capacity-settings', 'user-list', 'special-shift-list', 'work-records'];
     const userTabs = ['shift-request', 'my-shifts', 'settings'];  // シフト申請を最初に配置
 
     // まず全てのタブボタンとコンテンツをリセット

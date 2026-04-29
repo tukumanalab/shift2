@@ -2372,6 +2372,115 @@
             cursor: not-allowed;
         }
 
+        /* 勤務記録タブのスタイル */
+        .work-records-container {
+            padding: 20px;
+        }
+
+        .work-records-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .month-label {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .month-input {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+.work-records-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .work-records-table th {
+            background: #4285f4;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 500;
+        }
+
+        .work-records-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .work-records-user-row:hover {
+            background-color: #f8f9fa;
+        }
+
+        .wr-toggle-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            color: #666;
+            padding: 2px 6px;
+        }
+
+        .wr-detail-row {
+            background: #fafbff;
+        }
+
+        .wr-detail-date {
+            margin-right: 12px;
+            color: #555;
+        }
+
+        .wr-detail-time {
+            margin-right: 8px;
+            font-family: monospace;
+        }
+
+        .regular-badge {
+            display: inline-block;
+            font-size: 11px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .wr-copy-btn {
+            margin-left: auto;
+            padding: 6px 16px;
+            background: #34a853;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .wr-copy-btn:hover {
+            background: #2d8e47;
+        }
+
+        .work-records-table td.sunday {
+            color: #e53935;
+            font-weight: 500;
+        }
+
+        .work-records-table td.saturday {
+            color: #1565c0;
+            font-weight: 500;
+        }
+
         /* ページネーションのスタイル */
         .pagination {
             display: flex;
@@ -2638,6 +2747,7 @@
                 <button class="tab-button" data-tab="capacity-settings" style="display: none;">シフト人数&メモ設定</button>
                 <button class="tab-button" data-tab="user-list" style="display: none;">ユーザー一覧</button>
                 <button class="tab-button" data-tab="special-shift-list" style="display: none;">特別シフト一覧</button>
+                <button class="tab-button" data-tab="work-records" style="display: none;">勤務記録</button>
                 <button class="tab-button" data-tab="shift-request" style="display: none;">シフト申請</button>
                 <button class="tab-button" data-tab="my-shifts" style="display: none;">自分のシフト一覧</button>
                 <button class="tab-button" data-tab="settings" style="display: none;">設定</button>
@@ -2697,6 +2807,12 @@
             <div id="special-shift-list" class="tab-content">
                 <div id="specialShiftListContent">
                     <!-- 特別シフト一覧が動的に生成されます -->
+                </div>
+            </div>
+
+            <div id="work-records" class="tab-content">
+                <div id="workRecordsContent">
+                    <!-- 勤務記録が動的に生成されます -->
                 </div>
             </div>
 
@@ -2867,6 +2983,7 @@
     <script src="js/modules/specialShifts.js"></script>
     <script src="js/modules/adminUsers.js"></script>
     <script src="js/modules/allShiftsTable.js"></script>
+    <script src="js/modules/workRecords.js"></script>
 
     <!-- 開発環境用 -->
     <script src="js/modules/devLogin.js"></script>
