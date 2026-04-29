@@ -120,7 +120,7 @@ function buildShiftRows(regularShifts, specialShifts) {
 
 function buildTsvContent(rows) {
     return rows.map(r =>
-        [r.user_name, formatDateShort(r.date), getDayOfWeek(r.date), r.start, r.end, formatDuration(r.hours)].join('\t')
+        [formatDateShort(r.date), getDayOfWeek(r.date), r.start, r.end, formatDuration(r.hours)].join('\t')
     ).join('\n');
 }
 
@@ -279,10 +279,10 @@ describe('buildTsvContent', () => {
         expect(tsv).not.toContain('ユーザー名');
     });
 
-    test('1行目がデータ行になっている', () => {
+    test('1行目がデータ行になっている（ユーザー名なし）', () => {
         const tsv = buildTsvContent(rows);
         const lines = tsv.split('\n');
-        expect(lines[0]).toBe('山田太郎\t4月21日\t火\t14:00\t18:00\t4:00');
+        expect(lines[0]).toBe('4月21日\t火\t14:00\t18:00\t4:00');
     });
 
     test('時間数がH:MM形式になっている', () => {
