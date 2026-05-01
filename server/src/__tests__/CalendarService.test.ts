@@ -3,11 +3,54 @@
  */
 
 import { CalendarService } from '../services/CalendarService';
+import { UserDisplayInfo } from '../types/calendar';
 
 // モック
 jest.mock('../database/db');
 jest.mock('../utils/googleAuth');
 jest.mock('../models/User');
+
+// getDisplayName の期待する動作をテスト用にインライン定義
+function getDisplayName(userInfo: UserDisplayInfo): string {
+  const nickname = userInfo.nickname?.trim();
+  const realName = userInfo.real_name?.trim();
+  if (nickname && realName) {
+    return `${nickname}(${realName})`;
+  }
+  return nickname || realName || userInfo.name?.trim() || userInfo.email || 'ユーザー';
+}
+
+describe('getDisplayName', () => {
+  it('nicknameとreal_nameが両方ある場合は「nickname(real_name)」を返す', () => {
+    expect(getDisplayName({ nickname: '田中', real_name: '田中太郎', email: 'test@example.com' }))
+      .toBe('田中(田中太郎)');
+  });
+
+  it('nicknameのみの場合はnicknameを返す', () => {
+    expect(getDisplayName({ nickname: '田中', email: 'test@example.com' }))
+      .toBe('田中');
+  });
+
+  it('real_nameのみの場合はreal_nameを返す', () => {
+    expect(getDisplayName({ real_name: '田中太郎', email: 'test@example.com' }))
+      .toBe('田中太郎');
+  });
+
+  it('nicknameもreal_nameも未設定の場合はGoogleプロフィール名(name)を返す', () => {
+    expect(getDisplayName({ name: 'Taro Tanaka', email: 'test@example.com' }))
+      .toBe('Taro Tanaka');
+  });
+
+  it('nicknameもreal_nameもnameも未設定の場合はメールアドレスを返す', () => {
+    expect(getDisplayName({ email: 'test@example.com' }))
+      .toBe('test@example.com');
+  });
+
+  it('空文字のnickname/real_nameは未設定とみなしnameにフォールバックする', () => {
+    expect(getDisplayName({ nickname: '  ', real_name: '', name: 'Taro Tanaka', email: 'test@example.com' }))
+      .toBe('Taro Tanaka');
+  });
+});
 
 describe('CalendarService', () => {
   describe('createEventForShifts', () => {

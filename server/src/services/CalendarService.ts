@@ -18,7 +18,7 @@ export class CalendarService {
     if (nickname && realName) {
       return `${nickname}(${realName})`;
     }
-    return nickname || realName || userInfo.email || 'ユーザー';
+    return nickname || realName || userInfo.name?.trim() || userInfo.email || 'ユーザー';
   }
 
   /**
@@ -278,6 +278,7 @@ export class CalendarService {
           const displayName = this.getDisplayName({
             nickname: user.nickname,
             real_name: user.real_name,
+            name: user.name,
             email: user.email,
           });
 
@@ -427,6 +428,7 @@ export class CalendarService {
       const displayName = this.getDisplayName({
         nickname: user.nickname,
         real_name: user.real_name,
+        name: user.name,
         email: user.email,
       });
 
@@ -572,6 +574,7 @@ export class CalendarService {
       const displayName = this.getDisplayName({
         nickname: user.nickname,
         real_name: user.real_name,
+        name: user.name,
         email: user.email,
       });
 
@@ -683,6 +686,7 @@ export class CalendarService {
         const displayName = this.getDisplayName({
           nickname: user.nickname,
           real_name: user.real_name,
+          name: user.name,
           email: user.email,
         });
 
