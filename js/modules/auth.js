@@ -107,6 +107,17 @@ async function showProfile(profileData) {
         displaySpecialShiftAnnouncement();
     }
 
+    // ニックネームも本名も未設定の場合は設定タブへ強制遷移（一般ユーザーのみ）
+    if (!isAdmin()) {
+        const profile = getCurrentUserProfile();
+        const hasNickname = profile?.nickname?.trim();
+        const hasRealName = (profile?.real_name || profile?.realName)?.trim();
+        if (!hasNickname && !hasRealName) {
+            switchToTab('settings');
+            return;
+        }
+    }
+
     // 保存されたタブがあれば復元
     const savedTab = localStorage.getItem('currentTab');
     if (savedTab) {
