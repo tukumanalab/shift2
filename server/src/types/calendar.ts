@@ -56,5 +56,6 @@ export interface CalendarEvent {
 export interface UserDisplayInfo {
   nickname?: string;
   real_name?: string;
+  name?: string;
   email: string;
 }
