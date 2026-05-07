@@ -154,11 +154,14 @@ describe('openDateDetailModal の DOM 出力', () => {
         });
 
         container.appendChild(section);
-
-        const submitBtn = modal.querySelector('.submit-btn');
-        if (submitBtn) submitBtn.style.display = '';
-        updateSubmitButton();
       }
+
+      // submit ボタンの表示制御（特別シフト or 通常シフトのいずれかがあれば表示）
+      const submitBtn = modal.querySelector('.submit-btn');
+      if (submitBtn) {
+        submitBtn.style.display = (maxCapacityForDate > 0 || hasSpecialShifts) ? '' : 'none';
+      }
+      updateSubmitButton();
 
       modal.style.display = 'flex';
     };
@@ -240,15 +243,19 @@ describe('openDateDetailModal の DOM 出力', () => {
     expect(mockSubmitBtn.style.display).not.toBe('none');
   });
 
-  test('特別シフトのみの日: submit ボタンは非表示のまま', async () => {
-    setupGlobals({ hasSpecialShifts: true, maxCapacity: 0 });
+  test('特別シフトのみの日 (capacity=0): submit ボタンが表示される', async () => {
+    setupGlobals({
+      hasSpecialShifts: true,
+      maxCapacity: 0,
+      specialShifts: [{ uuid: 'ss-1', date: '2026-04-20', start_time: '10:00', end_time: '12:00', user_id: 'admin', user_name: '管理者' }],
+    });
     defineOpenSpecialShiftApplicationModal();
     defineOpenDateDetailModal();
 
     await openDateDetailModal('2026-04-20');
 
-    // 特別シフトのみの日は通常申請の submit ボタンを表示しない
-    expect(mockSubmitBtn.style.display).toBe('none');
+    // 特別シフトがある日は capacity=0 でも申請できるよう submit ボタンを表示する
+    expect(mockSubmitBtn.style.display).not.toBe('none');
   });
 
   test('capacity=0 かつ特別シフトなし: モーダルが開かない', async () => {

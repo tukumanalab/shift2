@@ -521,16 +521,14 @@ async function openDateDetailModal(dateKey) {
                 container.appendChild(slotDiv);
             });
         }
-
-        // submit ボタンを表示して状態を更新
-        const submitBtn = modal.querySelector('.submit-btn');
-        if (submitBtn) submitBtn.style.display = '';
-        updateSubmitButton();
-    } else {
-        // 通常シフト枠がない場合は submit ボタンを非表示
-        const submitBtn = modal.querySelector('.submit-btn');
-        if (submitBtn) submitBtn.style.display = 'none';
     }
+
+    // submit ボタンの表示制御（特別シフト or 通常シフトのいずれかがあれば表示）
+    const submitBtn = modal.querySelector('.submit-btn');
+    if (submitBtn) {
+        submitBtn.style.display = (maxCapacityForDate > 0 || hasSpecialShifts) ? '' : 'none';
+    }
+    updateSubmitButton();
 
     modal.style.display = 'flex';
 }
