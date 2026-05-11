@@ -92,6 +92,67 @@ async function deleteAllCalendarEvents() {
     }
 }
 
+// 指定日のカレンダーをリセット（orphanイベント掃除用）
+async function cleanCalendarDate() {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+        alert('ログインが必要です。');
+        return;
+    }
+
+    const dateInput = document.getElementById('cleanDateInput');
+    const date = dateInput?.value;
+    if (!date) {
+        alert('リセットする日付を選択してください。');
+        return;
+    }
+
+    const confirmReset = confirm(
+        `本当に ${date} のGoogleカレンダーをリセットしますか？\n\n` +
+        '⚠️ 警告: 該当日のすべてのイベントを削除し、DBから再同期します。\n' +
+        'シフトに紐付かない不正イベント（orphan）も一掃されます。'
+    );
+    if (!confirmReset) return;
+
+    const btn = document.getElementById('cleanDateBtn');
+    const originalText = btn?.textContent;
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'リセット中（数分かかる場合があります）...';
+    }
+
+    try {
+        const result = await API.cleanAndResyncCalendarDate(date);
+
+        if (result.success) {
+            const data = result.data || {};
+            alert(
+                `${date}のカレンダーをリセットしました。\n` +
+                `削除: ${data.deleted ?? 0}件\n` +
+                `通常シフト再同期: ${data.resyncedShifts ?? 0}人分\n` +
+                `特別シフト申請再同期: ${data.resyncedApplications ?? 0}人分`
+            );
+        } else {
+            console.error('リセットエラー:', result);
+            alert('リセット中にエラーが発生しました。詳細はコンソールを確認してください。\n' + (result.error || ''));
+        }
+    } catch (error) {
+        console.error('リセットに失敗しました:', error);
+        if (error.name === 'AbortError') {
+            alert('リセット処理がタイムアウトしました。\n処理は継続中の可能性があります。');
+        } else if (error.message && error.message.includes('Failed to fetch')) {
+            alert('ネットワークエラーが発生しました。');
+        } else {
+            alert('リセットに失敗しました。\nエラー: ' + (error.message || '不明なエラー'));
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText || '指定日のカレンダーをリセット';
+        }
+    }
+}
+
 // Google Sign-Inを初期化
 function initializeGoogleSignIn() {
     const clientId = getGoogleClientId();

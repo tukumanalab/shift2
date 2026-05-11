@@ -208,5 +208,27 @@ const API = {
             clearTimeout(timeoutId);
             throw error;
         }
+    },
+
+    // 指定日のカレンダーイベントを削除して再同期
+    async cleanAndResyncCalendarDate(date) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5分
+
+        try {
+            const response = await fetch(`${config.API_BASE_URL}/calendar/clean-date`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ date }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            return await response.json();
+        } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+        }
     }
 };

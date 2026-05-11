@@ -155,6 +155,46 @@ router.get('/sync-status', (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/calendar/clean-date
+ * 指定日付のGoogleカレンダーイベントをすべて削除し、DBから再同期
+ * 過去のorphanイベントを掃除する用途
+ */
+router.post('/clean-date', async (req: Request, res: Response) => {
+  try {
+    const { date } = req.body;
+
+    if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({
+        success: false,
+        error: 'date（YYYY-MM-DD形式）は必須です',
+      });
+    }
+
+    const result = await CalendarService.cleanAndResyncDate(date);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: `${date}のカレンダーをリセットしました（${result.deleted}件削除、通常シフト${result.resyncedShifts}人分・特別シフト申請${result.resyncedApplications}人分を再同期）`,
+        data: result,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error || 'リセットに失敗しました',
+      });
+    }
+  } catch (error: any) {
+    console.error('カレンダー指定日リセットエラー:', error);
+    res.status(500).json({
+      success: false,
+      error: 'サーバーエラーが発生しました',
+      details: error.message,
+    });
+  }
+});
+
+/**
  * DELETE /api/calendar/all
  * Googleカレンダーのすべてのイベントを削除
  */

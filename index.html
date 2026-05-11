@@ -415,6 +415,12 @@
             background-color: #6c757d;
             cursor: not-allowed;
         }
+        .clean-date-input {
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 1em;
+        }
         .tabs {
             display: flex;
             border-bottom: 2px solid #ddd;
@@ -2765,6 +2771,12 @@
                     </button>
                     <button id="deleteAllBtn" class="delete-all-btn" onclick="deleteAllCalendarEvents()">
                         Googleカレンダーをクリア
+                    </button>
+                </div>
+                <div class="sync-buttons">
+                    <input type="date" id="cleanDateInput" class="clean-date-input">
+                    <button id="cleanDateBtn" class="delete-all-btn" onclick="cleanCalendarDate()">
+                        指定日のカレンダーをリセット
                     </button>
                 </div>
                 <div id="calendarBulkActionBar" class="bulk-delete-action-bar" style="position: sticky; top: 0; z-index: 100;">
