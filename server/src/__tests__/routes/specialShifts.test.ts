@@ -412,6 +412,39 @@ describe('Special Shifts API Routes', () => {
         .toHaveBeenCalledWith('user-1', '2026-04-20');
     });
 
+    test('カレンダー同期完了前にレスポンスを返さない（race condition防止）', async () => {
+      const mockShift = { uuid: 'shift-1', date: '2026-04-20' };
+      const mockApp = { uuid: 'mock-uuid', user_id: 'user-1', user_name: 'ユーザー1', time_slot: '10:00-10:30' };
+      (SpecialShiftModel.getByUuid as jest.Mock).mockReturnValue(mockShift);
+      (SpecialShiftApplicationModel.checkDuplicate as jest.Mock).mockReturnValue(false);
+      (SpecialShiftApplicationModel.create as jest.Mock).mockReturnValue(mockApp);
+
+      // 解決を制御できる Promise（カレンダー同期を意図的に保留）
+      let resolveSync!: (value: { success: boolean }) => void;
+      const syncPromise = new Promise<{ success: boolean }>((res) => {
+        resolveSync = res;
+      });
+      (CalendarService.syncSpecialShiftApplicationsForUserAndDate as jest.Mock)
+        .mockReturnValue(syncPromise);
+
+      // リクエストを発行
+      const responsePromise = request(app)
+        .post('/api/special-shifts/shift-1/apply')
+        .send({ user_id: 'user-1', user_name: 'ユーザー1', time_slot: '10:00-10:30' });
+
+      // sync が完了していない状態で、レスポンスが先に返ってこないことを確認
+      const raced = await Promise.race([
+        responsePromise.then(() => 'response' as const),
+        new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), 100)),
+      ]);
+      expect(raced).toBe('timeout');
+
+      // sync を完了させてレスポンスを受け取る
+      resolveSync({ success: true });
+      const response = await responsePromise;
+      expect(response.status).toBe(201);
+    });
+
     test('カレンダー同期失敗でも201を返す（非致命的エラー）', async () => {
       const mockShift = { uuid: 'shift-1', date: '2026-04-20' };
       const mockApp = { uuid: 'mock-uuid', user_id: 'user-1', user_name: 'ユーザー1', time_slot: '10:00-10:30' };
@@ -502,6 +535,35 @@ describe('Special Shifts API Routes', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.message).toBe('申請をキャンセルしました');
       expect(SpecialShiftApplicationModel.delete).toHaveBeenCalledWith('app-1');
+    });
+
+    test('キャンセル時はカレンダー同期完了前にレスポンスを返さない（race condition防止）', async () => {
+      const mockApp = {
+        uuid: 'app-1', special_shift_uuid: 'shift-1',
+        user_id: 'user-1', user_name: 'ユーザー1'
+      };
+      (SpecialShiftApplicationModel.getByUuid as jest.Mock).mockReturnValue(mockApp);
+      (SpecialShiftApplicationModel.delete as jest.Mock).mockReturnValue(true);
+      (SpecialShiftModel.getByUuid as jest.Mock).mockReturnValue({ uuid: 'shift-1', date: '2026-04-20' });
+
+      let resolveSync!: (value: { success: boolean }) => void;
+      const syncPromise = new Promise<{ success: boolean }>((res) => {
+        resolveSync = res;
+      });
+      (CalendarService.syncSpecialShiftApplicationsForUserAndDate as jest.Mock)
+        .mockReturnValue(syncPromise);
+
+      const responsePromise = request(app).delete('/api/special-shifts/applications/app-1');
+
+      const raced = await Promise.race([
+        responsePromise.then(() => 'response' as const),
+        new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), 100)),
+      ]);
+      expect(raced).toBe('timeout');
+
+      resolveSync({ success: true });
+      const response = await responsePromise;
+      expect(response.status).toBe(200);
     });
 
     test('キャンセル後にカレンダー再同期が呼ばれる', async () => {

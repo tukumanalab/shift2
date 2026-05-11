@@ -207,7 +207,7 @@ router.post('/delete-multiple', (req, res) => {
  * POST /api/special-shifts/:uuid/apply
  * 特別シフトに申請する
  */
-router.post('/:uuid/apply', (req, res) => {
+router.post('/:uuid/apply', async (req, res) => {
   try {
     const specialShiftUuid = req.params.uuid as string;
     const { user_id, user_name, time_slot } = req.body;
@@ -253,14 +253,20 @@ router.post('/:uuid/apply', (req, res) => {
       });
     }
 
+    // 連続 apply で sync が並行発火すると Google Calendar に orphan イベントが
+    // 残るため、同期完了を待ってからレスポンスを返す
+    const syncResult = await CalendarService.syncSpecialShiftApplicationsForUserAndDate(
+      user_id,
+      shift.date
+    );
+    if (!syncResult.success) {
+      console.error('特別シフト申請カレンダー同期エラー:', syncResult.error);
+    }
+
     res.status(201).json({
       success: true,
       data: application
     });
-
-    // カレンダー同期（非致命的エラー）
-    CalendarService.syncSpecialShiftApplicationsForUserAndDate(user_id, shift.date)
-      .catch((err) => console.error('特別シフト申請カレンダー同期エラー:', err));
   } catch (error) {
     console.error('Error applying for special shift:', error);
     res.status(500).json({
@@ -306,7 +312,7 @@ router.get('/:uuid/applications', (req, res) => {
  * DELETE /api/special-shifts/applications/:appUuid
  * 特別シフト申請をキャンセル
  */
-router.delete('/applications/:appUuid', (req, res) => {
+router.delete('/applications/:appUuid', async (req, res) => {
   try {
     const appUuid = req.params.appUuid as string;
 
@@ -330,16 +336,20 @@ router.delete('/applications/:appUuid', (req, res) => {
       });
     }
 
+    if (specialShift) {
+      const syncResult = await CalendarService.syncSpecialShiftApplicationsForUserAndDate(
+        application.user_id,
+        specialShift.date
+      );
+      if (!syncResult.success) {
+        console.error('特別シフト申請キャンセル後カレンダー同期エラー:', syncResult.error);
+      }
+    }
+
     res.json({
       success: true,
       message: '申請をキャンセルしました'
     });
-
-    // カレンダー再同期（非致命的エラー）
-    if (specialShift) {
-      CalendarService.syncSpecialShiftApplicationsForUserAndDate(application.user_id, specialShift.date)
-        .catch((err) => console.error('特別シフト申請キャンセル後カレンダー同期エラー:', err));
-    }
   } catch (error) {
     console.error('Error cancelling special shift application:', error);
     res.status(500).json({
