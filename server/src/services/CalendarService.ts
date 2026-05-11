@@ -703,6 +703,102 @@ export class CalendarService {
   }
 
   /**
+   * 指定日付の Google Calendar イベントをすべて削除し、DB から再同期する
+   * 過去のレース等で残った orphan イベントを掃除する用途
+   */
+  static async cleanAndResyncDate(date: string): Promise<{
+    success: boolean;
+    deleted: number;
+    resyncedShifts: number;
+    resyncedApplications: number;
+    error?: string;
+  }> {
+    try {
+      console.log(`[Calendar] ==== 指定日リセット開始: ${date} ====`);
+      const { calendar, calendarId } = getCalendarClient();
+
+      // TIMEZONE のオフセットは Asia/Tokyo (+09:00) 前提（既存実装の方針に合わせる）
+      const tzOffset = '+09:00';
+      const dayStart = new Date(`${date}T00:00:00${tzOffset}`);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+      // 1. 該当日のイベントをすべて取得
+      const eventsResponse = await calendar.events.list({
+        calendarId,
+        timeMin: dayStart.toISOString(),
+        timeMax: dayEnd.toISOString(),
+        singleEvents: true,
+      });
+      const events = eventsResponse.data.items || [];
+      console.log(`[Calendar] 削除対象イベント数: ${events.length}`);
+
+      // 2. すべて削除
+      let deleted = 0;
+      for (const event of events) {
+        if (!event.id) continue;
+        try {
+          await calendar.events.delete({ calendarId, eventId: event.id });
+          deleted++;
+        } catch (error: any) {
+          if (error.code === 404) {
+            deleted++;
+          } else {
+            console.error(`[Calendar] イベント削除エラー (${event.id}):`, error.message);
+          }
+        }
+      }
+
+      // 3. DB の calendar_event_id を当該日についてクリア
+      db.prepare('UPDATE shifts SET calendar_event_id = NULL WHERE date = ?').run(date);
+      db.prepare(
+        `UPDATE special_shift_applications SET calendar_event_id = NULL
+         WHERE special_shift_uuid IN (SELECT uuid FROM special_shifts WHERE date = ?)`
+      ).run(date);
+
+      // 4. 該当日の通常シフトを (user_id) ごとに再同期
+      const shiftUsers = db
+        .prepare(`SELECT DISTINCT user_id FROM shifts WHERE date = ?`)
+        .all(date) as Array<{ user_id: string }>;
+
+      let resyncedShifts = 0;
+      for (const { user_id } of shiftUsers) {
+        const result = await this.syncShiftsForUserAndDate(user_id, date);
+        if (result.success) resyncedShifts++;
+      }
+
+      // 5. 該当日の特別シフト申請を (user_id) ごとに再同期
+      const appUsers = db
+        .prepare(
+          `SELECT DISTINCT a.user_id
+           FROM special_shift_applications a
+           JOIN special_shifts s ON a.special_shift_uuid = s.uuid
+           WHERE s.date = ?`
+        )
+        .all(date) as Array<{ user_id: string }>;
+
+      let resyncedApplications = 0;
+      for (const { user_id } of appUsers) {
+        const result = await this.syncSpecialShiftApplicationsForUserAndDate(user_id, date);
+        if (result.success) resyncedApplications++;
+      }
+
+      console.log(
+        `[Calendar] ==== 指定日リセット完了: 削除${deleted}件 / 再同期 通常${resyncedShifts}人 特別${resyncedApplications}人 ====`
+      );
+      return { success: true, deleted, resyncedShifts, resyncedApplications };
+    } catch (error: any) {
+      console.error('[Calendar] ✗ 指定日リセットエラー:', error);
+      return {
+        success: false,
+        deleted: 0,
+        resyncedShifts: 0,
+        resyncedApplications: 0,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
    * 同期ステータスを取得（通常シフトのみ）
    */
   static getSyncStatus(): { total_events: number; last_synced: string | null } {
