@@ -4,6 +4,15 @@ import calendarRouter from '../../routes/calendar';
 import { CalendarService } from '../../services/CalendarService';
 
 jest.mock('../../services/CalendarService');
+jest.mock('../../database/db', () => ({
+  default: {
+    prepare: jest.fn().mockReturnValue({
+      all: jest.fn().mockReturnValue([]),
+      run: jest.fn(),
+      get: jest.fn()
+    })
+  }
+}));
 
 describe('Calendar API Routes', () => {
   let app: Express;
