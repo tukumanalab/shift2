@@ -15,7 +15,7 @@ type ICalEvent = ReturnType<ReturnType<typeof ical>['createEvent']>;
 
 function addAttendeeIfPresent(evt: ICalEvent, slot: MergedTimeSlot): void {
   if (slot.email) {
-    evt.createAttendee({ name: slot.user_name, email: slot.email });
+    evt.createAttendee({ email: slot.email });
   }
 }
 
