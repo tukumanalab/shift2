@@ -6,6 +6,7 @@ export interface Shift {
   uuid: string;
   user_id: string;
   user_name: string;
+  email?: string | null;
   date: string;
   time_slot: string;
   calendar_event_id: string | null;
@@ -35,7 +36,7 @@ export class ShiftModel {
   static getAll(): Shift[] {
     try {
       const stmt = db.prepare(`
-        SELECT s.*, u.nickname, u.real_name
+        SELECT s.*, u.nickname, u.real_name, u.email
         FROM shifts s
         LEFT JOIN users u ON s.user_id = u.user_id
         ORDER BY s.date ASC, s.time_slot ASC
@@ -52,7 +53,13 @@ export class ShiftModel {
    */
   static getByUserId(userId: string): Shift[] {
     try {
-      const stmt = db.prepare('SELECT * FROM shifts WHERE user_id = ? ORDER BY date ASC, time_slot ASC');
+      const stmt = db.prepare(`
+        SELECT s.*, u.nickname, u.real_name, u.email
+        FROM shifts s
+        LEFT JOIN users u ON s.user_id = u.user_id
+        WHERE s.user_id = ?
+        ORDER BY s.date ASC, s.time_slot ASC
+      `);
       return stmt.all(userId) as Shift[];
     } catch (error) {
       console.error('Error getting shifts by user ID:', error);

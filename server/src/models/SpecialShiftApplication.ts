@@ -18,6 +18,7 @@ export interface SpecialShiftApplicationWithDate extends SpecialShiftApplication
   calendar_event_id: string | null;
   nickname: string | null;
   real_name: string | null;
+  email: string | null;
 }
 
 export interface SpecialShiftApplicationCreateData {
@@ -104,7 +105,7 @@ export class SpecialShiftApplicationModel {
         SELECT a.uuid, a.special_shift_uuid, a.user_id, a.user_name,
                a.time_slot, a.calendar_event_id, a.created_at, a.updated_at,
                s.date, s.name AS shift_name,
-               u.nickname, u.real_name
+               u.nickname, u.real_name, u.email
         FROM special_shift_applications a
         JOIN special_shifts s ON a.special_shift_uuid = s.uuid
         LEFT JOIN users u ON a.user_id = u.user_id

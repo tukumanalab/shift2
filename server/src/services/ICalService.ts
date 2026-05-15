@@ -11,6 +11,14 @@ function toJSTDate(date: string, time: string): Date {
   return new Date(`${date}T${time}:00+09:00`);
 }
 
+type ICalEvent = ReturnType<ReturnType<typeof ical>['createEvent']>;
+
+function addAttendeeIfPresent(evt: ICalEvent, slot: MergedTimeSlot): void {
+  if (slot.email) {
+    evt.createAttendee({ name: slot.user_name, email: slot.email });
+  }
+}
+
 function addMergedShiftEvents(cal: ReturnType<typeof ical>, shifts: Shift[]): void {
   const shiftInfos = shifts.map(s => ({ ...s, type: 'shift' as const }));
   const merged: MergedTimeSlot[] = groupAndMergeShifts(shiftInfos);
@@ -23,6 +31,7 @@ function addMergedShiftEvents(cal: ReturnType<typeof ical>, shifts: Shift[]): vo
     const evt = cal.createEvent({ start, end, summary: `シフト: ${slot.user_name}`, timezone: TIMEZONE });
     evt.uid(uid);
     evt.description(`担当: ${slot.user_name}\n時間: ${slot.start_time}-${slot.end_time}`);
+    addAttendeeIfPresent(evt, slot);
   }
 }
 
@@ -36,6 +45,7 @@ function addMergedSpecialShiftApplicationEvents(
     uuid: a.uuid,
     user_id: a.user_id,
     user_name: a.user_name,
+    email: a.email,
     date: a.date,
     time_slot: a.time_slot,
     type: 'shift' as const,
@@ -51,6 +61,7 @@ function addMergedSpecialShiftApplicationEvents(
     const evt = cal.createEvent({ start, end, summary, timezone: TIMEZONE });
     evt.uid(uid);
     evt.description(`担当: ${slot.user_name}\n時間: ${slot.start_time}-${slot.end_time}`);
+    addAttendeeIfPresent(evt, slot);
   }
 }
 
