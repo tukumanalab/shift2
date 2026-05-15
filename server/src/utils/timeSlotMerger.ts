@@ -75,6 +75,7 @@ export function groupAndMergeShifts(shifts: ShiftInfo[]): MergedTimeSlot[] {
       mergedSlots.push({
         user_id: groupShifts[0].user_id,
         user_name: groupShifts[0].user_name,
+        email: groupShifts[0].email,
         date: groupShifts[0].date,
         start_time,
         end_time,

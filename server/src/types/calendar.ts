@@ -8,6 +8,7 @@ export interface ShiftInfo {
   uuid: string;
   user_id: string;
   user_name: string;
+  email?: string | null;
   date: string;
   time_slot: string;
   type: 'shift';
@@ -16,6 +17,7 @@ export interface ShiftInfo {
 export interface MergedTimeSlot {
   user_id: string;
   user_name: string;
+  email?: string | null;
   date: string;
   start_time: string;
   end_time: string;
