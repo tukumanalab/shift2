@@ -74,9 +74,10 @@ function buildShiftRows(regularShifts, specialShifts) {
 
     const regularGroups = {};
     for (const shift of regularShifts) {
-        const key = `${shift.user_id}::${shift.date}`;
+        const displayName = shift.real_name || shift.user_name;
+        const key = `${displayName}::${shift.date}`;
         if (!regularGroups[key]) {
-            regularGroups[key] = { user_id: shift.user_id, user_name: shift.user_name, date: shift.date, slots: [] };
+            regularGroups[key] = { user_id: displayName, user_name: displayName, date: shift.date, slots: [] };
         }
         regularGroups[key].slots.push(shift.time_slot);
     }
@@ -89,9 +90,10 @@ function buildShiftRows(regularShifts, specialShifts) {
 
     const specialGroups = {};
     for (const shift of specialShifts) {
-        const key = `${shift.user_id}::${shift.special_shift_uuid || shift.date}`;
+        const displayName = shift.real_name || shift.user_name;
+        const key = `${displayName}::${shift.special_shift_uuid || shift.date}`;
         if (!specialGroups[key]) {
-            specialGroups[key] = { user_id: shift.user_id, user_name: shift.user_name, date: shift.date, slots: [] };
+            specialGroups[key] = { user_id: displayName, user_name: displayName, date: shift.date, slots: [] };
         }
         if (shift.time_slot) specialGroups[key].slots.push(shift.time_slot);
     }
@@ -203,12 +205,15 @@ function renderWorkRecords(container, rows, year, month) {
         </div>
     `;
 
-    document.getElementById('workRecordsApplyBtn').addEventListener('click', () => {
+    const applyMonth = () => {
         const val = document.getElementById('workRecordsMonth').value;
         if (!val) return;
         const [y, m] = val.split('-').map(Number);
         loadWorkRecords(y, m);
-    });
+    };
+
+    document.getElementById('workRecordsApplyBtn').addEventListener('click', applyMonth);
+    document.getElementById('workRecordsMonth').addEventListener('change', applyMonth);
 
     document.getElementById('workRecordsUserFilter').addEventListener('change', () => {
         applyUserFilter(rows);
@@ -263,7 +268,7 @@ function buildTableHTML(rows) {
         <table class="work-records-table">
             <thead>
                 <tr>
-                    <th>ユーザー名</th>
+                    <th>本名</th>
                     <th>日付</th>
                     <th>曜日</th>
                     <th>勤務開始</th>
