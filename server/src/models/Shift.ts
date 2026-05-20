@@ -98,7 +98,13 @@ export class ShiftModel {
    */
   static getByDateRange(startDate: string, endDate: string): Shift[] {
     try {
-      const stmt = db.prepare('SELECT * FROM shifts WHERE date >= ? AND date <= ? ORDER BY date ASC, time_slot ASC');
+      const stmt = db.prepare(`
+        SELECT s.*, u.nickname, u.real_name, u.email
+        FROM shifts s
+        LEFT JOIN users u ON s.user_id = u.user_id
+        WHERE s.date >= ? AND s.date <= ?
+        ORDER BY s.date ASC, s.time_slot ASC
+      `);
       return stmt.all(startDate, endDate) as Shift[];
     } catch (error) {
       console.error('Error getting shifts by date range:', error);

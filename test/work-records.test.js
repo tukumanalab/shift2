@@ -76,12 +76,13 @@ function getDayOfWeek(dateString) {
 function buildShiftRows(regularShifts, specialShifts) {
     const rows = [];
 
-    // 通常シフト: user_id + date でグループ化し連続スロットをマージ
+    // 通常シフト: 本名 + date でグループ化（同名ユーザーはマージ）
     const regularGroups = {};
     for (const shift of regularShifts) {
-        const key = `${shift.user_id}::${shift.date}`;
+        const displayName = shift.real_name || shift.user_name;
+        const key = `${displayName}::${shift.date}`;
         if (!regularGroups[key]) {
-            regularGroups[key] = { user_id: shift.user_id, user_name: shift.user_name, date: shift.date, slots: [] };
+            regularGroups[key] = { user_id: displayName, user_name: displayName, date: shift.date, slots: [] };
         }
         regularGroups[key].slots.push(shift.time_slot);
     }
@@ -92,12 +93,13 @@ function buildShiftRows(regularShifts, specialShifts) {
         }
     }
 
-    // 特別シフト: user_id + special_shift_uuid でグループ化し連続スロットをマージ
+    // 特別シフト: 本名 + special_shift_uuid でグループ化（同名ユーザーはマージ）
     const specialGroups = {};
     for (const shift of specialShifts) {
-        const key = `${shift.user_id}::${shift.special_shift_uuid || shift.date}`;
+        const displayName = shift.real_name || shift.user_name;
+        const key = `${displayName}::${shift.special_shift_uuid || shift.date}`;
         if (!specialGroups[key]) {
-            specialGroups[key] = { user_id: shift.user_id, user_name: shift.user_name, date: shift.date, slots: [] };
+            specialGroups[key] = { user_id: displayName, user_name: displayName, date: shift.date, slots: [] };
         }
         if (shift.time_slot) specialGroups[key].slots.push(shift.time_slot);
     }
@@ -223,7 +225,7 @@ describe('buildShiftRows', () => {
 
     test('連続する通常シフトスロットは1行にマージされる', () => {
         const rows = buildShiftRows(regularShifts, []);
-        const u1Regular = rows.filter(r => r.user_id === 'u1' && r.type === '通常');
+        const u1Regular = rows.filter(r => r.user_id === '山田太郎' && r.type === '通常');
         // 14:00-15:30 と 17:00-17:30 の2行
         expect(u1Regular).toHaveLength(2);
         expect(u1Regular[0].start).toBe('14:00');
@@ -232,7 +234,7 @@ describe('buildShiftRows', () => {
 
     test('非連続スロットは別行になる', () => {
         const rows = buildShiftRows(regularShifts, []);
-        const u1Regular = rows.filter(r => r.user_id === 'u1' && r.type === '通常');
+        const u1Regular = rows.filter(r => r.user_id === '山田太郎' && r.type === '通常');
         expect(u1Regular[1].start).toBe('17:00');
         expect(u1Regular[1].end).toBe('17:30');
     });
@@ -243,10 +245,14 @@ describe('buildShiftRows', () => {
         expect(merged.hours).toBe(1.5);
     });
 
+    test('user_idは表示名（本名）になる', () => {
+        const rows = buildShiftRows(regularShifts, []);
+        expect(rows.every(r => r.user_id === r.user_name)).toBe(true);
+    });
+
     test('特別シフトも連続スロットはマージされる', () => {
         const rows = buildShiftRows([], specialShifts);
-        const sp1Rows = rows.filter(r => r.user_id === 'u1');
-        const sp1Merged = sp1Rows.find(r => r.start === '09:00');
+        const sp1Merged = rows.find(r => r.start === '09:00');
         expect(sp1Merged).toBeTruthy();
         expect(sp1Merged.end).toBe('10:00');
     });
@@ -265,6 +271,67 @@ describe('buildShiftRows', () => {
 
     test('空データは空配列を返す', () => {
         expect(buildShiftRows([], [])).toEqual([]);
+    });
+});
+
+describe('buildShiftRows - 同名ユーザーのマージ', () => {
+    test('real_nameが同じ通常シフトは同一人物としてマージされる', () => {
+        const shifts = [
+            { user_id: 'u1', user_name: '旧名A', real_name: '山田太郎', date: '2026-04-21', time_slot: '13:00-13:30' },
+            { user_id: 'u2', user_name: '旧名B', real_name: '山田太郎', date: '2026-04-21', time_slot: '13:30-14:00' },
+        ];
+        const rows = buildShiftRows(shifts, []);
+        // 同じ日に同じ本名 → 連続スロットとして1行にマージ
+        expect(rows).toHaveLength(1);
+        expect(rows[0].user_name).toBe('山田太郎');
+        expect(rows[0].start).toBe('13:00');
+        expect(rows[0].end).toBe('14:00');
+    });
+
+    test('real_nameが同じでも別の日付は別行になる', () => {
+        const shifts = [
+            { user_id: 'u1', user_name: '旧名A', real_name: '山田太郎', date: '2026-04-21', time_slot: '13:00-13:30' },
+            { user_id: 'u2', user_name: '旧名B', real_name: '山田太郎', date: '2026-04-22', time_slot: '13:00-13:30' },
+        ];
+        const rows = buildShiftRows(shifts, []);
+        expect(rows).toHaveLength(2);
+        expect(rows[0].user_name).toBe('山田太郎');
+        expect(rows[1].user_name).toBe('山田太郎');
+    });
+
+    test('real_nameが異なるユーザーは別々に表示される', () => {
+        const shifts = [
+            { user_id: 'u1', user_name: '山田太郎', real_name: '山田太郎', date: '2026-04-21', time_slot: '13:00-13:30' },
+            { user_id: 'u2', user_name: '佐藤花子', real_name: '佐藤花子', date: '2026-04-21', time_slot: '13:00-13:30' },
+        ];
+        const rows = buildShiftRows(shifts, []);
+        expect(rows).toHaveLength(2);
+        const names = rows.map(r => r.user_name).sort();
+        expect(names).toEqual(['佐藤花子', '山田太郎']);
+    });
+
+    test('real_nameがない場合はuser_nameにフォールバックしてマージされる', () => {
+        const shifts = [
+            { user_id: 'u1', user_name: '山田太郎', date: '2026-04-21', time_slot: '13:00-13:30' },
+            { user_id: 'u2', user_name: '山田太郎', date: '2026-04-21', time_slot: '13:30-14:00' },
+        ];
+        const rows = buildShiftRows(shifts, []);
+        expect(rows).toHaveLength(1);
+        expect(rows[0].user_name).toBe('山田太郎');
+        expect(rows[0].start).toBe('13:00');
+        expect(rows[0].end).toBe('14:00');
+    });
+
+    test('特別シフトでもreal_nameが同じユーザーは同一special_shift_uuid内でマージされる', () => {
+        const specials = [
+            { user_id: 'u1', user_name: '旧名A', real_name: '山田太郎', date: '2026-04-21', special_shift_uuid: 'sp1', time_slot: '09:00-09:30' },
+            { user_id: 'u2', user_name: '旧名B', real_name: '山田太郎', date: '2026-04-21', special_shift_uuid: 'sp1', time_slot: '09:30-10:00' },
+        ];
+        const rows = buildShiftRows([], specials);
+        expect(rows).toHaveLength(1);
+        expect(rows[0].user_name).toBe('山田太郎');
+        expect(rows[0].start).toBe('09:00');
+        expect(rows[0].end).toBe('10:00');
     });
 });
 
