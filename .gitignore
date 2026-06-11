@@ -15,3 +15,6 @@ coverage/
 # Deployment
 deploy/
 deploy.tar.gz
+
+# Serena (AIエージェント用ローカル設定。各自の環境に閉じるため追跡しない)
+.serena/
