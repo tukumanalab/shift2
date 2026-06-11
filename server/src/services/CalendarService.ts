@@ -9,6 +9,31 @@ const TIMEZONE = process.env.TIMEZONE || 'Asia/Tokyo';
 
 export class CalendarService {
   /**
+   * 同期処理の直列化キュー（キー: 同期種別 + ユーザーID + 日付）
+   * 同一キーの同期が並行実行されると、後発が先発の作成イベントID（DB書き込み前）を
+   * 観測できず orphan イベントが Google Calendar に残るため、キーごとに直列化する
+   */
+  private static syncQueues = new Map<string, Promise<unknown>>();
+
+  private static runSerialized<T>(key: string, task: () => Promise<T>): Promise<T> {
+    const prev = this.syncQueues.get(key) ?? Promise.resolve();
+    const result = prev.then(task);
+
+    // 後続タスクは前タスクの失敗で止めない（成否に関わらず解決するチェーン）
+    const tail = result.catch(() => undefined);
+    this.syncQueues.set(key, tail);
+
+    // 自分が最後尾のままなら、完了後にキーを削除してリークを防ぐ
+    tail.then(() => {
+      if (this.syncQueues.get(key) === tail) {
+        this.syncQueues.delete(key);
+      }
+    });
+
+    return result;
+  }
+
+  /**
    * ユーザーの表示名を取得
    */
   private static getDisplayName(userInfo: UserDisplayInfo): string {
@@ -347,6 +372,15 @@ export class CalendarService {
     userId: string,
     date: string
   ): Promise<CalendarSyncResult> {
+    return this.runSerialized(`shifts:${userId}:${date}`, () =>
+      this.doSyncShiftsForUserAndDate(userId, date)
+    );
+  }
+
+  private static async doSyncShiftsForUserAndDate(
+    userId: string,
+    date: string
+  ): Promise<CalendarSyncResult> {
     try {
       console.log(`[Calendar] ==== シフト同期開始 ====`);
       console.log(`[Calendar] ユーザーID: ${userId}, 日付: ${date}`);
@@ -493,6 +527,15 @@ export class CalendarService {
    * 申請作成・キャンセル時に呼ばれ、連続する時間枠を自動的にマージします
    */
   static async syncSpecialShiftApplicationsForUserAndDate(
+    userId: string,
+    date: string
+  ): Promise<CalendarSyncResult> {
+    return this.runSerialized(`special:${userId}:${date}`, () =>
+      this.doSyncSpecialShiftApplicationsForUserAndDate(userId, date)
+    );
+  }
+
+  private static async doSyncSpecialShiftApplicationsForUserAndDate(
     userId: string,
     date: string
   ): Promise<CalendarSyncResult> {
