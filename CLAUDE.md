@@ -163,38 +163,41 @@ remainingSlots = configuredCapacity - currentApplications
 ## アーキテクチャ
 
 ### ファイル構成
-- `index.html` — シングルページアプリ (CSS 埋め込み)
-- `app.js` — 認証ロジックと DOM 操作
+- `index.html` — シングルページアプリ (CSS 埋め込み、`js/modules/*.js` を `<script>` タグで読み込み)
+- `js/modules/*.js` — 機能ごとのフロントエンドモジュール (config / state / utils / api / auth / ui / calendar / userProfile / shifts / shiftRequest / capacity / specialShifts / adminUsers / allShiftsTable / workRecords / devLogin)。ES modules ではなく、読み込み順に依存したグローバル空間共有
+- `app.js` — エントリーポイント (DOMContentLoaded での初期化) と管理者向けカレンダー操作
+- `server/src/` — Express + TypeScript バックエンド (routes / models / services / utils / database)
+- `help.html` — 使い方ガイド (独立した静的ページ)
 - `README.md` — セットアップ手順 (日本語)
 
 ### 認証フロー
-1. ページロード時に Google Identity Services を初期化
-2. サインインボタン押下 → OAuth ポップアップ
-3. `handleCredentialResponse()` が JWT を受領
+1. ページロード時に `loadConfig()` がサーバーの `GET /api/config` から Google Client ID と認可メール一覧を取得
+2. Google Identity Services を初期化、サインインボタン押下 → OAuth ポップアップ
+3. `handleCredentialResponse()` (auth.js) が JWT を受領
 4. `decodeJwtResponse()` で JWT ペイロードを手動デコード
-5. `showProfile()` でユーザー情報表示と UI 状態切替
+5. `showProfile()` でユーザー情報表示と UI 状態切替、ユーザーを DB に登録 (`POST /api/users`)
 6. `signOut()` でセッションクリアと UI リセット
 
 ### Google OAuth 設定
-- Client ID は `index.html` と `app.js` にハードコード
-- 現状の Client ID: `your_google_client_id_here`
-- 認可済みオリジン: `localhost:8081`, `127.0.0.1:8081`
+- Client ID と認可メールは**サーバーの環境変数** (`.env` の `GOOGLE_CLIENT_ID` / `AUTHORIZED_EMAILS`) で管理
+- フロントエンドは起動時に `GET /api/config` (server/src/routes/config.ts) から実行時取得する (ハードコードしない)
+- 認可済みオリジン・リダイレクト URI は Google Cloud Console 側で設定 (本番は `https://tukumana.si.aoyama.ac.jp`、開発は `http://localhost:3000`)
 
 ## 実装上のポイント
 
 ### JWT の取り扱い
-JWT ライブラリは使わず、`decodeJwtResponse()` 内で base64 URL デコードを手動実行。
+JWT ライブラリは使わず、`decodeJwtResponse()` (auth.js) 内で base64 URL デコードを手動実行。
 
 ### UI 状態管理
-CSS クラスで管理する 2 状態:
-- ログイン: `#loginSection` 表示 / `#profileSection` 非表示
-- 認証済み: `#loginSection` 非表示 / `#profileSection` 表示
+ログイン状態に応じて `hidden` クラスで表示を切り替える (index.html):
+- 未ログイン: `#loginPrompt` 表示 / `#profileInfo`・`#appContent` 非表示
+- 認証済み: `#loginPrompt` 非表示 / `#profileInfo`・`#appContent` 表示
 
 ### セキュリティに関する注意
-- 学習・デモ用途であり、認証情報がハードコードされている
-- JWT はクライアント側でのみ処理
-- サーバー検証 / セッション管理なし
-- 開発・教育目的のみに適する
+- JWT はクライアント側でデコードのみ (署名検証はしていない)
+- 認可はメールアドレスの許可リストベース (`AUTHORIZED_EMAILS`)
+- サーバー側セッションなし / Google トークンによるステートレス認証
+- 機微情報 (Client ID、カレンダー認証情報など) はすべて環境変数で管理
 
 ## 開発ワークフロー
 
@@ -237,6 +240,8 @@ npx jest <path/to/test>     # 単一ファイル
 
 #### フロントエンドテストの慣習
 フロントエンドの `js/modules/*.js` は Jest から直接 import できないため、**テストファイル内に期待挙動を表現するインライン関数を定義し、その後同じロジックを実コードへ反映する**運用です。テストファイルが事実上の仕様書となります。
+
+> **注記**: この「インライン関数のコピー」運用は、実装を壊してもテストが緑のままになる構造的な弱点を抱えています。`docs/refactoring/phase-1-test-foundation.md` で、CommonJS エクスポートガード方式により実コードを直接 import する方針への移行を計画しています。Phase 1 着手後は新規テストでコピー方式を使わないでください。
 
 ### ブランチ運用
 
