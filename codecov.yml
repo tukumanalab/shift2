@@ -1,6 +1,8 @@
 codecov:
   require_ci_to_pass: yes
 
+# 暫定設定: 表示レンジ・閾値は現状に合わせた値。実測ベースへの調整は
+# docs/refactoring/phase-5-e2e-ci.md で対応する。
 coverage:
   precision: 2
   round: down

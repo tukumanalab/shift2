@@ -42,7 +42,8 @@ const config: Config = {
     '/js/modules/'
   ],
   coverageThreshold: {
-    // Global thresholds (very low since frontend tests don't have coverage yet)
+    // 暫定値: フロントエンドはまだカバレッジ計測対象外のため非常に低く設定している。
+    // 実測ベースへの引き上げは docs/refactoring/phase-5-e2e-ci.md で対応する。
     global: {
       statements: 3,
       branches: 1,
