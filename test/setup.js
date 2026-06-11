@@ -20,7 +20,6 @@ global.currentUser = {
 // Mock global variables
 global.isAdminUser = false;
 global.currentShiftCounts = {};
-global.currentShiftRequestDate = null;
 global.currentDetailDateKey = null;
 global.selectedTimeSlots = [];
 
