@@ -12,7 +12,6 @@ const AppState = {
     scrollToShiftAfterLoad: null,
 
     // シフト申請関連
-    currentShiftRequestDate: null,
     currentShiftCapacity: 0,
     currentShiftCounts: {},
 
@@ -68,14 +67,6 @@ function getScrollToShiftAfterLoad() {
 
 function setScrollToShiftAfterLoad(scrollInfo) {
     AppState.scrollToShiftAfterLoad = scrollInfo;
-}
-
-function getCurrentShiftRequestDate() {
-    return AppState.currentShiftRequestDate;
-}
-
-function setCurrentShiftRequestDate(date) {
-    AppState.currentShiftRequestDate = date;
 }
 
 function getCurrentShiftCapacity() {
@@ -142,7 +133,6 @@ function resetState() {
     AppState.isAdminUser = false;
     AppState.currentUserShifts = [];
     AppState.scrollToShiftAfterLoad = null;
-    AppState.currentShiftRequestDate = null;
     AppState.currentShiftCapacity = 0;
     AppState.currentShiftCounts = {};
     AppState.currentDetailDateKey = null;
