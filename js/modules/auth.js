@@ -102,6 +102,7 @@ async function showProfile(profileData) {
         ]);
         // 初期表示
         displayMyShifts(document.getElementById('myShiftsContent'), getCurrentUserShifts());
+        updateMyIcalUrl();
 
         // 特別シフト募集お知らせを表示
         displaySpecialShiftAnnouncement();

@@ -4,7 +4,6 @@ const config = {
     // サーバーから取得する設定（初期値）
     GOOGLE_CLIENT_ID: '',
     AUTHORIZED_EMAILS: '',
-    ICAL_TOKEN: '',
 
     // サーバーURL（静的設定）
     API_BASE_URL: (() => {
@@ -23,7 +22,6 @@ async function loadConfig() {
         if (result.success && result.data) {
             config.GOOGLE_CLIENT_ID = result.data.googleClientId;
             config.AUTHORIZED_EMAILS = result.data.authorizedEmails;
-            config.ICAL_TOKEN = result.data.icalToken || '';
 
             return true;
         } else {

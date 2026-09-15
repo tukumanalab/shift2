@@ -8,10 +8,13 @@ const router = Router();
  */
 router.get('/', (req: Request, res: Response) => {
   try {
+    // 注意: ICAL_TOKEN はここで返さない。
+    // このエンドポイントはログイン前の全ブラウザから取得できるため、
+    // 共通トークンを返すと全員分のシフトを誰でも購読できてしまう。
+    // 購読URLは GET /api/ical/my-url でユーザーごとに発行する。
     const config = {
       googleClientId: process.env.GOOGLE_CLIENT_ID || '',
       authorizedEmails: process.env.AUTHORIZED_EMAILS || '',
-      icalToken: process.env.ICAL_TOKEN || '',
     };
 
     // 必須設定のバリデーション

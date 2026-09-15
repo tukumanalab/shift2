@@ -96,6 +96,15 @@
             font-size: 14px;
         }
         
+        .help-screenshot {
+            display: block;
+            max-width: 100%;
+            margin: 12px 0 4px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+
         .info-box {
             background: #e3f2fd;
             border-left: 4px solid #2196f3;
@@ -286,9 +295,10 @@
                 <li><a href="#profile-setup">3. プロフィール設定</a></li>
                 <li><a href="#shift-request">4. シフト申請</a></li>
                 <li><a href="#my-shifts">5. 自分のシフト確認</a></li>
-                <li><a href="#shift-calendar">6. シフトカレンダーの見方</a></li>
-                <li><a href="#faq">7. よくある質問</a></li>
-                <li><a href="#troubleshooting">8. トラブルシューティング</a></li>
+                <li><a href="#google-calendar">6. Googleカレンダーに表示する</a></li>
+                <li><a href="#shift-calendar">7. シフトカレンダーの見方</a></li>
+                <li><a href="#faq">8. よくある質問</a></li>
+                <li><a href="#troubleshooting">9. トラブルシューティング</a></li>
             </ul>
         </div>
         
@@ -489,8 +499,80 @@
             </div>
         </div>
         
+        <div class="section" id="google-calendar">
+            <h2>6. Googleカレンダーに表示する</h2>
+
+            <p>自分のシフトを、普段使っている <strong>Googleカレンダー</strong> に表示できます。一度設定しておけば、シフトを申請したり削除したりするたびに、カレンダー側にも自動で反映されます。毎回手入力する必要はありません。</p>
+
+            <div class="info-box">
+                <strong>💡 ポイント</strong>
+                <p>表示されるのは<strong>自分のシフトだけ</strong>です。他の人のシフトは表示されません。スマートフォンのGoogleカレンダーアプリにも、同じアカウントなら自動で表示されます。</p>
+            </div>
+
+            <h3>設定の手順</h3>
+
+            <div class="steps">
+                <div class="step">
+                    <strong>1.「自分のシフト一覧」タブを開く</strong>
+                    <p>ログインしたあと、画面上部の「自分のシフト一覧」タブをクリックします。一覧の上に「Googleカレンダーに表示する（自分のシフトのみ）」と書かれた青い枠があります。</p>
+                    <img src="docs/images/my-shifts-ical-url.png" alt="「自分のシフト一覧」タブの上部に表示される購読URLの欄" class="help-screenshot">
+                </div>
+
+                <div class="step">
+                    <strong>2.「コピー」ボタンを押す</strong>
+                    <p>青い枠の右にある「コピー」ボタンをクリックします。ボタンの文字が「コピーしました」に変われば、URLがコピーできています。</p>
+                    <img src="docs/images/my-shifts-ical-copied.png" alt="コピーボタンを押すと「コピーしました」に変わる" class="help-screenshot">
+                </div>
+
+                <div class="step">
+                    <strong>3. Googleカレンダーを開く</strong>
+                    <p>パソコンのブラウザで <a href="https://calendar.google.com/" target="_blank" rel="noopener">calendar.google.com</a> を開きます。<strong>この設定はパソコンから行ってください。</strong>スマートフォンのアプリからは追加できませんが、パソコンで設定すればスマートフォンにも自動的に表示されます。</p>
+                </div>
+
+                <div class="step">
+                    <strong>4.「他のカレンダー」の「＋」をクリック</strong>
+                    <p>画面左側の下のほうにある「他のカレンダー」の横の「＋」をクリックし、メニューから「<strong>URLで追加</strong>」を選びます。</p>
+                </div>
+
+                <div class="step">
+                    <strong>5. コピーしたURLを貼り付ける</strong>
+                    <p>「カレンダーのURL」の入力欄に、手順2でコピーしたURLを貼り付けます（Windowsなら Ctrl+V、Macなら ⌘+V）。そのあと「<strong>カレンダーを追加</strong>」をクリックします。</p>
+                </div>
+
+                <div class="step">
+                    <strong>6. 完了</strong>
+                    <p>左側のカレンダー一覧に「シフト管理」が追加され、自分のシフトが予定として表示されます。</p>
+                </div>
+            </div>
+
+            <h3>反映されるまでの時間について</h3>
+
+            <div class="warning-box">
+                <strong>⚠️ すぐには反映されません</strong>
+                <p>シフトを申請・削除しても、Googleカレンダーに反映されるまで<strong>最大で24時間ほどかかることがあります</strong>。これはGoogleカレンダーが情報を取りに来るタイミングによるもので、設定の失敗ではありません。</p>
+                <p>急いで最新の状態を確認したいときは、このシフト管理システムの「自分のシフト一覧」タブを見てください。こちらは常に最新です。</p>
+            </div>
+
+            <h3>URLの取り扱いについて</h3>
+
+            <div class="warning-box">
+                <strong>⚠️ URLは他の人に教えないでください</strong>
+                <p>このURLには、あなた専用の合言葉（トークン）が含まれています。URLを知っている人は誰でもあなたのシフトを見られてしまうため、SNSに貼ったり、友達に送ったりしないでください。</p>
+                <p>もし他の人に知られてしまった場合は、管理者に連絡してください。</p>
+            </div>
+
+            <h3>うまくいかないときは</h3>
+
+            <ul>
+                <li><strong>「カレンダーを追加」を押してもエラーになる：</strong>URLの一部しかコピーできていない可能性があります。もう一度「コピー」ボタンを押してから貼り付け直してください。</li>
+                <li><strong>カレンダーは追加されたが予定が表示されない：</strong>そもそもシフトを1件も申請していない場合、表示される予定はありません。「自分のシフト一覧」にシフトが並んでいるか確認してください。</li>
+                <li><strong>申請したシフトがカレンダーに出てこない：</strong>上に書いたとおり、反映まで最大24時間かかります。しばらく待ってから確認してください。</li>
+                <li><strong>URLの欄に「ログインが必要です」と出ている：</strong>一度ログアウトして、ログインし直してください。</li>
+            </ul>
+        </div>
+
         <div class="section" id="shift-calendar">
-            <h2>6. シフトカレンダーの見方</h2>
+            <h2>7. シフトカレンダーの見方</h2>
             
             <p>カレンダー形式でシフトの空き状況を確認できます。</p>
             
@@ -513,7 +595,7 @@
         </div>
         
         <div class="section" id="faq">
-            <h2>7. よくある質問</h2>
+            <h2>8. よくある質問</h2>
             
             <div class="faq-item">
                 <div class="faq-question">Q: シフトを間違えて申請してしまいました。修正できますか？</div>
@@ -537,7 +619,7 @@
         </div>
         
         <div class="section" id="troubleshooting">
-            <h2>8. トラブルシューティング</h2>
+            <h2>9. トラブルシューティング</h2>
             
             <h3>ログインできない場合</h3>
             <ul>

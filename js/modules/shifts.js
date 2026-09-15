@@ -112,14 +112,28 @@ function displayCapacityOnAdminCalendar(capacityData) {
     });
 }
 
-// iCal購読URLを入力欄にセットする
-function updateIcalUrl() {
+// iCal購読URL（全シフト・管理者用）を入力欄にセットする
+async function updateIcalUrl() {
     const input = document.getElementById('icalAllUrl');
     if (!input) return;
-    if (config.ICAL_TOKEN) {
-        input.value = `${config.API_BASE_URL}/ical/all?token=${config.ICAL_TOKEN}`;
-    } else {
-        input.value = '（ICAL_TOKEN が未設定です）';
+
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+        input.value = '（ログインが必要です）';
+        return;
+    }
+
+    try {
+        const result = await API.getAllIcalUrl(currentUser.email);
+        if (result.success && result.data && result.data.url) {
+            // サーバーは /api からの相対パスを返すため、絶対URLに変換して貼り付け可能にする
+            input.value = new URL(result.data.url, window.location.origin).href;
+        } else {
+            input.value = '（購読URLを取得できませんでした）';
+        }
+    } catch (error) {
+        console.error('iCal購読URLの取得に失敗:', error);
+        input.value = '（購読URLを取得できませんでした）';
     }
 }
 
@@ -129,6 +143,59 @@ async function copyIcalUrl() {
     if (!input || !input.value) return;
     await navigator.clipboard.writeText(input.value);
     const btn = document.querySelector('.ical-copy-btn');
+    if (btn) {
+        const original = btn.textContent;
+        btn.textContent = 'コピーしました';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+    }
+}
+
+// 自分専用のiCal購読URLを入力欄にセットする
+async function updateMyIcalUrl() {
+    const input = document.getElementById('icalMyUrl');
+    if (!input) return;
+
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+        input.value = '（ログインが必要です）';
+        return;
+    }
+
+    try {
+        const result = await API.getMyIcalUrl(currentUser.sub);
+        if (result.success && result.data && result.data.url) {
+            // サーバーは /api からの相対パスを返すため、絶対URLに変換して貼り付け可能にする
+            input.value = new URL(result.data.url, window.location.origin).href;
+        } else {
+            input.value = '（購読URLを取得できませんでした）';
+        }
+    } catch (error) {
+        console.error('iCal購読URLの取得に失敗:', error);
+        input.value = '（購読URLを取得できませんでした）';
+    }
+}
+
+// 自分専用のiCal購読URLをクリップボードにコピーする
+async function copyMyIcalUrl() {
+    const input = document.getElementById('icalMyUrl');
+    if (!input || !input.value || input.value.startsWith('（')) return;
+
+    const btn = document.querySelector('#my-shifts .ical-copy-btn');
+
+    try {
+        await navigator.clipboard.writeText(input.value);
+    } catch (error) {
+        // クリップボードが使えない環境（権限拒否など）では手動コピーを促す
+        console.error('クリップボードへのコピーに失敗:', error);
+        input.select();
+        if (btn) {
+            const original = btn.textContent;
+            btn.textContent = 'Ctrl+Cでコピー';
+            setTimeout(() => { btn.textContent = original; }, 3000);
+        }
+        return;
+    }
+
     if (btn) {
         const original = btn.textContent;
         btn.textContent = 'コピーしました';
@@ -159,6 +226,8 @@ async function loadShiftList() {
 async function loadMyShifts() {
     const container = document.getElementById('myShiftsContent');
     if (!container) return;
+
+    updateMyIcalUrl();
 
     const currentUser = getCurrentUser();
     if (!currentUser) {
