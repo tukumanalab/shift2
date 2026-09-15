@@ -152,6 +152,45 @@ describe('ICalService', () => {
     });
   });
 
+  describe('カレンダー名', () => {
+    test('個人用カレンダーには本人の名前が入る（誰のシフトか分かるように）', () => {
+      const mockShifts = [
+        { id: 1, uuid: 'shift-1', user_id: 'user-1', user_name: '石原純也',
+          email: 'a@example.com', date: '2026-04-21', time_slot: '13:00-13:30',
+          calendar_event_id: null, created_at: '', updated_at: '' },
+      ];
+      (ShiftModel.getByUserId as jest.Mock).mockReturnValue(mockShifts);
+
+      const result = ICalService.generateForUser('user-1');
+
+      expect(result).toContain('X-WR-CALNAME:石原純也さんのシフト');
+    });
+
+    test('名前が取得できない場合でも「マイシフト」として識別できる', () => {
+      const result = ICalService.generateForUser('user-1');
+
+      expect(result).toContain('X-WR-CALNAME:マイシフト');
+    });
+
+    test('特別シフトしかない場合も本人の名前が入る', () => {
+      const mockApps = [
+        { uuid: 'app-1', special_shift_uuid: 'shift-1', user_id: 'user-1', user_name: '石原純也',
+          email: 'a@example.com', time_slot: '13:00-13:30', date: '2026-04-20', created_at: '', updated_at: '' },
+      ];
+      (SpecialShiftApplicationModel.getAllWithShiftInfo as jest.Mock).mockReturnValue(mockApps);
+
+      const result = ICalService.generateForUser('user-1');
+
+      expect(result).toContain('X-WR-CALNAME:石原純也さんのシフト');
+    });
+
+    test('全体用カレンダーは全員分だと分かる名前にする', () => {
+      const result = ICalService.generateAll();
+
+      expect(result).toContain('X-WR-CALNAME:全員のシフト');
+    });
+  });
+
   describe('generateForUser(userId)', () => {
     test('特定ユーザーの特別シフト申請のみ含まれる', () => {
       const mockApps = [

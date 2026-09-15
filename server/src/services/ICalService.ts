@@ -71,7 +71,7 @@ export class ICalService {
    * 同一ユーザーの連続するシフトはひとつのイベントにまとめる
    */
   static generateAll(): string {
-    const cal = ical({ name: 'シフト管理', timezone: TIMEZONE });
+    const cal = ical({ name: '全員のシフト', timezone: TIMEZONE });
 
     addMergedShiftEvents(cal, ShiftModel.getAll());
     addMergedSpecialShiftApplicationEvents(cal, SpecialShiftApplicationModel.getAllWithShiftInfo(undefined));
@@ -84,10 +84,19 @@ export class ICalService {
    * 同一ユーザーの連続するシフトはひとつのイベントにまとめる
    */
   static generateForUser(userId: string): string {
-    const cal = ical({ name: 'シフト管理', timezone: TIMEZONE });
+    const shifts = ShiftModel.getByUserId(userId);
+    const specialApps = SpecialShiftApplicationModel.getAllWithShiftInfo(userId);
 
-    addMergedShiftEvents(cal, ShiftModel.getByUserId(userId));
-    addMergedSpecialShiftApplicationEvents(cal, SpecialShiftApplicationModel.getAllWithShiftInfo(userId));
+    // カレンダーアプリ上で「誰のシフトか」が分かるよう本人の名前を使う。
+    // シフトが1件もない場合は名前を取得できないため既定名にする。
+    const userName = shifts[0]?.user_name || specialApps[0]?.user_name;
+    const cal = ical({
+      name: userName ? `${userName}さんのシフト` : 'マイシフト',
+      timezone: TIMEZONE
+    });
+
+    addMergedShiftEvents(cal, shifts);
+    addMergedSpecialShiftApplicationEvents(cal, specialApps);
 
     return cal.toString();
   }
