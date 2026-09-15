@@ -115,10 +115,10 @@ sudo nano /etc/nginx/shift2.conf
 
 ```nginx
 location /shift2/ {
-        # パスをリライト（/shift2/xxx を /xxx に変換）
-        rewrite ^/shift2/(.*)$ /$1 break;
-
-        proxy_pass http://localhost:4050;
+        # /shift2/xxx を /xxx に変換して転送（proxy_pass 末尾の / で prefix を除去）
+        # ※ rewrite ^/shift2/(.*)$ /$1 break; は nginx 1.24.0-2ubuntu7.16 の
+        #    回帰バグ (USN-8563-4) で上流 URI が壊れたため使用しない
+        proxy_pass http://localhost:4050/;
         proxy_http_version 1.1;
 
         # WebSocketサポート
