@@ -210,6 +210,20 @@ const API = {
         }
     },
 
+    // ===== iCal購読関連API =====
+
+    // 自分専用のiCal購読URLを取得
+    async getMyIcalUrl(userId) {
+        const response = await fetch(`${config.API_BASE_URL}/ical/my-url?userId=${encodeURIComponent(userId)}`);
+        return await response.json();
+    },
+
+    // 管理者用（全シフト）のiCal購読URLを取得
+    async getAllIcalUrl(email) {
+        const response = await fetch(`${config.API_BASE_URL}/ical/all-url?email=${encodeURIComponent(email)}`);
+        return await response.json();
+    },
+
     // 指定日のカレンダーイベントを削除して再同期
     async cleanAndResyncCalendarDate(date) {
         const controller = new AbortController();

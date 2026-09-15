@@ -358,6 +358,11 @@
         .ical-copy-btn:hover {
             background: #3367d6;
         }
+        .ical-help-link {
+            font-size: 13px;
+            color: #1a73e8;
+            white-space: nowrap;
+        }
         .sync-buttons {
             display: flex;
             gap: 10px;
@@ -2799,6 +2804,12 @@
             </div>
 
             <div id="my-shifts" class="tab-content">
+                <div class="ical-url-box">
+                    <label>Googleカレンダーに表示する（自分のシフトのみ）</label>
+                    <input type="text" id="icalMyUrl" readonly placeholder="読み込み中...">
+                    <button class="ical-copy-btn" onclick="copyMyIcalUrl()">コピー</button>
+                    <a class="ical-help-link" href="help.html#google-calendar" target="_blank" rel="noopener">使い方</a>
+                </div>
                 <div id="myShiftsContent">
                     <!-- 自分のシフト一覧が動的に生成されます -->
                 </div>
