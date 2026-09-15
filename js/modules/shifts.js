@@ -112,6 +112,13 @@ function displayCapacityOnAdminCalendar(capacityData) {
     });
 }
 
+// サーバーが返す「/api/...」形式のパスを、貼り付け可能な絶対URLに変換する
+// 本番は /shift2/ のようなサブパス配下で配信されるため、
+// window.location.origin ではなく config.API_BASE_URL を基準にする
+function toAbsoluteApiUrl(relativeUrl) {
+    return config.API_BASE_URL.replace(/\/api$/, '') + relativeUrl;
+}
+
 // iCal購読URL（全シフト・管理者用）を入力欄にセットする
 async function updateIcalUrl() {
     const input = document.getElementById('icalAllUrl');
@@ -126,8 +133,7 @@ async function updateIcalUrl() {
     try {
         const result = await API.getAllIcalUrl(currentUser.email);
         if (result.success && result.data && result.data.url) {
-            // サーバーは /api からの相対パスを返すため、絶対URLに変換して貼り付け可能にする
-            input.value = new URL(result.data.url, window.location.origin).href;
+            input.value = toAbsoluteApiUrl(result.data.url);
         } else {
             input.value = '（購読URLを取得できませんでした）';
         }
@@ -164,8 +170,7 @@ async function updateMyIcalUrl() {
     try {
         const result = await API.getMyIcalUrl(currentUser.sub);
         if (result.success && result.data && result.data.url) {
-            // サーバーは /api からの相対パスを返すため、絶対URLに変換して貼り付け可能にする
-            input.value = new URL(result.data.url, window.location.origin).href;
+            input.value = toAbsoluteApiUrl(result.data.url);
         } else {
             input.value = '（購読URLを取得できませんでした）';
         }
@@ -853,4 +858,11 @@ async function deleteMyShift(buttonElement, uuids, isSpecial) {
         console.error('シフト情報の取得でエラー:', error);
         alert('シフト情報の取得に失敗しました。');
     }
+}
+
+// テストから実コードを検証できるようにするエクスポートガード
+// （ブラウザでは module が未定義のため no-op になる）
+// 方針: docs/refactoring/phase-1-test-foundation.md
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { toAbsoluteApiUrl };
 }
