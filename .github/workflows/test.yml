@@ -31,6 +31,9 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         if: always()
+        # カバレッジ送信の失敗でテスト結果を赤くしない
+        # （fail_ci_if_error: false はアクション自体のクラッシュには効かない）
+        continue-on-error: true
         with:
           files: ./coverage/lcov.info
           flags: unittests
