@@ -230,6 +230,16 @@ async function loadSpecialShifts() {
 }
 
 /**
+ * お知らせ欄に表示する特別シフトの日時文字列を組み立てる
+ * 日付と時間帯は半角スペース 1 つで区切る（全角だと間が空きすぎて見える）
+ * @param {{date: string, start_time: string, end_time: string}} shift
+ * @returns {string} 例: "2026-10-08 12:30-15:30"
+ */
+function formatSpecialShiftSchedule(shift) {
+    return `${shift.date} ${shift.start_time}-${shift.end_time}`;
+}
+
+/**
  * 特別シフト募集お知らせを表示する関数（一般ユーザー向け）
  */
 function displaySpecialShiftAnnouncement() {
@@ -263,7 +273,7 @@ function displaySpecialShiftAnnouncement() {
     list.innerHTML = futureShifts.map(shift => {
         const name = shift.name || '名称未設定';
         const dateKey = normalizeShiftDate(shift.date);
-        return `<li><a href="#" class="announcement-link" data-date="${escapeHtml(dateKey)}">「${escapeHtml(name)}」の特別シフトを募集中（${escapeHtml(shift.date)}　${escapeHtml(shift.start_time)}-${escapeHtml(shift.end_time)}）</a></li>`;
+        return `<li><a href="#" class="announcement-link" data-date="${escapeHtml(dateKey)}">「${escapeHtml(name)}」の特別シフトを募集中（${escapeHtml(formatSpecialShiftSchedule(shift))}）</a></li>`;
     }).join('');
 
     list.querySelectorAll('.announcement-link').forEach(link => {
@@ -577,4 +587,11 @@ async function handleDeleteSpecialShiftFromList(event) {
         button.disabled = false;
         button.textContent = originalText;
     }
+}
+
+// テストから実コードを検証できるようにするエクスポートガード
+// （ブラウザでは module が未定義のため no-op になる）
+// 方針: docs/refactoring/phase-1-test-foundation.md
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { formatSpecialShiftSchedule };
 }
