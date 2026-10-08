@@ -530,7 +530,8 @@ function mergeShiftsByPerson(shiftsForDate) {
     // 個人ごとにグループ化（時間帯とUUIDのマッピングを保持）
     const shiftsByPerson = {};
     shiftsForDate.forEach(shift => {
-        const personKey = `${getShiftDisplayName(shift)}_${shift.userEmail || shift.email}_${shift.isSpecial ? 'special' : 'regular'}`;
+        // 表示名が同じ別ユーザーを混ぜないよう、userId で区別する
+        const personKey = `${getShiftDisplayName(shift)}_${shift.userId}_${shift.isSpecial ? 'special' : 'regular'}`;
         if (!shiftsByPerson[personKey]) {
             shiftsByPerson[personKey] = {
                 person: shift,
@@ -729,4 +730,11 @@ function setupCalendarBulkDelete() {
             bulkDeleteBtn.textContent = '選択したシフトを削除';
         }
     });
+}
+
+// テストから実コードを検証できるようにするエクスポートガード
+// （ブラウザでは module が未定義のため no-op になる）
+// 方針: docs/refactoring/phase-1-test-foundation.md
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { mergeShiftsByPerson };
 }
