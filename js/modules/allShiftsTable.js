@@ -196,7 +196,7 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
                 <tbody>
                     ${pageShifts.map(shift => `
                         <tr data-shift-uuid="${escapeHtml(shift.uuid)}">
-                            <td style="text-align: center;"><input type="checkbox" class="shift-row-checkbox" data-shift-uuid="${escapeHtml(shift.uuid)}" data-shift-info="${escapeHtml(shift.user_name)} / ${escapeHtml(shift.date)} ${escapeHtml(shift.time_slot)}"></td>
+                            <td style="text-align: center;"><input type="checkbox" class="shift-row-checkbox" data-uuids="${escapeHtml(shift.uuid)}" data-type="${shift.is_special ? 'special' : 'regular'}" data-shift-info="${escapeHtml(shift.user_name)} / ${escapeHtml(shift.date)} ${escapeHtml(shift.time_slot)}"></td>
                             <td>${escapeHtml(shift.user_name)}</td>
                             <td>${formatDateWithWeekday(shift.date)}</td>
                             <td><span class="shift-time-inner">${shift.is_special ? '<span class="special-badge">特別</span>' : '<span class="special-badge-placeholder"></span>'}${escapeHtml(shift.time_slot)}</span>${shift.is_special && shift.shift_name ? `<div class="shift-name-label">${escapeHtml(shift.shift_name)}</div>` : ''}</td>
@@ -205,7 +205,7 @@ function displayAllShiftsTable(shifts, currentPage = 1, itemsPerPage = 50) {
                                 ${shift.calendar_event_id ? '<span style="color: #4CAF50;">✓</span>' : '<span style="color: #999;">-</span>'}
                             </td>
                             <td>
-                                <button class="delete-shift-table-btn" data-shift-uuid="${escapeHtml(shift.uuid)}" data-shift-info="${escapeHtml(shift.user_name)} / ${escapeHtml(shift.date)} ${escapeHtml(shift.time_slot)}">
+                                <button class="delete-shift-table-btn" data-shift-uuid="${escapeHtml(shift.uuid)}" data-type="${shift.is_special ? 'special' : 'regular'}" data-shift-info="${escapeHtml(shift.user_name)} / ${escapeHtml(shift.date)} ${escapeHtml(shift.time_slot)}">
                                     削除
                                 </button>
                             </td>
@@ -275,7 +275,8 @@ function setupAllShiftsCheckboxListeners() {
         const checkedBoxes = document.querySelectorAll('.shift-row-checkbox:checked');
         if (checkedBoxes.length === 0) return;
 
-        const uuids = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-shift-uuid'));
+        const { regularUuids, specialUuids } = collectUuidsByType(checkedBoxes);
+        const uuids = [...regularUuids, ...specialUuids];
 
         const confirmMessage = `選択した ${uuids.length} 件のシフトを削除しますか？\n\nこの操作は取り消せません。`;
         if (!confirm(confirmMessage)) return;
@@ -284,7 +285,7 @@ function setupAllShiftsCheckboxListeners() {
         bulkDeleteBtn.textContent = '削除中...';
 
         try {
-            const result = await API.deleteMultipleShifts(uuids);
+            const result = await deleteShiftsByType(regularUuids, specialUuids);
             if (result.success) {
                 alert(`${uuids.length}件のシフトを削除しました。`);
                 loadAllShiftsTable();
@@ -375,7 +376,10 @@ async function handleDeleteShiftFromTable(event) {
     button.textContent = '削除中...';
 
     try {
-        const result = await API.deleteShift(shiftUuid);
+        // 特別シフト申請は専用 API でキャンセルする
+        const result = button.getAttribute('data-type') === 'special'
+            ? await API.cancelSpecialShiftApplication(shiftUuid)
+            : await API.deleteShift(shiftUuid);
 
         if (result.success) {
             alert('シフトを削除しました');
