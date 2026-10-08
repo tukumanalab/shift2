@@ -222,56 +222,6 @@ function getDefaultCapacity(dayOfWeek) {
     }
 }
 
-// 管理者用：個人ごとに連続する時間帯をマージする関数
-function mergeShiftsByPerson(shiftsForDate) {
-    // 個人ごとにグループ化（時間帯とUUIDのマッピングを保持）
-    const shiftsByPerson = {};
-    shiftsForDate.forEach(shift => {
-        const personKey = `${getShiftDisplayName(shift)}_${shift.userEmail || shift.email}`;
-        if (!shiftsByPerson[personKey]) {
-            shiftsByPerson[personKey] = {
-                person: shift,
-                shiftsData: [] // 元のシフトデータを保持
-            };
-        }
-        shiftsByPerson[personKey].shiftsData.push({
-            timeSlot: shift.timeSlot || shift.time,
-            uuid: shift.uuid
-        });
-    });
-
-    // 各個人の時間帯をマージ
-    const mergedShifts = [];
-    Object.keys(shiftsByPerson).forEach(personKey => {
-        const personData = shiftsByPerson[personKey];
-
-        // 時間帯だけを抽出してマージ
-        const timeSlots = personData.shiftsData.map(s => s.timeSlot);
-        const mergedTimeSlots = mergeConsecutiveTimeSlots(timeSlots);
-
-        mergedTimeSlots.forEach(mergedTimeSlot => {
-            // このマージされた時間帯に対応するUUIDだけを抽出
-            const correspondingUuids = personData.shiftsData
-                .filter(s => {
-                    // マージされた時間帯に含まれる元の時間帯かチェック
-                    // 例: 13:00-14:00には13:00-13:30と13:30-14:00が含まれる
-                    const [mergedStart, mergedEnd] = mergedTimeSlot.split('-');
-                    const [slotStart, slotEnd] = s.timeSlot.split('-');
-                    return slotStart >= mergedStart && slotEnd <= mergedEnd;
-                })
-                .map(s => s.uuid);
-
-            mergedShifts.push({
-                ...personData.person,
-                timeSlot: mergedTimeSlot,
-                uuids: correspondingUuids // このマージ時間帯に対応するUUIDのみ
-            });
-        });
-    });
-
-    return mergedShifts;
-}
-
 // 一括削除アクションバーのHTML文字列を生成する関数
 function createBulkActionBarHTML(barId, countId, btnId) {
     return `<div id="${barId}" class="bulk-delete-action-bar">
@@ -307,4 +257,11 @@ function getCurrentUserData() {
     }
 
     return null;
+}
+
+// テストから実コードを検証できるようにするエクスポートガード
+// （ブラウザでは module が未定義のため no-op になる）
+// 方針: docs/refactoring/phase-1-test-foundation.md
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { getDisplayName, getShiftDisplayName, mergeConsecutiveTimeSlots };
 }

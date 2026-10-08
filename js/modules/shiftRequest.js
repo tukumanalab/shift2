@@ -635,6 +635,7 @@ function displayShiftsOnRequestCalendar(allShifts, allSpecialApps) {
     const regularShifts = (allShifts || []).map(shift => ({
         shiftDate: shift.date,
         timeSlot: shift.time_slot,
+        userId: shift.user_id,
         userName: shift.user_name,
         nickname: shift.nickname,
         realName: shift.real_name,
@@ -645,6 +646,7 @@ function displayShiftsOnRequestCalendar(allShifts, allSpecialApps) {
     const specialShifts = (allSpecialApps || []).map(app => ({
         shiftDate: app.date,
         timeSlot: app.time_slot,
+        userId: app.user_id,
         userName: app.user_name,
         nickname: app.nickname,
         realName: app.real_name,
