@@ -4,6 +4,8 @@
  * および削除フローの動作を検証する
  */
 
+const { collectUuidsByType } = require('../js/modules/shifts.js');
+
 // ---- インラインロジック定義（モジュール非依存） ----
 
 function createBulkActionBarHTML(barId, countId, btnId) {
@@ -104,43 +106,31 @@ describe('複数選択削除機能テスト', () => {
 
   // ------------------------------------------------------------------
   describe('UUID抽出ロジック', () => {
-    describe('カレンダー: data-uuids (カンマ区切り)', () => {
-      // calendar.js: setupCalendarBulkDelete の UUID 抽出ロジック
-      function extractCalendarUuids(checkedBoxes) {
-        const allUuids = [];
-        checkedBoxes.forEach((cb) => {
-          const uuidsStr = cb.getAttribute('data-uuids');
-          if (uuidsStr)
-            uuidsStr.split(',').forEach((uuid) => {
-              if (uuid) allUuids.push(uuid);
-            });
-        });
-        return allUuids;
-      }
+    // 実コード（js/modules/shifts.js の collectUuidsByType）を直接 import して検証する。
+    // カレンダー / 自分のシフト / 全シフト一覧の一括削除はすべてこの関数で UUID を取り出す。
+    function checkbox(uuids, type = null) {
+      const attrs = { 'data-uuids': uuids, 'data-type': type };
+      return { getAttribute: (name) => (name in attrs ? attrs[name] : null) };
+    }
 
+    describe('カレンダー: data-uuids (カンマ区切り)', () => {
       test('複数チェックボックスの UUID を正しく抽出・フラット化すること', () => {
-        const boxes = [
-          { getAttribute: () => 'uuid-a1,uuid-a2' },
-          { getAttribute: () => 'uuid-b1' },
-        ];
-        expect(extractCalendarUuids(boxes)).toEqual(['uuid-a1', 'uuid-a2', 'uuid-b1']);
+        const boxes = [checkbox('uuid-a1,uuid-a2'), checkbox('uuid-b1')];
+        expect(collectUuidsByType(boxes).regularUuids).toEqual(['uuid-a1', 'uuid-a2', 'uuid-b1']);
       });
 
       test('空文字列の UUID を除外すること', () => {
-        const boxes = [{ getAttribute: () => 'uuid-1,,uuid-2' }];
-        expect(extractCalendarUuids(boxes)).toEqual(['uuid-1', 'uuid-2']);
+        const boxes = [checkbox('uuid-1,,uuid-2')];
+        expect(collectUuidsByType(boxes).regularUuids).toEqual(['uuid-1', 'uuid-2']);
       });
 
       test('data-uuids が null のチェックボックスを無視すること', () => {
-        const boxes = [
-          { getAttribute: () => null },
-          { getAttribute: () => 'uuid-ok' },
-        ];
-        expect(extractCalendarUuids(boxes)).toEqual(['uuid-ok']);
+        const boxes = [checkbox(null), checkbox('uuid-ok')];
+        expect(collectUuidsByType(boxes).regularUuids).toEqual(['uuid-ok']);
       });
 
       test('チェックボックスが空のとき空配列を返すこと', () => {
-        expect(extractCalendarUuids([])).toEqual([]);
+        expect(collectUuidsByType([])).toEqual({ regularUuids: [], specialUuids: [] });
       });
     });
 
@@ -170,22 +160,18 @@ describe('複数選択削除機能テスト', () => {
       });
     });
 
-    describe('全シフト一覧: data-shift-uuid (単一)', () => {
-      // allShiftsTable.js: Array.from(checkedBoxes).map(cb => cb.getAttribute('data-shift-uuid'))
-      function extractAllShiftsUuids(checkedBoxes) {
-        return Array.from(checkedBoxes).map((cb) => cb.getAttribute('data-shift-uuid'));
-      }
-
-      test('各チェックボックスの data-shift-uuid を配列として抽出すること', () => {
-        const boxes = [
-          { getAttribute: (attr) => (attr === 'data-shift-uuid' ? 'uuid-x' : null) },
-          { getAttribute: (attr) => (attr === 'data-shift-uuid' ? 'uuid-y' : null) },
-        ];
-        expect(extractAllShiftsUuids(boxes)).toEqual(['uuid-x', 'uuid-y']);
+    describe('全シフト一覧: data-uuids (単一) + data-type', () => {
+      test('各チェックボックスの data-uuids を配列として抽出すること', () => {
+        const boxes = [checkbox('uuid-x', 'regular'), checkbox('uuid-y', 'regular')];
+        expect(collectUuidsByType(boxes).regularUuids).toEqual(['uuid-x', 'uuid-y']);
       });
 
-      test('チェックボックスが空のとき空配列を返すこと', () => {
-        expect(extractAllShiftsUuids([])).toEqual([]);
+      test('特別シフト申請の行は specialUuids に振り分けること', () => {
+        const boxes = [checkbox('uuid-x', 'regular'), checkbox('uuid-s', 'special')];
+        expect(collectUuidsByType(boxes)).toEqual({
+          regularUuids: ['uuid-x'],
+          specialUuids: ['uuid-s'],
+        });
       });
     });
   });
