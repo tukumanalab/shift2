@@ -513,6 +513,38 @@ function displayMyShifts(container, shiftsData) {
     }
 }
 
+// チェックボックス群から UUID を通常シフト / 特別シフト申請に振り分ける
+// （data-uuids: カンマ区切りの UUID、data-type: 'special' なら特別シフト申請）
+function collectUuidsByType(checkboxes) {
+    const regularUuids = [];
+    const specialUuids = [];
+    checkboxes.forEach(cb => {
+        const uuidsStr = cb.getAttribute('data-uuids');
+        if (!uuidsStr) return;
+        const target = cb.getAttribute('data-type') === 'special' ? specialUuids : regularUuids;
+        uuidsStr.split(',').forEach(uuid => {
+            if (uuid) target.push(uuid);
+        });
+    });
+    return { regularUuids, specialUuids };
+}
+
+// 通常シフトと特別シフト申請を、それぞれの API で削除する
+// （特別シフト申請は shifts テーブルにないため、通常シフト用 API では削除できない）
+async function deleteShiftsByType(regularUuids, specialUuids) {
+    const promises = [];
+    if (regularUuids.length > 0) {
+        promises.push(API.deleteMultipleShifts(regularUuids));
+    }
+    specialUuids.forEach(uuid => {
+        promises.push(API.cancelSpecialShiftApplication(uuid));
+    });
+
+    const results = await Promise.all(promises);
+    const failed = results.find(r => !r.success);
+    return failed ? { success: false, error: failed.error } : { success: true };
+}
+
 // 自分のシフト一覧のチェックボックスイベントリスナーをセットアップ
 function setupMyShiftsCheckboxListeners() {
     const selectAll = document.getElementById('myShiftsSelectAll');
@@ -545,19 +577,7 @@ function setupMyShiftsCheckboxListeners() {
         const checkedBoxes = document.querySelectorAll('.my-shift-row-checkbox:checked');
         if (checkedBoxes.length === 0) return;
 
-        const regularUuids = [];
-        const specialUuids = [];
-        checkedBoxes.forEach(cb => {
-            const uuidsStr = cb.getAttribute('data-uuids');
-            const type = cb.getAttribute('data-type');
-            if (uuidsStr) {
-                uuidsStr.split(',').forEach(uuid => {
-                    if (!uuid) return;
-                    if (type === 'special') specialUuids.push(uuid);
-                    else regularUuids.push(uuid);
-                });
-            }
-        });
+        const { regularUuids, specialUuids } = collectUuidsByType(checkedBoxes);
 
         if (regularUuids.length === 0 && specialUuids.length === 0) return;
 
@@ -568,18 +588,9 @@ function setupMyShiftsCheckboxListeners() {
         bulkDeleteBtn.textContent = '削除中...';
 
         try {
-            const promises = [];
-            if (regularUuids.length > 0) {
-                promises.push(API.deleteMultipleShifts(regularUuids));
-            }
-            specialUuids.forEach(uuid => {
-                promises.push(API.cancelSpecialShiftApplication(uuid));
-            });
+            const result = await deleteShiftsByType(regularUuids, specialUuids);
 
-            const results = await Promise.all(promises);
-            const anyFailed = results.some(r => !r.success);
-
-            if (!anyFailed) {
+            if (result.success) {
                 alert(`${checkedBoxes.length}件のシフトを削除しました。`);
                 await loadMyShifts();
             } else {
@@ -706,8 +717,10 @@ async function deleteShiftFromModal(buttonElement, uuids) {
     buttonElement.style.opacity = '0.6';
 
     try {
-        // 複数シフトを一括削除
-        const result = await API.deleteMultipleShifts(uuids);
+        // 複数シフトを一括削除（特別シフト申請は専用 API でキャンセル）
+        const regularUuids = targetShifts.filter(s => !s.isSpecial).map(s => s.uuid);
+        const specialUuids = targetShifts.filter(s => s.isSpecial).map(s => s.uuid);
+        const result = await deleteShiftsByType(regularUuids, specialUuids);
 
         if (!result.success) {
             throw new Error(result.error || 'シフトの削除に失敗しました');
@@ -864,5 +877,5 @@ async function deleteMyShift(buttonElement, uuids, isSpecial) {
 // （ブラウザでは module が未定義のため no-op になる）
 // 方針: docs/refactoring/phase-1-test-foundation.md
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { toAbsoluteApiUrl };
+    module.exports = { toAbsoluteApiUrl, collectUuidsByType, deleteShiftsByType };
 }

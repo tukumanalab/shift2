@@ -644,6 +644,7 @@ function displayShiftsForDate(container, dateKey) {
                 checkbox.type = 'checkbox';
                 checkbox.className = 'calendar-shift-checkbox';
                 checkbox.setAttribute('data-uuids', (shift.uuids || []).join(','));
+                checkbox.setAttribute('data-type', shift.isSpecial ? 'special' : 'regular');
                 checkbox.addEventListener('click', (e) => e.stopPropagation());
                 checkbox.addEventListener('change', () => {
                     personDiv.classList.toggle('is-selected', checkbox.checked);
@@ -703,11 +704,7 @@ function setupCalendarBulkDelete() {
         const checkedBoxes = document.querySelectorAll('.calendar-shift-checkbox:checked');
         if (checkedBoxes.length === 0) return;
 
-        const allUuids = [];
-        checkedBoxes.forEach(cb => {
-            const uuidsStr = cb.getAttribute('data-uuids');
-            if (uuidsStr) uuidsStr.split(',').forEach(uuid => { if (uuid) allUuids.push(uuid); });
-        });
+        const { regularUuids, specialUuids } = collectUuidsByType(checkedBoxes);
 
         if (!confirm(`選択した ${checkedBoxes.length} 件のシフトを削除しますか？\n\nこの操作は取り消せません。`)) return;
 
@@ -715,7 +712,7 @@ function setupCalendarBulkDelete() {
         bulkDeleteBtn.textContent = '削除中...';
 
         try {
-            const result = await API.deleteMultipleShifts(allUuids);
+            const result = await deleteShiftsByType(regularUuids, specialUuids);
             if (result.success) {
                 alert(`${checkedBoxes.length}件のシフトを削除しました。`);
                 bulkDeleteBtn.textContent = '選択したシフトを削除';
